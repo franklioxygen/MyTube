@@ -185,6 +185,22 @@ describe("bilibiliCoreDownload completeness check", () => {
     );
   });
 
+  it("rejects a run that produced no file before probing it", async () => {
+    // The completeness probe is fail-open and cannot answer "nothing was
+    // produced"; findVideoFileInTemp is the gate that must keep doing so.
+    mocks.findVideoFileInTemp.mockReturnValue(null);
+
+    const result = await downloadVideo(
+      URL,
+      "/mock/videos/out.mp4",
+      "/mock/images/out.jpg",
+    );
+
+    expect(result.error).toContain("Downloaded video file not found");
+    expect(mocks.verifyDownloadedMediaComplete).not.toHaveBeenCalled();
+    expect(mocks.moveVideoFile).not.toHaveBeenCalled();
+  });
+
   it("keeps a complete download", async () => {
     const result = await downloadVideo(
       URL,

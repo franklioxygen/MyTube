@@ -18,6 +18,8 @@ vi.mock('../../../services/downloaders/downloadIntegrity', async (importOriginal
     verifyDownloadedMediaComplete: mockVerifyDownloadedMediaComplete,
 }));
 const videoPathExistsChecks = vi.hoisted(() => new Map<string, number>());
+// Flipped by the no-output gate test to model yt-dlp exiting 0 without writing.
+const suppressVideoOutput = vi.hoisted(() => ({ value: false }));
 const additionalExistingPaths = vi.hoisted(() => new Set<string>());
 
 vi.mock('../../../utils/ytDlpUtils', () => ({
@@ -96,6 +98,9 @@ vi.mock('fs-extra', () => {
                 if (additionalExistingPaths.has(value)) {
                     return true;
                 }
+                if (suppressVideoOutput.value) {
+                    return false;
+                }
                 if (
                     !/[\\/]uploads[\\/]videos[\\/]Test\.Video-Test\.Author-2023(?:_\d+)?\.(mp4|webm)$/.test(
                         value
@@ -158,6 +163,7 @@ describe('YtDlpDownloader format defaults', () => {
         vi.clearAllMocks();
         videoPathExistsChecks.clear();
         additionalExistingPaths.clear();
+        suppressVideoOutput.value = false;
         mockGetUserYtDlpConfig.mockReturnValue({});
         mockVerifyDownloadedMediaComplete.mockResolvedValue({ complete: true });
         vi.mocked(planOwnedReplacementStagingPathSync).mockReset().mockReturnValue(null);
@@ -185,6 +191,18 @@ describe('YtDlpDownloader format defaults', () => {
         expect(args.format).not.toContain('av01');
         expect(args.mergeOutputFormat).toBe('webm/mp4');
         expect(args.output).toContain('.%(ext)s');
+    });
+
+    it('rejects a run that produced no file before probing it', async () => {
+        // The completeness probe is fail-open and cannot answer "nothing was
+        // produced"; resolvePlayableMediaFilePath is the gate that must.
+        suppressVideoOutput.value = true;
+
+        await expect(YtDlpDownloader.downloadVideo('https://www.youtube.com/watch?v=123456'))
+            .rejects.toThrow('Downloaded video file not found after yt-dlp completed');
+
+        expect(mockVerifyDownloadedMediaComplete).not.toHaveBeenCalled();
+        expect(storageService.saveVideo).not.toHaveBeenCalled();
     });
 
     it('passes source duration and effective config to the completeness check', async () => {

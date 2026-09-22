@@ -1,5 +1,6 @@
 
 import { spawn } from 'child_process';
+import axios from 'axios';
 import { EventEmitter } from 'events';
 import fs from 'fs-extra';
 import path from 'path';
@@ -7,7 +8,7 @@ import puppeteer from 'puppeteer';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MissAVDownloader } from '../../../services/downloaders/MissAVDownloader';
 import { cleanupTemporaryFiles, isCancellationError, isDownloadActive, safeRemove } from '../../../utils/downloadUtils';
-import { flagsToArgs, getUserYtDlpConfig, isYtDlpImpersonateAvailable } from '../../../utils/ytDlpUtils';
+import { flagsToArgs, getAxiosProxyConfig, getUserYtDlpConfig, isYtDlpImpersonateAvailable } from '../../../utils/ytDlpUtils';
 import * as security from '../../../utils/security';
 import { logger } from '../../../utils/logger';
 import { getMissAVPlaceholderTitle } from '../../../utils/helpers';
@@ -22,6 +23,21 @@ import * as thumbnailMirror from '../../../services/thumbnailMirrorService';
 
 vi.mock('../../../services/downloaders/downloadIntegrity', () => ({
   verifyDownloadedMediaComplete: vi.fn().mockResolvedValue({ complete: true }),
+}));
+
+// A playlist body the mocked browser reports having fetched itself. The
+// duration lookup reads only these - it issues no requests of its own.
+const capturedPlaylist = vi.hoisted(() => ({ value: null as string | null }));
+// Set to model the playlist request having been redirected.
+const capturedPlaylistFinalUrl = vi.hoisted(() => ({ value: null as string | null }));
+const capturedPlaylistHeaders = vi.hoisted(() => ({ value: {} as Record<string, string> }));
+// Knobs for the concurrent-response cap test.
+const floodPlaylistResponses = vi.hoisted(() => ({ value: 0 }));
+const floodBodyReads = vi.hoisted(() => ({ value: 0 }));
+// Nothing in this flow should reach the network; an axios call from the
+// duration lookup would be a regression back to fetching playlists directly.
+vi.mock('axios', () => ({
+  default: { get: vi.fn(async () => { throw new Error('network disabled in tests'); }) },
 }));
 
 vi.mock('puppeteer');
@@ -125,6 +141,11 @@ describe('MissAVDownloader', () => {
     vi.mocked(security.pathExistsTrustedSync).mockReturnValue(false);
     vi.mocked(storageService.getSettings).mockReturnValue({} as any);
     vi.mocked(isDownloadActive).mockReturnValue(true);
+    capturedPlaylist.value = null;
+    capturedPlaylistFinalUrl.value = null;
+    capturedPlaylistHeaders.value = {};
+    floodPlaylistResponses.value = 0;
+    floodBodyReads.value = 0;
     (getUserYtDlpConfig as ReturnType<typeof vi.fn>).mockReturnValue({});
   });
 
@@ -400,8 +421,39 @@ describe('MissAVDownloader', () => {
     ) {
       const mockResponse = { url: () => 'https://surrit.com/playlist.m3u8' };
       return {
-        on: vi.fn((event: string, cb: (req: { url(): string }) => void) => {
+        on: vi.fn((event: string, cb: (req: any) => void) => {
           if (event === 'request') requestCallback?.capture(cb);
+          if (event === 'response' && floodPlaylistResponses.value > 0) {
+            // Many distinct .m3u8 responses arriving concurrently, as a hostile
+            // or misbehaving page can produce. Bodies never resolve, so every
+            // read that starts is still outstanding when the cap is measured.
+            for (let i = 0; i < floodPlaylistResponses.value; i += 1) {
+              cb({
+                url: () => `https://surrit.com/flood-${i}.m3u8`,
+                status: () => 200,
+                headers: () => ({}),
+                text: () => { floodBodyReads.value += 1; return new Promise(() => {}); },
+                request: () => ({ redirectChain: () => [] }),
+              });
+            }
+          }
+          if (event === 'response' && capturedPlaylist.value !== null) {
+            // What the browser received for the playlist it fetched itself.
+            // `finalUrl` models a redirect: the body arrives under the URL the
+            // request ended at, while the request listener saw where it started.
+            cb({
+              url: () => capturedPlaylistFinalUrl.value ?? 'https://surrit.com/playlist.m3u8',
+              status: () => 200,
+              headers: () => capturedPlaylistHeaders.value,
+              text: async () => capturedPlaylist.value,
+              request: () => ({
+                redirectChain: () =>
+                  capturedPlaylistFinalUrl.value
+                    ? [{ url: () => 'https://surrit.com/playlist.m3u8' }]
+                    : [],
+              }),
+            });
+          }
         }),
         goto: vi.fn().mockResolvedValue(undefined),
         title: vi.fn().mockResolvedValue('Test Title'),
@@ -420,10 +472,13 @@ describe('MissAVDownloader', () => {
       const release = vi.fn();
       let videoPath: string;
       let thumbnailPath: string;
+      let stagingVideoPath: string | null;
+      let producedOutput: boolean;
 
       beforeEach(() => {
         videoPath = path.join(VIDEOS_DIR, 'MissAV.TESTVIDEO-missavcom-2026_2.mp4');
         thumbnailPath = path.join(IMAGES_DIR, 'MissAV.TESTVIDEO-missavcom-2026_2.jpg');
+        stagingVideoPath = null;
         vi.mocked(storageService.getVideoBySourceUrl).mockReturnValue(undefined);
         vi.mocked(storageService.checkVideoDownloadBySourceId).mockReturnValue({ found: false });
         vi.mocked(verifyDownloadedMediaComplete).mockReset().mockResolvedValue({ complete: true });
@@ -441,6 +496,13 @@ describe('MissAVDownloader', () => {
         }));
         vi.spyOn(allocator, 'planOwnedReplacementStagingPathSync').mockReturnValue(null);
         vi.spyOn(allocator, 'replaceOwnedFileWithBackupSync').mockImplementation(() => {});
+        // The downloader now refuses to publish an output it cannot find, so the
+        // harness has to model yt-dlp actually having written one. `producedOutput`
+        // is the switch a test flips to simulate a run that wrote nothing.
+        producedOutput = true;
+        vi.spyOn(security, 'pathExistsSafeSync').mockImplementation(
+          candidate => producedOutput && (candidate === videoPath || candidate === stagingVideoPath),
+        );
         vi.spyOn(metadata, 'getVideoDuration').mockResolvedValue(600);
         vi.spyOn(metadata, 'getVideoDimensions').mockResolvedValue(null);
         vi.spyOn(mediaServer, 'syncMediaServerArtifactsForRecord').mockImplementation(() => {});
@@ -456,6 +518,7 @@ describe('MissAVDownloader', () => {
 
       function stageReplacement() {
         const stage = path.join(VIDEOS_DIR, '.mytube-redownload-integrity.mp4');
+        stagingVideoPath = stage;
         const thumbStage = path.join(IMAGES_DIR, '.mytube-redownload-integrity.jpg');
         const existing = { id: 'existing', title: 'Existing video', mediaType: 'video' as const,
           sourceUrl: url, createdAt: '2026-01-01T00:00:00.000Z',
@@ -478,7 +541,122 @@ describe('MissAVDownloader', () => {
         expect(release).toHaveBeenCalledOnce();
       }
 
-      it('checks the actual output with an explicit unknown source duration before saving', async () => {
+      it('refuses to publish when yt-dlp exited cleanly but wrote no file', async () => {
+        // The completeness probe is fail-open, so it reports an unreadable file as
+        // unknown rather than broken and cannot answer this on its own.
+        producedOutput = false;
+
+        await expect(MissAVDownloader.downloadVideo(url)).rejects.toThrow(
+          'MissAV download produced no output',
+        );
+
+        expect(verifyDownloadedMediaComplete).not.toHaveBeenCalled();
+        expect(storageService.saveVideo).not.toHaveBeenCalled();
+        expect(storageService.persistDownloadedMediaIdentity).not.toHaveBeenCalled();
+        expect(storageService.updateVideo).not.toHaveBeenCalled();
+        expect(release).toHaveBeenCalledOnce();
+      });
+
+      it('does not replace an existing library copy when the re-download wrote nothing', async () => {
+        stageReplacement();
+        producedOutput = false;
+
+        await expect(MissAVDownloader.downloadVideo(url)).rejects.toThrow(
+          'MissAV download produced no output',
+        );
+
+        expect(allocator.replaceOwnedFileWithBackupSync).not.toHaveBeenCalled();
+        expect(storageService.updateVideo).not.toHaveBeenCalled();
+      });
+
+      it('passes the playlist duration to the completeness check', async () => {
+        capturedPlaylist.value = [
+          '#EXTM3U', '#EXTINF:10.000,', 'a.ts', '#EXTINF:14.500,', 'b.ts', '#EXT-X-ENDLIST', '',
+        ].join('\n');
+
+        await MissAVDownloader.downloadVideo(url);
+
+        expect(verifyDownloadedMediaComplete).toHaveBeenCalledExactlyOnceWith(videoPath, {
+          sourceDurationSeconds: 24.5, userConfig: {},
+        });
+      });
+
+      it('uses the playlist body the browser already fetched', async () => {
+        // The CDN 403s a plain Node request, which is why this is the only
+        // source: axios must not be consulted at all.
+        capturedPlaylist.value = [
+          '#EXTM3U', '#EXTINF:30.000,', 'a.ts', '#EXTINF:30.000,', 'b.ts', '#EXT-X-ENDLIST', '',
+        ].join('\n');
+
+        await MissAVDownloader.downloadVideo(url);
+
+        expect(verifyDownloadedMediaComplete).toHaveBeenCalledExactlyOnceWith(videoPath, {
+          sourceDurationSeconds: 60, userConfig: {},
+        });
+        expect(axios.get).not.toHaveBeenCalled();
+      });
+
+      it('falls back to an unknown source duration when the browser captured no playlist', async () => {
+        // Degrades to the track comparison rather than guessing: a source
+        // duration wrong in the long direction would reject good downloads.
+        capturedPlaylist.value = null;
+
+        await MissAVDownloader.downloadVideo(url);
+
+        expect(verifyDownloadedMediaComplete).toHaveBeenCalledExactlyOnceWith(videoPath, {
+          sourceDurationSeconds: null, userConfig: {},
+        });
+      });
+
+      it('finds a captured body under the URL the request started at', async () => {
+        // The request listener records the pre-redirect URL, so that is what the
+        // selector picks; the body arrives under the post-redirect URL. Keyed
+        // only by the latter, the lookup would miss and the direct fallback
+        // would then refuse the redirect, leaving no duration at all.
+        capturedPlaylistFinalUrl.value = 'https://cdn.surrit.com/final/playlist.m3u8';
+        capturedPlaylist.value = [
+          '#EXTM3U', '#EXTINF:20.000,', 'a.ts', '#EXTINF:20.000,', 'b.ts', '#EXT-X-ENDLIST', '',
+        ].join('\n');
+
+        await MissAVDownloader.downloadVideo(url);
+
+        expect(verifyDownloadedMediaComplete).toHaveBeenCalledExactlyOnceWith(videoPath, {
+          sourceDurationSeconds: 40, userConfig: {},
+        });
+        expect(axios.get).not.toHaveBeenCalled();
+      });
+
+      it('bounds how many bodies are read at once, not just how many are kept', async () => {
+        // The slot has to be reserved before the read starts. Counting only once
+        // a body resolves lets every concurrent handler see the same totals and
+        // begin its own read, so the retained map stays bounded while the bodies
+        // being materialized do not.
+        floodPlaylistResponses.value = 80;
+
+        await MissAVDownloader.downloadVideo(url);
+
+        expect(floodBodyReads.value).toBeLessThanOrEqual(32);
+        // Also demonstrates the capture wait is bounded: none of these bodies
+        // ever resolve, yet the download still completed.
+      }, 20_000);
+
+      it('does not materialize a body that declares itself oversized', async () => {
+        capturedPlaylistHeaders.value = { 'content-length': String(64 * 1024 * 1024) };
+        // A body that would otherwise have produced a 5s duration. Refused
+        // before it is read, so it never reaches the capture map.
+        capturedPlaylist.value = '#EXTM3U\n#EXTINF:5.000,\na.ts\n#EXT-X-ENDLIST\n';
+
+        await MissAVDownloader.downloadVideo(url);
+
+        // Refused before reading, so no duration and a direct retry instead.
+        expect(verifyDownloadedMediaComplete).toHaveBeenCalledExactlyOnceWith(videoPath, {
+          sourceDurationSeconds: null, userConfig: {},
+        });
+      });
+
+
+
+      it('checks the actual output before saving', async () => {
         await MissAVDownloader.downloadVideo(url);
         expect(verifyDownloadedMediaComplete).toHaveBeenCalledExactlyOnceWith(videoPath, {
           sourceDurationSeconds: null, userConfig: {},
@@ -556,7 +734,11 @@ describe('MissAVDownloader', () => {
           close: vi.fn().mockResolvedValue(undefined),
         } as any);
         vi.spyOn(MissAVDownloader.prototype as any, 'downloadThumbnail').mockResolvedValue(true);
-        vi.spyOn(security, 'pathExistsSafeSync').mockImplementation(candidate => candidate === oldPath);
+        // The download wrote its output and the superseded copy is still on disk;
+        // both must read as existing or the downloader's no-output gate fires first.
+        vi.spyOn(security, 'pathExistsSafeSync').mockImplementation(
+          candidate => candidate === oldPath || candidate === videoPath,
+        );
         const unlink = vi.spyOn(security, 'unlinkSafeSync').mockImplementation(() => {});
         const deleteMirror = vi.spyOn(thumbnailMirror, 'deleteSmallThumbnailMirrorSync').mockImplementation(() => {});
         if (failure === 'identity') {

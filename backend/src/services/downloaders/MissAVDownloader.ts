@@ -38,6 +38,7 @@ import {
   isYtDlpImpersonateAvailable,
 } from "../../utils/ytDlpUtils";
 import { appendYtDlpInputOperand } from "../../utils/ytdlp/flags";
+import { settleAllWithin } from "../../utils/concurrency";
 import { spawnYtDlp, withYtDlpRelease } from "../../utils/ytdlp/release";
 import {
   removeMediaServerArtifactsForVideo,
@@ -63,10 +64,24 @@ import {
   getMissAvPuppeteerLaunchOptions,
   navigateMissAvPage,
 } from "./missav/puppeteer";
-import { selectBestM3u8Url } from "./missav/m3u8";
+import { PlaylistCaptureBudget } from "./missav/captureBudget";
+import { resolveM3u8DurationSeconds, selectBestM3u8Url } from "./missav/m3u8";
 import { planMissAvOutputPaths } from "./missav/outputPaths";
 
 const MISSAV_FAILED_REQUEST_LOG_LIMIT = 10;
+
+// A media playlist for a long VOD is tens of KB; this only bounds the damage
+// if the URL filter ever matches something that is not a playlist.
+const MISSAV_MAX_CAPTURED_PLAYLIST_BYTES = 4 * 1024 * 1024;
+
+// How long the page load may be held open waiting for playlist bodies that
+// have not finished arriving. They are an optimisation, not a requirement.
+const MISSAV_PLAYLIST_CAPTURE_TIMEOUT_MS = 5_000;
+
+// A page can emit many distinct .m3u8 responses, so the per-body cap alone
+// does not bound what is retained. These do.
+const MISSAV_MAX_CAPTURED_PLAYLISTS = 32;
+const MISSAV_MAX_CAPTURED_PLAYLIST_TOTAL_BYTES = 16 * 1024 * 1024;
 
 function resolveMissAvMergeOutputFormat(
   userConfig: Record<string, unknown>,
@@ -320,6 +335,25 @@ export class MissAVDownloader extends BaseDownloader {
 
       // Declared before try so they are accessible after browser is closed.
       const m3u8Urls: string[] = [];
+      // Bodies of the playlists the browser itself fetched. The m3u8 host sits
+      // behind Cloudflare bot management that fingerprints the TLS handshake -
+      // see the impersonation note on the download flags below - so a plain
+      // Node request for the same URL is answered with 403. The browser has
+      // already paid that cost with an accepted fingerprint and its session
+      // cookies, so reusing what it received is both free and the only thing
+      // that works on the preferred host.
+      const capturedPlaylists = new Map<string, string>();
+      const pendingCaptures: Array<Promise<unknown>> = [];
+      // Any hop URL -> the URL its body actually arrived at, so a redirected
+      // master's relative variant URIs resolve against the right base.
+      const capturedFinalUrls = new Map<string, string>();
+      // Tracked apart from the map, which holds one entry per redirect hop and
+      // so overstates how many bodies are actually retained.
+      const captureBudget = new PlaylistCaptureBudget(
+        MISSAV_MAX_CAPTURED_PLAYLISTS,
+        MISSAV_MAX_CAPTURED_PLAYLIST_BYTES,
+        MISSAV_MAX_CAPTURED_PLAYLIST_TOTAL_BYTES,
+      );
       const isM3u8 = (u: string) => u.includes(".m3u8") && !u.includes("preview");
       let failedRequestLogCount = 0;
       let html = "";
@@ -357,6 +391,42 @@ export class MissAVDownloader extends BaseDownloader {
               `cf-ray=${headers["cf-ray"] ?? "none"} ` +
               `server=${headers["server"] ?? "?"} ` +
               `set-cookie=${headers["set-cookie"] ? "yes" : "no"} ${resUrl}`,
+          );
+
+          if (response.status() !== 200 || capturedPlaylists.has(resUrl)) return;
+
+          // Reserve room before reading: concurrent responses would otherwise
+          // all see the same totals and each start a read. See
+          // PlaylistCaptureBudget for why the reservation is provisional.
+          const ticket = captureBudget.reserve(Number(headers["content-length"]));
+          if (!ticket) return;
+
+          // Best-effort: a body that cannot be read (aborted request, page
+          // already gone) simply leaves this URL uncaptured, and the duration
+          // lookup reports no duration for it.
+          pendingCaptures.push(
+            response
+              .text()
+              .then((body) => {
+                if (typeof body !== "string" || !ticket.settle(body.length)) {
+                  ticket.settle(null);
+                  return;
+                }
+                // A redirected request is recorded by the request listener under
+                // the URL it started at, while the body arrives under the URL it
+                // ended at. Key it under every hop so a lookup for either finds
+                // it - otherwise the URL the selector picked would miss.
+                for (const hopUrl of [
+                  resUrl,
+                  ...response.request().redirectChain().map((hop) => hop.url()),
+                ]) {
+                  capturedPlaylists.set(hopUrl, body);
+                  // Relative variant URIs in a redirected master must resolve
+                  // against where it ended up, not where the request started.
+                  capturedFinalUrls.set(hopUrl, resUrl);
+                }
+              })
+              .catch(() => ticket.settle(null)),
           );
         });
 
@@ -414,6 +484,14 @@ export class MissAVDownloader extends BaseDownloader {
         }
 
         html = await page.content();
+        // The bodies must be read while the page is still alive; after
+        // browser.close() the responses can no longer be resolved. Bounded,
+        // because a 200 whose body then stalls leaves response.text() pending
+        // forever - and this wait sits in front of closing the browser and
+        // starting the download, before any cancellation callback is
+        // registered, so an unbounded wait here hangs the download with no way
+        // to abort it. A body that has not arrived by now is not worth that.
+        await settleAllWithin(pendingCaptures, MISSAV_PLAYLIST_CAPTURE_TIMEOUT_MS);
       } finally {
         // Always close the browser, even when a non-timeout error is thrown,
         // to prevent Chromium processes from being left behind.
@@ -620,6 +698,23 @@ export class MissAVDownloader extends BaseDownloader {
       const referer = `${urlObjForReferer.protocol}//${urlObjForReferer.host}/`;
       logger.info("Using Referer:", referer);
 
+      // MissAV is the one path with no source duration, which leaves it with
+      // only the track comparison and blind to a download shortened equally
+      // across both tracks. The playlist answers it authoritatively: it
+      // describes the exact stream being fetched. Read from what the browser
+      // already received - no request is issued here - so every uncertain case
+      // yields null, which is the behaviour without this.
+      const sourceDurationSeconds = resolveM3u8DurationSeconds(
+        m3u8Url,
+        (target) => capturedPlaylists.get(target),
+        (requested) => capturedFinalUrls.get(requested),
+      );
+      logger.info(
+        sourceDurationSeconds == null
+          ? "MissAV playlist duration could not be established; the completeness check will compare tracks only."
+          : `MissAV playlist duration: ${sourceDurationSeconds.toFixed(1)}s`,
+      );
+
       // The m3u8 host (e.g. surrit.com) sits behind Cloudflare bot management
       // that fingerprints the TLS/JA3 handshake; a default yt-dlp request gets a
       // 403. Route every request through curl_cffi browser impersonation so the
@@ -791,9 +886,23 @@ export class MissAVDownloader extends BaseDownloader {
 
       const downloader = new MissAVDownloader();
       downloader.throwIfCancelled(downloadId);
+      // The completeness probe is deliberately fail-open: a file it cannot read
+      // is reported as unknown, not as broken, so a host without ffprobe keeps
+      // working. That means it cannot answer "yt-dlp produced nothing at all",
+      // and unlike the other downloaders - which gate on findVideoFileInTemp and
+      // resolvePlayableMediaFilePath - nothing here asked that question. A run
+      // that exits 0 without writing the expected file would reach the database
+      // and save a row pointing at a file that never existed.
+      if (!pathExistsSafeSync(videoDownloadPath, VIDEOS_DIR)) {
+        throw new Error(
+          `MissAV download produced no output at ${videoDownloadPath}. ` +
+            `The download was discarded; try downloading again.`
+        );
+      }
       const completeness = await verifyDownloadedMediaComplete(videoDownloadPath, {
-        // MissAV scrapes no duration; only track agreement can be checked.
-        sourceDurationSeconds: null,
+        // Null whenever the playlist could not answer it, which leaves only the
+        // track comparison - the behaviour before the playlist was consulted.
+        sourceDurationSeconds,
         userConfig,
       });
       // Cancellation can remove the file while ffprobe is running. A failed
