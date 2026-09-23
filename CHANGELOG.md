@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v1.11.10 (2026-09-22)
+
 ### Feature
 
 - Add a library-wide media integrity audit at `GET /api/media-integrity-audit` (admin). The completeness check added alongside it protects new downloads only, so a file that was already damaged when it entered the library was never re-examined and the only way to find it was to play it until it broke - the three truncated videos that prompted this work were located by an ad-hoc ffprobe loop, not by anything the product could do. The audit re-runs the same verdict over what is on disk, following the shape of the existing media-collision audit, and reports per row whether the file is missing, whether its audio and video tracks disagree about length, whether the stored duration no longer matches the file, or whether ffprobe cannot read it at all. It reuses the download-time probe and evaluator rather than reimplementing either, and the tolerance is now shared between them, so the audit and the check cannot drift apart about what "truncated" means; with no live source lookup it runs the track comparison only. It is read-only by design and recommends rather than repairs, because re-downloading is expensive, can fail, and for a source that has gone offline would replace a partially watchable file with nothing. `cloud:`, `mount:` and `http(s)` rows are skipped rather than counted as missing, legacy filename-only rows use the existing file lookup, and unresolved local paths are reported as missing. Successful probe results are cached by mtime and size; unsuccessful probes are retried on the next audit.
