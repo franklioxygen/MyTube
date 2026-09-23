@@ -504,6 +504,7 @@ export async function downloadVideo(
           (info as { duration?: unknown }).duration
         ),
         userConfig,
+        skippedFragments: progressTracker.skippedFragments,
       }
     );
     if (!completeness.complete) {

@@ -425,6 +425,7 @@ export async function downloadVideo(
     const completeness = await verifyDownloadedMediaComplete(tempVideoPath, {
       sourceDurationSeconds: parseSourceDurationSeconds(metaSource.duration),
       userConfig,
+      skippedFragments: progressTracker.skippedFragments,
     });
     if (!completeness.complete) {
       throw new Error(

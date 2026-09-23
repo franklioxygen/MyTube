@@ -10,6 +10,7 @@ import {
   probeMediaTrackDurations,
   type MediaTrackDurations,
 } from "./downloaders/downloadIntegrity";
+import { findTimelineGaps, type TimelineGap } from "./downloaders/timelineGaps";
 import { resolveManagedWebPath } from "./filenameTemplate/pathHelpers";
 import * as storageService from "./storageService";
 import { normalizeMediaType, type MediaType, type Video } from "./storageService/types";
@@ -31,7 +32,9 @@ export type MediaIntegrityAuditReason =
   | "file_missing"
   | "track_disagreement"
   | "duration_mismatch"
-  | "unprobeable";
+  | "unprobeable"
+  /** Content missing mid-file: the timestamps jump over it (usually a dropped fragment). */
+  | "timeline_gap";
 
 export type MediaIntegrityRecommendedAction =
   | "redownload"
@@ -50,6 +53,8 @@ export interface MediaIntegrityAuditItem {
   storedDurationSeconds: number | null;
   measured: MediaTrackDurations;
   recommendedAction: MediaIntegrityRecommendedAction;
+  /** Where content is missing, when the timeline check ran and found any. */
+  gaps?: TimelineGap[];
 }
 
 export interface MediaIntegrityAuditSummary {
@@ -61,6 +66,10 @@ export interface MediaIntegrityAuditSummary {
   trackDisagreements: number;
   durationMismatches: number;
   unprobeable: number;
+  /** Only counted when the audit ran with the timeline check enabled. */
+  timelineGaps: number;
+  /** Whether this audit ran the timeline check at all. */
+  timelineChecked: boolean;
 }
 
 export interface MediaIntegrityAuditResult {
@@ -96,9 +105,65 @@ const PROBE_CACHE_MAX_AGE_MS = 10 * 60 * 1000;
 // again. In-memory only: a restart simply costs one full pass.
 const probeCache = new Map<string, CacheEntry>();
 
+// The timeline scan reads the whole file, where the probe above reads only its
+// header - roughly a thousand times the cost. Ten minutes would expire a result
+// before a long scan of the rest of the library had even finished. mtime and size
+// still invalidate it immediately whenever the application replaces a file.
+const TIMELINE_CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+
+interface TimelineCacheEntry {
+  mtimeMs: number;
+  size: number;
+  cachedAtMs: number;
+  gaps: TimelineGap[];
+}
+
+const timelineCache = new Map<string, TimelineCacheEntry>();
+
 /** Exposed for tests; a fresh process starts with an empty cache anyway. */
 export function clearMediaIntegrityProbeCache(): void {
   probeCache.clear();
+  timelineCache.clear();
+}
+
+async function timelineGapsWithCache(absolutePath: string): Promise<TimelineGap[]> {
+  let stat: { mtimeMs: number; size: number } | null = null;
+  try {
+    stat = statSafeSync(absolutePath, VIDEOS_DIR);
+  } catch {
+    stat = null;
+  }
+
+  const now = Date.now();
+  const cached = stat ? timelineCache.get(absolutePath) : undefined;
+  if (
+    stat &&
+    cached &&
+    cached.mtimeMs === stat.mtimeMs &&
+    cached.size === stat.size &&
+    now - cached.cachedAtMs < TIMELINE_CACHE_MAX_AGE_MS
+  ) {
+    return cached.gaps;
+  }
+
+  const { gaps } = await findTimelineGaps(absolutePath);
+  if (stat) {
+    timelineCache.set(absolutePath, {
+      mtimeMs: stat.mtimeMs,
+      size: stat.size,
+      cachedAtMs: now,
+      gaps,
+    });
+  }
+  return gaps;
+}
+
+function formatClock(seconds: number): string {
+  const total = Math.floor(seconds);
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const sec = total % 60;
+  return `${h}:${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
 }
 
 function readString(value: unknown): string | null {
@@ -177,7 +242,8 @@ function parseStoredDurationSeconds(value: unknown): number | null {
 function describe(
   reasons: MediaIntegrityAuditReason[],
   tracks: MediaTrackDurations,
-  storedDurationSeconds: number | null
+  storedDurationSeconds: number | null,
+  gaps: TimelineGap[] = []
 ): string {
   const parts: string[] = [];
   for (const reason of reasons) {
@@ -200,6 +266,26 @@ function describe(
             ? ", so it looks like the file was truncated after the row was written"
             : "")
       );
+    } else if (reason === "timeline_gap") {
+      const byStream = (stream: TimelineGap["stream"]) =>
+        gaps.filter((gap) => gap.stream === stream);
+      for (const stream of ["video", "audio"] as const) {
+        const found = byStream(stream);
+        if (found.length === 0) continue;
+        const total = found.reduce((sum, gap) => sum + gap.gapSeconds, 0);
+        const where = found
+          .slice(0, 5)
+          .map((gap) => `${formatClock(gap.atSeconds)} (${gap.gapSeconds.toFixed(1)}s)`)
+          .join(", ");
+        const more = found.length > 5 ? ` and ${found.length - 5} more` : "";
+        parts.push(
+          `${total.toFixed(1)}s of ${stream} is missing across ${found.length} ` +
+            `gap(s), at ${where}${more}`
+        );
+      }
+      // Most are fragments lost during the download, but a source can carry a
+      // gap of its own, and nothing in the file tells the two apart.
+      parts.push("if a re-download has the same gap, the source is missing it too");
     } else {
       parts.push("the file exists but ffprobe could not read it");
     }
@@ -216,7 +302,11 @@ function resolveAction(
    */
   measuredIsShorter: boolean
 ): MediaIntegrityRecommendedAction {
-  if (reasons.includes("file_missing") || reasons.includes("track_disagreement")) {
+  if (
+    reasons.includes("file_missing") ||
+    reasons.includes("track_disagreement") ||
+    reasons.includes("timeline_gap")
+  ) {
     return "redownload";
   }
   // Refreshing the duration of a file that shrank would overwrite the only
@@ -262,7 +352,19 @@ function confirmAbsent(absolutePath: string): void {
  * Uses getVideosStrict: a failed database read must fail the audit rather than
  * report a clean library, the same rule destructive callers follow.
  */
-export async function auditMediaIntegrity(): Promise<MediaIntegrityAuditResult> {
+export interface MediaIntegrityAuditOptions {
+  /**
+   * Also look for content missing mid-file. Off by default because it reads the
+   * whole of every file whose frame counts fall short: on a large library that
+   * takes minutes, past the API proxy's read timeout. Results are cached, so a
+   * repeat run is cheap.
+   */
+  timeline?: boolean;
+}
+
+export async function auditMediaIntegrity(
+  options: MediaIntegrityAuditOptions = {}
+): Promise<MediaIntegrityAuditResult> {
   const videos: Video[] = storageService.getVideosStrict("admin");
 
   const summary: MediaIntegrityAuditSummary = {
@@ -273,6 +375,8 @@ export async function auditMediaIntegrity(): Promise<MediaIntegrityAuditResult> 
     trackDisagreements: 0,
     durationMismatches: 0,
     unprobeable: 0,
+    timelineGaps: 0,
+    timelineChecked: options.timeline === true,
   };
   const items: MediaIntegrityAuditItem[] = [];
 
@@ -368,6 +472,7 @@ export async function auditMediaIntegrity(): Promise<MediaIntegrityAuditResult> 
     summary.probed += 1;
 
     const reasons: MediaIntegrityAuditReason[] = [];
+    let gaps: TimelineGap[] = [];
 
     if (tracks.container == null && tracks.video == null && tracks.audio == null) {
       reasons.push("unprobeable");
@@ -389,6 +494,19 @@ export async function auditMediaIntegrity(): Promise<MediaIntegrityAuditResult> 
         reasons.push("duration_mismatch");
         summary.durationMismatches += 1;
       }
+
+      if (options.timeline) {
+        try {
+          gaps = await timelineGapsWithCache(absolutePath);
+        } catch (error) {
+          // findTimelineGaps fails open on its own; reaching here is unexpected.
+          logger.warn(`Integrity audit could not scan ${absolutePath}:`, error);
+        }
+        if (gaps.length > 0) {
+          reasons.push("timeline_gap");
+          summary.timelineGaps += 1;
+        }
+      }
     }
 
     if (reasons.length === 0) {
@@ -403,9 +521,10 @@ export async function auditMediaIntegrity(): Promise<MediaIntegrityAuditResult> 
       sourceUrl: readString(video.sourceUrl),
       videoPath: readString(video.videoPath),
       reasons,
-      detail: describe(reasons, tracks, stored),
+      detail: describe(reasons, tracks, stored, gaps),
       storedDurationSeconds: stored,
       measured: tracks,
+      ...(gaps.length > 0 ? { gaps } : {}),
       recommendedAction: resolveAction(
         reasons,
         stored != null && tracks.container != null && tracks.container < stored
@@ -421,15 +540,24 @@ export async function auditMediaIntegrity(): Promise<MediaIntegrityAuditResult> 
     summary.filesMissing +
     summary.trackDisagreements +
     summary.durationMismatches +
-    summary.unprobeable;
+    summary.unprobeable +
+    summary.timelineGaps;
 
+  // Without the timeline check, "no problems" would be read as covering content
+  // missing mid-file, which it does not look for - say so rather than imply it.
+  const scope = summary.timelineChecked
+    ? ""
+    : " Content missing mid-file was not checked; run with timeline=1 to include it.";
   const humanSummary =
-    problems === 0
+    (problems === 0
       ? `Checked ${summary.probed} file(s); no integrity problems found.`
       : `Checked ${summary.probed} file(s) and found ${problems} problem(s): ` +
         `${summary.filesMissing} missing, ${summary.trackDisagreements} truncated, ` +
         `${summary.durationMismatches} with a stale stored duration, ` +
-        `${summary.unprobeable} unreadable.`;
+        `${summary.unprobeable} unreadable` +
+        (summary.timelineChecked
+          ? `, ${summary.timelineGaps} with content missing mid-file.`
+          : ".")) + scope;
 
   return {
     generatedAt: new Date().toISOString(),

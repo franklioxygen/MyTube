@@ -237,5 +237,54 @@ describe('ProgressTracker', () => {
       expect(storageService.updateActiveDownload).not.toHaveBeenCalled();
     });
   });
-});
 
+  describe('skippedFragments', () => {
+    // yt-dlp's own wording, from FragmentFD.report_skip_fragment.
+    const skip = (n: number) => `[download] fragment not found; Skipping fragment ${n} ...\n`;
+
+    it('is zero for a clean download', () => {
+      const tracker = new ProgressTracker();
+      tracker.parseAndUpdate('[download]  50.0% of ~1.50GiB at  5.00MiB/s ETA 02:30\r');
+      tracker.parseAndUpdate('[download] 100% of    1.50GiB in 00:05:00 at 5.00MiB/s\n');
+
+      expect(tracker.skippedFragments).toBe(0);
+    });
+
+    it('counts each fragment yt-dlp gave up on', () => {
+      const tracker = new ProgressTracker();
+      tracker.parseAndUpdate(
+        '[download]  41.2% of ~1.50GiB at  5.00MiB/s ETA 02:30 (frag 280/680)\r' + skip(281),
+      );
+      tracker.parseAndUpdate(skip(282) + '[download]  41.5% of ~1.50GiB at  5.00MiB/s\r');
+
+      expect(tracker.skippedFragments).toBe(2);
+    });
+
+    it('counts a message split across two chunks once', () => {
+      const tracker = new ProgressTracker();
+      const message = skip(281);
+      tracker.parseAndUpdate('[download]  41.2% of ~1.50GiB\r' + message.slice(0, 50));
+      tracker.parseAndUpdate(message.slice(50) + skip(282));
+
+      expect(tracker.skippedFragments).toBe(2);
+    });
+
+    it('does not count a message twice when the next chunk arrives', () => {
+      const tracker = new ProgressTracker();
+      tracker.parseAndUpdate(skip(281));
+      tracker.parseAndUpdate('[download]  41.5% of ~1.50GiB\r');
+      tracker.parseAndUpdate('[download]  41.6% of ~1.50GiB\r');
+
+      expect(tracker.skippedFragments).toBe(1);
+    });
+
+    it('ignores retries that went on to succeed', () => {
+      const tracker = new ProgressTracker();
+      tracker.parseAndUpdate(
+        '[download] Got error: HTTP Error 503: Service Unavailable. Retrying fragment 281 (1/10)...\n',
+      );
+
+      expect(tracker.skippedFragments).toBe(0);
+    });
+  });
+});

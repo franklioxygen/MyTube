@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   findVideoFile: vi.fn(),
   getCollections: vi.fn(() => []),
   readdirSafeSync: vi.fn((..._args: unknown[]) => [] as string[]),
+  findTimelineGaps: vi.fn(async (..._args: unknown[]) => ({ gaps: [] as unknown[], scannedStreams: [] as string[] })),
 }));
 
 vi.mock('../../config/paths', async (importOriginal) => {
@@ -45,6 +46,10 @@ vi.mock('../../services/downloaders/downloadIntegrity', async (importOriginal) =
   };
 });
 
+vi.mock('../../services/downloaders/timelineGaps', () => ({
+  findTimelineGaps: (...args: unknown[]) => mocks.findTimelineGaps(...args),
+}));
+
 import {
   auditMediaIntegrity,
   clearMediaIntegrityProbeCache,
@@ -74,6 +79,7 @@ describe('auditMediaIntegrity', () => {
     mocks.probeMediaTrackDurations.mockResolvedValue(tracks(600, 600, 600));
     mocks.findVideoFile.mockReturnValue(null);
     mocks.readdirSafeSync.mockReturnValue([]);
+    mocks.findTimelineGaps.mockResolvedValue({ gaps: [], scannedStreams: [] });
   });
 
   it('reports a clean library', async () => {
@@ -472,5 +478,112 @@ describe('auditMediaIntegrity', () => {
     // is the read.
     expect(result.items).toHaveLength(1);
     expect(Object.keys(mocks)).not.toContain('updateVideo');
+  });
+
+  describe('timeline check', () => {
+    const gap = (stream: 'video' | 'audio', atSeconds: number, gapSeconds: number) =>
+      ({ stream, atSeconds, gapSeconds });
+
+    it('is off by default, and says so rather than implying a clean result', async () => {
+      mocks.getVideosStrict.mockReturnValue([video()]);
+
+      const result = await auditMediaIntegrity();
+
+      expect(mocks.findTimelineGaps).not.toHaveBeenCalled();
+      expect(result.summary.timelineChecked).toBe(false);
+      expect(result.humanSummary).toContain('no integrity problems');
+      expect(result.humanSummary).toContain('was not checked');
+    });
+
+    it('reports a dropped segment with where it is', async () => {
+      // One segment dropped: tracks agree and the duration is intact, so no other check fires.
+      mocks.getVideosStrict.mockReturnValue([video({ duration: '7037' })]);
+      mocks.probeMediaTrackDurations.mockResolvedValue(tracks(7037.13, 7037.13, 7037.10));
+      mocks.findTimelineGaps.mockResolvedValue({
+        gaps: [gap('video', 1127.92, 4.03)], scannedStreams: ['video'],
+      });
+
+      const result = await auditMediaIntegrity({ timeline: true });
+
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0].reasons).toEqual(['timeline_gap']);
+      expect(result.items[0].recommendedAction).toBe('redownload');
+      expect(result.items[0].gaps).toEqual([gap('video', 1127.92, 4.03)]);
+      expect(result.items[0].detail).toContain('4.0s of video is missing');
+      expect(result.items[0].detail).toContain('0:18:47');
+      expect(result.items[0].detail).toContain('if a re-download has the same gap');
+      expect(result.summary).toMatchObject({ timelineGaps: 1, timelineChecked: true });
+      expect(result.humanSummary).toContain('1 with content missing mid-file');
+      expect(result.humanSummary).not.toContain('was not checked');
+    });
+
+    it('summarises a burst of gaps per stream', async () => {
+      // 21 audio gaps in one bad network window.
+      mocks.getVideosStrict.mockReturnValue([video({ duration: '28537' })]);
+      mocks.probeMediaTrackDurations.mockResolvedValue(tracks(28537.66, 28537.58, 28537.66));
+      mocks.findTimelineGaps.mockResolvedValue({
+        gaps: Array.from({ length: 21 }, (_, i) => gap('audio', 2656 + i * 12, 5)),
+        scannedStreams: ['audio'],
+      });
+
+      const { detail } = (await auditMediaIntegrity({ timeline: true })).items[0];
+
+      expect(detail).toContain('105.0s of audio is missing across 21 gap(s)');
+      expect(detail).toContain('and 16 more');
+    });
+
+    it('reports a clean file as clean', async () => {
+      mocks.getVideosStrict.mockReturnValue([video()]);
+
+      const result = await auditMediaIntegrity({ timeline: true });
+
+      expect(mocks.findTimelineGaps).toHaveBeenCalledOnce();
+      expect(result.items).toEqual([]);
+    });
+
+    it('does not scan a file it could not probe', async () => {
+      mocks.getVideosStrict.mockReturnValue([video()]);
+      mocks.probeMediaTrackDurations.mockResolvedValue(tracks(null, null, null));
+
+      await auditMediaIntegrity({ timeline: true });
+
+      expect(mocks.findTimelineGaps).not.toHaveBeenCalled();
+    });
+
+    it('does not rescan an unchanged file', async () => {
+      // The scan reads the whole file; a repeat audit must not pay for it again.
+      mocks.getVideosStrict.mockReturnValue([video()]);
+
+      await auditMediaIntegrity({ timeline: true });
+      await auditMediaIntegrity({ timeline: true });
+
+      expect(mocks.findTimelineGaps).toHaveBeenCalledOnce();
+    });
+
+    it('keeps timeline results well past the probe cache lifetime', async () => {
+      mocks.getVideosStrict.mockReturnValue([video()]);
+      vi.useFakeTimers();
+      try {
+        await auditMediaIntegrity({ timeline: true });
+        vi.advanceTimersByTime(60 * 60 * 1000);
+        await auditMediaIntegrity({ timeline: true });
+      } finally {
+        vi.useRealTimers();
+      }
+
+      // The header probe expired and ran again; the scan did not.
+      expect(mocks.probeMediaTrackDurations).toHaveBeenCalledTimes(2);
+      expect(mocks.findTimelineGaps).toHaveBeenCalledOnce();
+    });
+
+    it('rescans once the file changes', async () => {
+      mocks.getVideosStrict.mockReturnValue([video()]);
+
+      await auditMediaIntegrity({ timeline: true });
+      mocks.statSafeSync.mockReturnValue({ mtimeMs: 2, size: 200 });
+      await auditMediaIntegrity({ timeline: true });
+
+      expect(mocks.findTimelineGaps).toHaveBeenCalledTimes(2);
+    });
   });
 });

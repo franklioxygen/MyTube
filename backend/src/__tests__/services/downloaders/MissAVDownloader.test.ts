@@ -577,8 +577,28 @@ describe('MissAVDownloader', () => {
         await MissAVDownloader.downloadVideo(url);
 
         expect(verifyDownloadedMediaComplete).toHaveBeenCalledExactlyOnceWith(videoPath, {
-          sourceDurationSeconds: 24.5, userConfig: {},
+          sourceDurationSeconds: 24.5, userConfig: {}, skippedFragments: 0,
         });
+      });
+
+      it('passes on the fragments yt-dlp gave up on', async () => {
+        vi.mocked(spawn).mockImplementation(() => {
+          const proc = createAutoClosingSpawnProc(0);
+          proc.stdout.on.mockImplementation((event: string, cb: (data: Buffer) => void) => {
+            if (event === 'data') {
+              cb(Buffer.from('[download] fragment not found; Skipping fragment 281 ...\n'));
+            }
+            return proc.stdout;
+          });
+          return proc;
+        });
+
+        await MissAVDownloader.downloadVideo(url);
+
+        expect(verifyDownloadedMediaComplete).toHaveBeenCalledExactlyOnceWith(
+          videoPath,
+          expect.objectContaining({ skippedFragments: 1 }),
+        );
       });
 
       it('uses the playlist body the browser already fetched', async () => {
@@ -591,7 +611,7 @@ describe('MissAVDownloader', () => {
         await MissAVDownloader.downloadVideo(url);
 
         expect(verifyDownloadedMediaComplete).toHaveBeenCalledExactlyOnceWith(videoPath, {
-          sourceDurationSeconds: 60, userConfig: {},
+          sourceDurationSeconds: 60, userConfig: {}, skippedFragments: 0,
         });
         expect(axios.get).not.toHaveBeenCalled();
       });
@@ -604,7 +624,7 @@ describe('MissAVDownloader', () => {
         await MissAVDownloader.downloadVideo(url);
 
         expect(verifyDownloadedMediaComplete).toHaveBeenCalledExactlyOnceWith(videoPath, {
-          sourceDurationSeconds: null, userConfig: {},
+          sourceDurationSeconds: null, userConfig: {}, skippedFragments: 0,
         });
       });
 
@@ -621,7 +641,7 @@ describe('MissAVDownloader', () => {
         await MissAVDownloader.downloadVideo(url);
 
         expect(verifyDownloadedMediaComplete).toHaveBeenCalledExactlyOnceWith(videoPath, {
-          sourceDurationSeconds: 40, userConfig: {},
+          sourceDurationSeconds: 40, userConfig: {}, skippedFragments: 0,
         });
         expect(axios.get).not.toHaveBeenCalled();
       });
@@ -650,7 +670,7 @@ describe('MissAVDownloader', () => {
 
         // Refused before reading, so no duration and a direct retry instead.
         expect(verifyDownloadedMediaComplete).toHaveBeenCalledExactlyOnceWith(videoPath, {
-          sourceDurationSeconds: null, userConfig: {},
+          sourceDurationSeconds: null, userConfig: {}, skippedFragments: 0,
         });
       });
 
@@ -659,7 +679,7 @@ describe('MissAVDownloader', () => {
       it('checks the actual output before saving', async () => {
         await MissAVDownloader.downloadVideo(url);
         expect(verifyDownloadedMediaComplete).toHaveBeenCalledExactlyOnceWith(videoPath, {
-          sourceDurationSeconds: null, userConfig: {},
+          sourceDurationSeconds: null, userConfig: {}, skippedFragments: 0,
         });
         expect(storageService.persistDownloadedMediaIdentity).toHaveBeenCalledOnce();
         expect(cleanupTemporaryFiles).not.toHaveBeenCalled();

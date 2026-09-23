@@ -22,12 +22,25 @@ export interface ProgressUpdate {
  */
 const PROGRESS_PERSIST_INTERVAL_MS = 1000;
 
+/**
+ * yt-dlp's fragment downloaders (HLS, DASH, ISM) retry a failing fragment and
+ * then, by default, carry on without it (`skip_unavailable_fragments`). The
+ * merged file keeps its timeline, so its duration is intact and its tracks still
+ * agree - nothing measurable afterwards says content is gone. This line, printed
+ * once per fragment given up on, is the only direct evidence.
+ */
+const SKIPPED_FRAGMENT_PATTERN = /Skipping fragment \d+ \.\.\./g;
+// Enough of the previous chunk to rejoin a message split across two chunks.
+const SKIPPED_FRAGMENT_CARRY_CHARS = 64;
+
 export class ProgressTracker {
   private downloadId?: string;
   // Latest progress not yet persisted (kept so the throttled write catches it).
   private pendingProgress: ProgressUpdate | null = null;
   private lastPersistedAt = 0;
   private flushTimer: ReturnType<typeof setTimeout> | null = null;
+  private skipped = 0;
+  private skipCarry = "";
 
   constructor(downloadId?: string) {
     this.downloadId = downloadId;
@@ -187,11 +200,28 @@ export class ProgressTracker {
     this.flush();
   }
 
+  /** How many fragments yt-dlp gave up on and left out of the download. */
+  get skippedFragments(): number {
+    return this.skipped;
+  }
+
+  private countSkippedFragments(output: string): void {
+    const text = this.skipCarry + output;
+    for (const match of text.matchAll(SKIPPED_FRAGMENT_PATTERN)) {
+      // A match that ends inside the carried-over text was counted last time.
+      if ((match.index ?? 0) + match[0].length > this.skipCarry.length) {
+        this.skipped += 1;
+      }
+    }
+    this.skipCarry = text.slice(-SKIPPED_FRAGMENT_CARRY_CHARS);
+  }
+
   /**
    * Parse output and update progress if valid progress data is found
    * @param output - Raw output string from download process
    */
   parseAndUpdate(output: string): void {
+    this.countSkippedFragments(output);
     const progress = this.parseYtDlpOutput(output);
     if (progress) {
       this.update(progress);

@@ -216,7 +216,11 @@ describe('YtDlpDownloader format defaults', () => {
 
         expect(mockVerifyDownloadedMediaComplete).toHaveBeenCalledWith(
             expect.any(String),
-            { sourceDurationSeconds: 1110.762, userConfig: { downloadSections: '*0:00-2:00' } },
+            {
+                sourceDurationSeconds: 1110.762,
+                userConfig: { downloadSections: '*0:00-2:00' },
+                skippedFragments: 0,
+            },
         );
         expect(storageService.saveVideo).toHaveBeenCalled();
     });
