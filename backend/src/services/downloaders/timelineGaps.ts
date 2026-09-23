@@ -36,9 +36,9 @@ import { parseSourceDurationSeconds } from "./downloadIntegrity";
  *
  * A contiguous jump is usually a dropped fragment but not always: a source can
  * carry one too, and the file cannot say which. In the same library, 2 of the 19
- * files reported had gaps that looked like the source's own. That is why this
- * backs a recommendation in the audit and never rejects a download; download
- * time relies on yt-dlp saying it skipped a fragment instead.
+ * files reported had gaps that looked like the source's own. So this only ever
+ * describes and recommends. At download time it runs only once yt-dlp has said
+ * it skipped a fragment, to say where the resulting gap is.
  */
 
 export type TimelineStream = "video" | "audio";
@@ -262,6 +262,37 @@ async function scanStreamForGaps(
   });
 }
 
+function formatClock(seconds: number): string {
+  const total = Math.floor(seconds);
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const sec = total % 60;
+  return `${h}:${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
+}
+
+/**
+ * Describe gaps per stream for a person to read: how much is missing, and where.
+ * Shared by the library audit and the note on a download saved with gaps.
+ */
+export function summarizeTimelineGaps(gaps: TimelineGap[]): string {
+  const parts: string[] = [];
+  for (const stream of ["video", "audio"] as const) {
+    const found = gaps.filter((gap) => gap.stream === stream);
+    if (found.length === 0) continue;
+    const total = found.reduce((sum, gap) => sum + gap.gapSeconds, 0);
+    const where = found
+      .slice(0, 5)
+      .map((gap) => `${formatClock(gap.atSeconds)} (${gap.gapSeconds.toFixed(1)}s)`)
+      .join(", ");
+    const more = found.length > 5 ? ` and ${found.length - 5} more` : "";
+    parts.push(
+      `${total.toFixed(1)}s of ${stream} is missing across ${found.length} ` +
+        `gap(s), at ${where}${more}`
+    );
+  }
+  return parts.join("; ");
+}
+
 /**
  * Find content missing from the middle of a file. Runs the expensive packet scan
  * only on streams whose frame count says something is missing.
@@ -292,4 +323,26 @@ export async function findTimelineGaps(filePath: string): Promise<TimelineGapRes
   }
   gaps.sort((a, b) => a.atSeconds - b.atSeconds);
   return { gaps, scannedStreams: suspicious };
+}
+
+/**
+ * The note for a download saved although yt-dlp left fragments out, or null
+ * when none were. Locates the gaps so the note can say what is missing and
+ * where; if they cannot be located, it still says fragments were lost.
+ */
+export async function describeSkippedFragments(
+  filePath: string,
+  skippedFragments: number
+): Promise<string | null> {
+  if (skippedFragments <= 0) return null;
+  const { gaps } = await findTimelineGaps(filePath);
+  const lost =
+    `yt-dlp could not download ${skippedFragments} ` +
+    `fragment${skippedFragments === 1 ? "" : "s"}`;
+  const note =
+    gaps.length > 0
+      ? `Saved with content missing: ${summarizeTimelineGaps(gaps)}. ${lost}; re-download to try again.`
+      : `Saved with content missing: ${lost}. Re-download to try again.`;
+  logger.warn(`Download saved with content missing (${filePath}): ${note}`);
+  return note;
 }

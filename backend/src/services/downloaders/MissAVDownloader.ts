@@ -29,6 +29,7 @@ import { resolveSupersededManagedPath } from "./supersededOutput";
 import { FilenameTemplateSourceOptions } from "../filenameTemplate/types";
 import { findRedownloadTargetBySourceIdentity } from "./redownloadTarget";
 import { verifyDownloadedMediaComplete } from "./downloadIntegrity";
+import { describeSkippedFragments } from "./timelineGaps";
 import {
   flagsToArgs,
   getAxiosProxyConfig,
@@ -53,6 +54,8 @@ import { Video } from "../storageService";
 import { BaseDownloader, DownloadOptions, VideoInfo } from "./BaseDownloader";
 import {
   MISSAV_DEFAULT_CONCURRENT_FRAGMENTS,
+  MISSAV_DEFAULT_FRAGMENT_RETRIES,
+  MISSAV_DEFAULT_FRAGMENT_RETRY_SLEEP,
   MISSAV_PROGRESS_LOG_INTERVAL_MS,
 } from "./missav/constants";
 import {
@@ -757,6 +760,9 @@ export class MissAVDownloader extends BaseDownloader {
           // Must come after the network config: fragment concurrency is what
           // keeps a proxied HLS download from serialising on round trips.
           N: resolveMissAvConcurrentFragments(userConfig),
+          fragmentRetries:
+            userConfig.fragmentRetries ?? MISSAV_DEFAULT_FRAGMENT_RETRIES,
+          retrySleep: userConfig.retrySleep ?? MISSAV_DEFAULT_FRAGMENT_RETRY_SLEEP,
           addHeader: [`Referer:${referer}`],
         };
 
@@ -908,8 +914,12 @@ export class MissAVDownloader extends BaseDownloader {
         // track comparison - the behaviour before the playlist was consulted.
         sourceDurationSeconds,
         userConfig,
-        skippedFragments,
       });
+      // A fragment yt-dlp gave up on leaves a gap, not a truncation: the file is
+      // kept, and the note says what is missing so the history can show it.
+      const incompleteNote = completeness.complete
+        ? await describeSkippedFragments(videoDownloadPath, skippedFragments)
+        : null;
       // Cancellation can remove the file while ffprobe is running. A failed
       // probe is intentionally fail-open, so recheck before publishing anything.
       if (cancellationRequested) throw DownloadCancelledError.create();
@@ -1138,6 +1148,7 @@ export class MissAVDownloader extends BaseDownloader {
         thumbnailPathForCleanup = null;
       }
       logger.info("MissAV video saved to database");
+      storageService.setIncompleteDownloadNote(persistedVideoData.id, incompleteNote);
 
       // Add video to author collection if enabled
       const authorOrganization = storageService.organizeVideoByAuthor(

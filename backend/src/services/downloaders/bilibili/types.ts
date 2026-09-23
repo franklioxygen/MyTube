@@ -13,6 +13,8 @@ export interface BilibiliVideoInfo {
   authorAvatarPath?: string;
   downloadedVideoPath?: string;
   downloadedVideoExtension?: string;
+  /** Fragments yt-dlp gave up on and left out of the downloaded file. */
+  skippedFragments?: number;
   error?: string;
 }
 

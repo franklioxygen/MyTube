@@ -27,6 +27,16 @@ const mockHistoryItems = [
         sourceUrl: 'http://example.com/1',
     },
     {
+        // Saved to the library, but yt-dlp left part of it out.
+        id: '1b',
+        title: 'Incomplete Save Item',
+        finishedAt: 1678886400000,
+        status: 'success' as const,
+        sourceUrl: 'http://example.com/1b',
+        videoId: 'vid-gap',
+        error: 'Saved with content missing: 4.0s of video is missing across 1 gap(s), at 0:18:47 (4.0s).',
+    },
+    {
         id: '2',
         title: 'Failed Item',
         finishedAt: 1678886400000,
@@ -119,6 +129,7 @@ describe('HistoryTab Filter', () => {
         fireEvent.click(options[options.length - 1]);
 
         expect(screen.getByText('Success Item')).toBeInTheDocument();
+        expect(screen.queryByText('Incomplete Save Item')).not.toBeInTheDocument();
         expect(screen.queryByText('Failed Item')).not.toBeInTheDocument();
         expect(screen.queryByText('Skipped Item')).not.toBeInTheDocument();
         expect(screen.queryByText('Deleted Item')).not.toBeInTheDocument();
@@ -152,6 +163,7 @@ describe('HistoryTab Filter', () => {
         expect(screen.queryByText('Success Item')).not.toBeInTheDocument();
         expect(screen.queryByText('Failed Item')).not.toBeInTheDocument();
         expect(screen.getByText('Partial Item')).toBeInTheDocument();
+        expect(screen.getByText('Incomplete Save Item')).toBeInTheDocument();
         expect(screen.queryByText('Skipped Item')).not.toBeInTheDocument();
         expect(screen.queryByText('Deleted Item')).not.toBeInTheDocument();
     });
@@ -226,5 +238,62 @@ describe('HistoryTab Filter', () => {
         fireEvent.click(option);
 
         expect(screen.getByText('noDownloadHistory')).toBeInTheDocument();
+    });
+});
+
+describe('HistoryTab incomplete save', () => {
+    const onReDownload = vi.fn();
+    const onRetry = vi.fn();
+    const onViewVideo = vi.fn();
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        (useLanguage as Mock).mockReturnValue({ t: (key: string) => key });
+        (useSettings as Mock).mockReturnValue({ data: {} });
+        (useTheme as Mock).mockReturnValue({ breakpoints: { down: vi.fn() } });
+        (useMediaQuery as Mock).mockReturnValue(false);
+    });
+
+    const renderIncompleteSave = () => render(
+        <BrowserRouter>
+            <HistoryTab
+                history={[mockHistoryItems[1]]}
+                onRemove={vi.fn()}
+                onCancelRetry={vi.fn()}
+                onClear={vi.fn()}
+                onRetry={onRetry}
+                onReDownload={onReDownload}
+                onViewVideo={onViewVideo}
+                isDownloadInProgress={() => false}
+            />
+        </BrowserRouter>
+    );
+
+    it('is shown as incomplete, with what is missing', () => {
+        renderIncompleteSave();
+
+        expect(screen.getByText('partialDownload')).toBeInTheDocument();
+        expect(screen.queryByText('success')).not.toBeInTheDocument();
+        expect(screen.getByText(/4\.0s of video is missing/)).toBeInTheDocument();
+    });
+
+    it('can still be watched', () => {
+        renderIncompleteSave();
+
+        fireEvent.click(screen.getByText('viewVideo'));
+
+        expect(onViewVideo).toHaveBeenCalledWith('vid-gap');
+    });
+
+    it('offers a re-download that replaces the copy, not a retry that would be skipped', () => {
+        // A plain retry resubmits the URL, which is skipped because the video
+        // already exists; only a forced re-download replaces it.
+        renderIncompleteSave();
+
+        expect(screen.queryByText('retry')).not.toBeInTheDocument();
+        fireEvent.click(screen.getByText('downloadAgain'));
+
+        expect(onReDownload).toHaveBeenCalledWith('http://example.com/1b');
+        expect(onRetry).not.toHaveBeenCalled();
     });
 });

@@ -30,7 +30,8 @@ export {
     getPendingRetryHistoryItems,
     finalizePendingRetryHistoryItem,
     markDownloadHistoryDeletedByVideoId,
-    removeDownloadHistoryItem
+    removeDownloadHistoryItem,
+    setIncompleteDownloadNote
 } from "./downloadHistory";
 
 // Video Download Tracking

@@ -346,43 +346,6 @@ describe('verifyDownloadedMediaComplete', () => {
     );
   });
 
-  it('rejects a download yt-dlp skipped fragments of, however complete it looks', async () => {
-    // A skipped fragment leaves the timeline intact: duration and tracks all agree.
-    mockExecFileSafe.mockResolvedValue({ stdout: ffprobeJson(7037.13, 7037.13, 7037.1) });
-
-    const verdict = await verifyDownloadedMediaComplete('/videos/clip.mp4', {
-      sourceDurationSeconds: 7037,
-      skippedFragments: 1,
-    });
-
-    expect(verdict).toEqual({
-      complete: false,
-      reason: '1 fragment could not be downloaded and was left out, so part of the content is missing',
-    });
-  });
-
-  it('rejects skipped fragments even when the file cannot be probed', async () => {
-    mockExecFileSafe.mockRejectedValue(new Error('ffprobe not found'));
-
-    const verdict = await verifyDownloadedMediaComplete('/videos/clip.mp4', {
-      skippedFragments: 21,
-    });
-
-    expect(verdict.complete).toBe(false);
-    expect(verdict.reason).toContain('21 fragments could not be downloaded and were left out');
-  });
-
-  it('accepts a download with no skipped fragments', async () => {
-    mockExecFileSafe.mockResolvedValue({ stdout: ffprobeJson(600, 600, 600) });
-
-    const verdict = await verifyDownloadedMediaComplete('/videos/clip.mp4', {
-      sourceDurationSeconds: 600,
-      skippedFragments: 0,
-    });
-
-    expect(verdict.complete).toBe(true);
-  });
-
   it.each(['ffprobe not found', 'ffprobe timed out'])('accepts the download when %s', async (message) => {
     mockExecFileSafe.mockRejectedValue(new Error(message));
 

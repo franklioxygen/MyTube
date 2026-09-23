@@ -21,10 +21,6 @@ import {
  *
  * Both are deliberately loose: the goal is to reject half-downloads, not to
  * police the muxing slack that normal files carry.
- *
- * Neither can see a fragment yt-dlp skipped mid-file: the timeline jumps over
- * it, so the duration holds and the tracks agree. For that the caller passes the
- * number of fragments yt-dlp reported skipping (see ProgressTracker).
  */
 
 export interface MediaTrackDurations {
@@ -50,11 +46,6 @@ export interface VerifyMediaOptions {
    * makes the source-duration comparison meaningless, so it is skipped.
    */
   userConfig?: Record<string, unknown> | null;
-  /**
-   * Fragments yt-dlp gave up on and left out. Any at all means content is
-   * missing from the middle of the file, however complete it otherwise looks.
-   */
-  skippedFragments?: number;
 }
 
 // A download is only rejected once it misses by more than this much, so normal
@@ -298,20 +289,6 @@ export async function verifyDownloadedMediaComplete(
   filePath: string,
   options: VerifyMediaOptions = {}
 ): Promise<MediaCompletenessVerdict> {
-  const skippedFragments = options.skippedFragments ?? 0;
-  if (skippedFragments > 0) {
-    const reason =
-      `${skippedFragments} fragment${skippedFragments === 1 ? "" : "s"} could ` +
-      `not be downloaded and ${skippedFragments === 1 ? "was" : "were"} left ` +
-      `out, so part of the content is missing`;
-    logger.error("Downloaded media failed its completeness check:", {
-      filePath,
-      skippedFragments,
-      reason,
-    });
-    return { complete: false, reason };
-  }
-
   const tracks = await probeMediaTrackDurations(filePath);
   const sourceDurationSeconds = clipsDownloadOutput(options.userConfig)
     ? null

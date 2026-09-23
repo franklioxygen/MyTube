@@ -17,6 +17,10 @@ vi.mock('../../../services/downloaders/downloadIntegrity', async (importOriginal
     ...await importOriginal<any>(),
     verifyDownloadedMediaComplete: mockVerifyDownloadedMediaComplete,
 }));
+vi.mock('../../../services/downloaders/timelineGaps', () => ({
+    describeSkippedFragments: vi.fn(async (_path: string, skipped: number) =>
+        skipped > 0 ? `missing content, ${skipped} fragment(s)` : null),
+}));
 const videoPathExistsChecks = vi.hoisted(() => new Map<string, number>());
 // Flipped by the no-output gate test to model yt-dlp exiting 0 without writing.
 const suppressVideoOutput = vi.hoisted(() => ({ value: false }));
@@ -34,6 +38,7 @@ vi.mock('../../../utils/ytDlpUtils', () => ({
 }));
 
 vi.mock('../../../services/storageService', () => ({
+    setIncompleteDownloadNote: vi.fn(),
     updateActiveDownload: vi.fn(),
     saveVideo: vi.fn(),
     persistDownloadedMediaIdentity: vi.fn(({ video }) => video),
@@ -205,6 +210,37 @@ describe('YtDlpDownloader format defaults', () => {
         expect(storageService.saveVideo).not.toHaveBeenCalled();
     });
 
+    it('keeps a download yt-dlp left fragments out of, and notes it', async () => {
+        mockExecuteYtDlpSpawn.mockReturnValue({
+            stdout: {
+                on: vi.fn((event: string, cb: (data: Buffer) => void) => {
+                    if (event === 'data') {
+                        cb(Buffer.from(
+                            '[download] fragment not found; Skipping fragment 12 ...\n' +
+                            '[download] fragment not found; Skipping fragment 13 ...\n',
+                        ));
+                    }
+                }),
+            },
+            kill: vi.fn(),
+            then: (resolve: any) => resolve(),
+        });
+
+        const video = await YtDlpDownloader.downloadVideo('https://www.youtube.com/watch?v=123456');
+
+        expect(storageService.saveVideo).toHaveBeenCalled();
+        expect(storageService.setIncompleteDownloadNote).toHaveBeenCalledWith(
+            video.id,
+            'missing content, 2 fragment(s)',
+        );
+    });
+
+    it('clears any note for a clean download', async () => {
+        const video = await YtDlpDownloader.downloadVideo('https://www.youtube.com/watch?v=123456');
+
+        expect(storageService.setIncompleteDownloadNote).toHaveBeenCalledWith(video.id, null);
+    });
+
     it('passes source duration and effective config to the completeness check', async () => {
         mockExecuteYtDlpJson.mockResolvedValueOnce({
             title: 'Test Video', uploader: 'Test Author', upload_date: '20230101',
@@ -216,11 +252,7 @@ describe('YtDlpDownloader format defaults', () => {
 
         expect(mockVerifyDownloadedMediaComplete).toHaveBeenCalledWith(
             expect.any(String),
-            {
-                sourceDurationSeconds: 1110.762,
-                userConfig: { downloadSections: '*0:00-2:00' },
-                skippedFragments: 0,
-            },
+            { sourceDurationSeconds: 1110.762, userConfig: { downloadSections: '*0:00-2:00' } },
         );
         expect(storageService.saveVideo).toHaveBeenCalled();
     });
@@ -434,6 +466,8 @@ describe('YtDlpDownloader format defaults', () => {
             }),
         );
         expect(result.id).toBe(selectedVideo.id);
+        // The note (here: none) is recorded against the row that was replaced.
+        expect(storageService.setIncompleteDownloadNote).toHaveBeenCalledWith(selectedVideo.id, null);
     });
 
     it.each(['shared', 'unreadable'])('keeps the old video when owners are %s', async (condition) => {

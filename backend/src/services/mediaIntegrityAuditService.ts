@@ -10,7 +10,11 @@ import {
   probeMediaTrackDurations,
   type MediaTrackDurations,
 } from "./downloaders/downloadIntegrity";
-import { findTimelineGaps, type TimelineGap } from "./downloaders/timelineGaps";
+import {
+  findTimelineGaps,
+  summarizeTimelineGaps,
+  type TimelineGap,
+} from "./downloaders/timelineGaps";
 import { resolveManagedWebPath } from "./filenameTemplate/pathHelpers";
 import * as storageService from "./storageService";
 import { normalizeMediaType, type MediaType, type Video } from "./storageService/types";
@@ -158,14 +162,6 @@ async function timelineGapsWithCache(absolutePath: string): Promise<TimelineGap[
   return gaps;
 }
 
-function formatClock(seconds: number): string {
-  const total = Math.floor(seconds);
-  const h = Math.floor(total / 3600);
-  const m = Math.floor((total % 3600) / 60);
-  const sec = total % 60;
-  return `${h}:${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
-}
-
 function readString(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
@@ -267,22 +263,7 @@ function describe(
             : "")
       );
     } else if (reason === "timeline_gap") {
-      const byStream = (stream: TimelineGap["stream"]) =>
-        gaps.filter((gap) => gap.stream === stream);
-      for (const stream of ["video", "audio"] as const) {
-        const found = byStream(stream);
-        if (found.length === 0) continue;
-        const total = found.reduce((sum, gap) => sum + gap.gapSeconds, 0);
-        const where = found
-          .slice(0, 5)
-          .map((gap) => `${formatClock(gap.atSeconds)} (${gap.gapSeconds.toFixed(1)}s)`)
-          .join(", ");
-        const more = found.length > 5 ? ` and ${found.length - 5} more` : "";
-        parts.push(
-          `${total.toFixed(1)}s of ${stream} is missing across ${found.length} ` +
-            `gap(s), at ${where}${more}`
-        );
-      }
+      parts.push(summarizeTimelineGaps(gaps));
       // Most are fragments lost during the download, but a source can carry a
       // gap of its own, and nothing in the file tells the two apart.
       parts.push("if a re-download has the same gap, the source is missing it too");

@@ -34,8 +34,43 @@ function mapDownloadHistoryRow(row: typeof downloadHistory.$inferSelect): Downlo
   };
 }
 
+// Notes on downloads that were saved with content missing (yt-dlp left out
+// fragments it could not fetch). The downloader knows when it saves the video,
+// but the history row is written afterwards by whichever caller owns the
+// download - the download manager, a subscription, a continuous download - so
+// the note waits here, keyed by video id, for that video's success row.
+const incompleteDownloadNotes = new Map<string, string>();
+// Only reached when videos are saved and no history row ever follows.
+const MAX_INCOMPLETE_DOWNLOAD_NOTES = 200;
+
+/**
+ * Record whether the video just saved is missing content. Every save sets or
+ * clears it, so a note left by an earlier attempt cannot attach to a later
+ * clean download of the same video.
+ */
+export function setIncompleteDownloadNote(videoId: string, note: string | null): void {
+  incompleteDownloadNotes.delete(videoId);
+  if (!note) return;
+  incompleteDownloadNotes.set(videoId, note);
+  if (incompleteDownloadNotes.size > MAX_INCOMPLETE_DOWNLOAD_NOTES) {
+    const oldest = incompleteDownloadNotes.keys().next().value;
+    if (oldest !== undefined) incompleteDownloadNotes.delete(oldest);
+  }
+}
+
+function takeIncompleteDownloadNote(item: DownloadHistoryItem): string | undefined {
+  if (item.status !== "success" || !item.videoId) return undefined;
+  const note = incompleteDownloadNotes.get(item.videoId);
+  incompleteDownloadNotes.delete(item.videoId);
+  return note;
+}
+
 export function addDownloadHistoryItem(item: DownloadHistoryItem): void {
   try {
+    // The row stays "success": retention, renames and deletion tombstones all
+    // key on that status, and the video is in the library. The note rides in
+    // `error`, which the history view shows as an incomplete download.
+    const incompleteNote = takeIncompleteDownloadNote(item);
     const values = {
       id: item.id,
       title: item.title,
@@ -43,7 +78,7 @@ export function addDownloadHistoryItem(item: DownloadHistoryItem): void {
       sourceUrl: item.sourceUrl ?? null,
       finishedAt: item.finishedAt,
       status: item.status,
-      error: item.error ?? null,
+      error: item.error ?? incompleteNote ?? null,
       videoPath: item.videoPath ?? null,
       thumbnailPath: item.thumbnailPath ?? null,
       totalSize: item.totalSize ?? null,

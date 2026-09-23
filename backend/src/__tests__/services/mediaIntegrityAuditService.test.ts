@@ -46,7 +46,9 @@ vi.mock('../../services/downloaders/downloadIntegrity', async (importOriginal) =
   };
 });
 
-vi.mock('../../services/downloaders/timelineGaps', () => ({
+vi.mock('../../services/downloaders/timelineGaps', async (importOriginal) => ({
+  // Keep the real formatter; only the file scan is faked.
+  ...(await importOriginal<typeof import('../../services/downloaders/timelineGaps')>()),
   findTimelineGaps: (...args: unknown[]) => mocks.findTimelineGaps(...args),
 }));
 

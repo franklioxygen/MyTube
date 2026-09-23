@@ -23,6 +23,7 @@ import { Link as RouterLink } from 'react-router';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { getBilibiliRetryGapSummary } from '../../utils/bilibiliRetryMetadata';
 import { formatDisplayDateTime } from '../../utils/formatUtils';
+import { isIncompleteSave } from './historyStatus';
 
 export interface DownloadHistoryItem {
     id: string;
@@ -76,6 +77,7 @@ export function HistoryItem({
     const { t } = useLanguage();
     const isPendingRetry = item.status === 'pending_retry';
     const isPartial = item.status === 'partial';
+    const incompleteSave = isIncompleteSave(item);
     const retryGapSummary =
         item.downloadType === 'bilibili'
             ? getBilibiliRetryGapSummary(item.retryMetadata)
@@ -93,7 +95,15 @@ export function HistoryItem({
             fontSize: '0.9rem',
         },
     } as const;
-    const statusChip = item.status === 'success' ? (
+    const statusChip = incompleteSave ? (
+        <Chip
+            icon={<WarningIcon sx={{ fontSize: '0.9rem' }} />}
+            label={t('partialDownload') || 'Incomplete'}
+            color="warning"
+            size="small"
+            sx={statusChipSx}
+        />
+    ) : item.status === 'success' ? (
         <Chip
             icon={<CheckCircleIcon sx={{ fontSize: '0.9rem' }} />}
             label={t('success') || 'Success'}
@@ -238,7 +248,11 @@ export function HistoryItem({
                                 </Box>
                             )}
                             {item.error && (
-                                <Typography variant="caption" color="error" component="span">
+                                <Typography
+                                    variant="caption"
+                                    color={incompleteSave ? 'warning.main' : 'error'}
+                                    component="span"
+                                >
                                     {item.error}
                                 </Typography>
                             )}
@@ -327,7 +341,7 @@ export function HistoryItem({
                                 {t('viewVideo') || 'View Video'}
                             </Button>
                         )}
-                        {item.status === 'deleted' && item.sourceUrl && (
+                        {(item.status === 'deleted' || incompleteSave) && item.sourceUrl && (
                             <Button
                                 variant="outlined"
                                 color="primary"

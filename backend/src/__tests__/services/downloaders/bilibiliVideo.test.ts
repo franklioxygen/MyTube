@@ -4,6 +4,7 @@ import { formatVideoFilename } from "../../../utils/helpers";
 import { DownloadCancelledError } from "../../../errors/DownloadErrors";
 
 const mocks = vi.hoisted(() => ({
+  setIncompleteDownloadNote: vi.fn(),
   existsSync: vi.fn(),
   readdirSync: vi.fn(),
   statSync: vi.fn(),
@@ -102,6 +103,7 @@ vi.mock("../../../utils/ytDlpUtils", () => {
 });
 
 vi.mock("../../../services/storageService", () => ({
+  setIncompleteDownloadNote: (...args: any[]) => mocks.setIncompleteDownloadNote(...args),
   getSettings: (...args: any[]) => mocks.getSettings(...args),
   getVideos: (...args: any[]) => mocks.getVideos(...args),
   getVideoBySourceUrl: (...args: any[]) => mocks.getVideoBySourceUrl(...args),
@@ -116,6 +118,11 @@ vi.mock("../../../services/storageService", () => ({
   isThumbnailReferencedByOtherVideo: (...args: any[]) =>
     mocks.isThumbnailReferencedByOtherVideo(...args),
   getVideoById: (...args: any[]) => mocks.getVideoById(...args),
+}));
+
+vi.mock("../../../services/downloaders/timelineGaps", () => ({
+  describeSkippedFragments: vi.fn(async (_path: string, skipped: number) =>
+    skipped > 0 ? `missing content, ${skipped} fragment(s)` : null),
 }));
 
 vi.mock("../../../services/thumbnailMirrorService", () => ({
@@ -547,6 +554,53 @@ describe("bilibiliVideo.downloadSinglePart", () => {
     );
     expect(mocks.deleteSmallThumbnailMirrorSync).toHaveBeenCalledWith(
       "/mock/images/Collection/old-thumb.jpg",
+    );
+  });
+
+  it("keeps a part yt-dlp left a fragment out of, and notes it", async () => {
+    const subprocess: any = Promise.resolve(undefined);
+    subprocess.stdout = {
+      on: vi.fn((event: string, cb: (data: Buffer) => void) => {
+        if (event === "data") {
+          cb(Buffer.from("[download] fragment not found; Skipping fragment 7 ...\n"));
+        }
+      }),
+    };
+    subprocess.stderr = { on: vi.fn() };
+    subprocess.kill = vi.fn();
+    mocks.executeYtDlpSpawn.mockReturnValue(subprocess);
+
+    const result = await downloadSinglePart(
+      "https://www.bilibili.com/video/BV1gap",
+      1,
+      1,
+      "",
+      "download-gap",
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.videoData?.id).toBeTruthy();
+    expect(mocks.setIncompleteDownloadNote).toHaveBeenCalledExactlyOnceWith(
+      result.videoData?.id,
+      "missing content, 1 fragment(s)",
+    );
+  });
+
+  it("clears any note when an existing video is re-downloaded cleanly", async () => {
+    mocks.getVideoBySourceUrl.mockReturnValue(buildExistingVideo());
+
+    const result = await downloadSinglePart(
+      "https://www.bilibili.com/video/BV1clean-update",
+      1,
+      1,
+      "",
+      "download-clean",
+    );
+
+    expect(result.success).toBe(true);
+    expect(mocks.setIncompleteDownloadNote).toHaveBeenCalledExactlyOnceWith(
+      "existing-video",
+      null,
     );
   });
 

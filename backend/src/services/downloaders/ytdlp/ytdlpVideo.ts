@@ -24,6 +24,7 @@ import {
   parseSourceDurationSeconds,
   verifyDownloadedMediaComplete,
 } from "../downloadIntegrity";
+import { describeSkippedFragments } from "../timelineGaps";
 import { resolveSupersededManagedPath } from "../supersededOutput";
 import { logger } from "../../../utils/logger";
 import { ProgressTracker } from "../../../utils/progressTracker";
@@ -170,6 +171,8 @@ export async function downloadVideo(
   let newSafeBaseFilename = safeBaseFilename;
   let releaseOutputReservation: (() => void) | null = null;
   let existingLocalVideo: Video | undefined;
+  // Set when yt-dlp left fragments out; recorded against the saved video.
+  let incompleteNote: string | null = null;
 
   // Legacy naming under author_folder_only / author_collection_linked places the
   // yt-dlp output in an author subdirectory, so cleanup has to scan the planned
@@ -504,7 +507,6 @@ export async function downloadVideo(
           (info as { duration?: unknown }).duration
         ),
         userConfig,
-        skippedFragments: progressTracker.skippedFragments,
       }
     );
     if (!completeness.complete) {
@@ -523,6 +525,12 @@ export async function downloadVideo(
           `The file was discarded; try downloading again.`
       );
     }
+    // A fragment yt-dlp gave up on leaves a gap, not a truncation: the file is
+    // kept, and the note says what is missing so the history can show it.
+    incompleteNote = await describeSkippedFragments(
+      newVideoPathWithFormat,
+      progressTracker.skippedFragments
+    );
 
     let subtitleArtifactBaseFilename = newSafeBaseFilename;
     if (ownedVideoReplacement) {
@@ -900,6 +908,7 @@ export async function downloadVideo(
 
     if (updatedVideo) {
       logger.info("Video updated in database with new subtitles");
+      storageService.setIncompleteDownloadNote(updatedVideo.id, incompleteNote);
 
       let finalVideoData = updatedVideo;
 
@@ -962,6 +971,7 @@ export async function downloadVideo(
   }
 
   logger.info("Video added to database");
+  storageService.setIncompleteDownloadNote(videoData.id, incompleteNote);
 
   // Add video to author collection if enabled
   const authorOrganization = storageService.organizeVideoByAuthor(

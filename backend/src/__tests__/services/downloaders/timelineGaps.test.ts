@@ -19,8 +19,10 @@ vi.mock('../../../utils/security', () => ({
 
 import {
   createGapFinder,
+  describeSkippedFragments,
   findTimelineGaps,
   parseFrameShortfall,
+  summarizeTimelineGaps,
 } from '../../../services/downloaders/timelineGaps';
 
 // Header shapes taken from the production scan, with numbers that reproduce the
@@ -204,5 +206,65 @@ describe('findTimelineGaps', () => {
     mocks.execFileSafe.mockRejectedValue(new Error('spawn ffprobe ENOENT'));
 
     expect(await findTimelineGaps('/videos/a.mp4')).toEqual({ gaps: [], scannedStreams: [] });
+  });
+});
+
+describe('summarizeTimelineGaps', () => {
+  it('says how much is missing from each stream, and where', () => {
+    expect(summarizeTimelineGaps([
+      { stream: 'audio', atSeconds: 4476.2, gapSeconds: 4.04 },
+      { stream: 'video', atSeconds: 4476.1, gapSeconds: 4.0 },
+    ])).toBe(
+      '4.0s of video is missing across 1 gap(s), at 1:14:36 (4.0s); ' +
+        '4.0s of audio is missing across 1 gap(s), at 1:14:36 (4.0s)',
+    );
+  });
+
+  it('lists the first five gaps of a burst and counts the rest', () => {
+    const burst = Array.from({ length: 8 }, (_, i) => ({
+      stream: 'audio' as const, atSeconds: 60 * i, gapSeconds: 2,
+    }));
+
+    expect(summarizeTimelineGaps(burst)).toBe(
+      '16.0s of audio is missing across 8 gap(s), at 0:00:00 (2.0s), 0:01:00 (2.0s), ' +
+        '0:02:00 (2.0s), 0:03:00 (2.0s), 0:04:00 (2.0s) and 3 more',
+    );
+  });
+});
+
+describe('describeSkippedFragments', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.pathExistsSafeSync.mockReturnValue(true);
+  });
+
+  it('has nothing to say about a download that skipped nothing', async () => {
+    expect(await describeSkippedFragments('/videos/a.mp4', 0)).toBeNull();
+    expect(mocks.execFileSafe).not.toHaveBeenCalled();
+  });
+
+  it('says where the content is missing', async () => {
+    mocks.execFileSafe.mockResolvedValue({ stdout: header([video(210994, '30/1', 7037.133333)]) });
+    mocks.spawn.mockImplementation(() => {
+      const child = Object.assign(new EventEmitter(), { stdout: new EventEmitter(), kill: vi.fn() });
+      queueMicrotask(() => {
+        child.stdout.emit('data', Buffer.from('1127.887\n1127.92\n1131.953\n'));
+        child.emit('close', 0);
+      });
+      return child;
+    });
+
+    expect(await describeSkippedFragments('/videos/a.mp4', 1)).toBe(
+      'Saved with content missing: 4.0s of video is missing across 1 gap(s), ' +
+        'at 0:18:47 (4.0s). yt-dlp could not download 1 fragment; re-download to try again.',
+    );
+  });
+
+  it('still reports the loss when the gap cannot be located', async () => {
+    mocks.execFileSafe.mockRejectedValue(new Error('spawn ffprobe ENOENT'));
+
+    expect(await describeSkippedFragments('/videos/a.mp4', 3)).toBe(
+      'Saved with content missing: yt-dlp could not download 3 fragments. Re-download to try again.',
+    );
   });
 });
