@@ -937,6 +937,9 @@ export const en = {
   retryAttemptProgress: "Retry {current} of {total}",
   missingEpisodes: "Missing episodes",
   missingVideos: "Missing videos",
+  incompleteDownloadVideoGap: "Video: {seconds}s missing at {positions}",
+  incompleteDownloadAudioGap: "Audio: {seconds}s missing at {positions}",
+  incompleteDownloadFragments: "Fragments that could not be downloaded: {count}. Download again to try to recover them.",
 
   // Snackbar Messages
   videoDownloading: "Video downloading",

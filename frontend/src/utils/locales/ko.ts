@@ -969,6 +969,9 @@ export const ko = {
   retryAttemptProgress: "재시도 {current}/{total}회",
   missingEpisodes: "누락된 에피소드",
   missingVideos: "누락된 비디오",
+  incompleteDownloadVideoGap: "영상 {seconds}초 누락 (위치: {positions})",
+  incompleteDownloadAudioGap: "오디오 {seconds}초 누락 (위치: {positions})",
+  incompleteDownloadFragments: "다운로드하지 못한 조각: {count}개. 다시 다운로드하면 복구될 수 있습니다.",
 
 
   // Snackbar Messages

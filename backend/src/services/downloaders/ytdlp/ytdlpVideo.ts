@@ -172,7 +172,7 @@ export async function downloadVideo(
   let releaseOutputReservation: (() => void) | null = null;
   let existingLocalVideo: Video | undefined;
   // Set when yt-dlp left fragments out; recorded against the saved video.
-  let incompleteNote: string | null = null;
+  let incompleteNote: storageService.IncompleteDownloadNote | null = null;
 
   // Legacy naming under author_folder_only / author_collection_linked places the
   // yt-dlp output in an author subdirectory, so cleanup has to scan the planned

@@ -21,9 +21,18 @@ import {
   addDownloadHistoryItem,
   setIncompleteDownloadNote,
 } from "../../services/storageService/downloadHistory";
-import type { DownloadHistoryItem } from "../../services/storageService/types";
+import type {
+  DownloadHistoryItem,
+  IncompleteDownloadNote,
+} from "../../services/storageService/types";
 
-const NOTE = "Saved with content missing: 4.0s of video is missing across 1 gap(s), at 0:18:47 (4.0s).";
+const NOTE: IncompleteDownloadNote = {
+  kind: "incomplete_download",
+  skippedFragments: 1,
+  gaps: [{ stream: "video", atSeconds: 1127.92, gapSeconds: 4.03 }],
+};
+// Stored as JSON so the client can word it in the viewer's language.
+const STORED = JSON.stringify(NOTE);
 
 describe("incomplete download notes", () => {
   let written: Array<Record<string, unknown>>;
@@ -57,7 +66,7 @@ describe("incomplete download notes", () => {
 
     addDownloadHistoryItem(row());
 
-    expect(written[0]).toMatchObject({ status: "success", videoId: "v1", error: NOTE });
+    expect(written[0]).toMatchObject({ status: "success", videoId: "v1", error: STORED });
   });
 
   it("attaches it once", () => {
@@ -104,6 +113,6 @@ describe("incomplete download notes", () => {
     addDownloadHistoryItem(row());
 
     expect(written[0].error).toBeNull();
-    expect(written[1].error).toBe(NOTE);
+    expect(written[1].error).toBe(STORED);
   });
 });

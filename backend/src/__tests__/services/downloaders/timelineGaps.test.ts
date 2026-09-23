@@ -243,7 +243,7 @@ describe('describeSkippedFragments', () => {
     expect(mocks.execFileSafe).not.toHaveBeenCalled();
   });
 
-  it('says where the content is missing', async () => {
+  it('records where the content is missing', async () => {
     mocks.execFileSafe.mockResolvedValue({ stdout: header([video(210994, '30/1', 7037.133333)]) });
     mocks.spawn.mockImplementation(() => {
       const child = Object.assign(new EventEmitter(), { stdout: new EventEmitter(), kill: vi.fn() });
@@ -254,17 +254,20 @@ describe('describeSkippedFragments', () => {
       return child;
     });
 
-    expect(await describeSkippedFragments('/videos/a.mp4', 1)).toBe(
-      'Saved with content missing: 4.0s of video is missing across 1 gap(s), ' +
-        'at 0:18:47 (4.0s). yt-dlp could not download 1 fragment; re-download to try again.',
-    );
+    expect(await describeSkippedFragments('/videos/a.mp4', 1)).toEqual({
+      kind: 'incomplete_download',
+      skippedFragments: 1,
+      gaps: [{ stream: 'video', atSeconds: 1127.92, gapSeconds: 4.03 }],
+    });
   });
 
   it('still reports the loss when the gap cannot be located', async () => {
     mocks.execFileSafe.mockRejectedValue(new Error('spawn ffprobe ENOENT'));
 
-    expect(await describeSkippedFragments('/videos/a.mp4', 3)).toBe(
-      'Saved with content missing: yt-dlp could not download 3 fragments. Re-download to try again.',
-    );
+    expect(await describeSkippedFragments('/videos/a.mp4', 3)).toEqual({
+      kind: 'incomplete_download',
+      skippedFragments: 3,
+      gaps: [],
+    });
   });
 });

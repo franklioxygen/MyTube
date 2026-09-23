@@ -60,6 +60,18 @@ export interface DownloadInfo {
   retryMetadata?: string;
 }
 
+/**
+ * What a download saved with content missing lost. Stored as JSON in the
+ * history row's `error` and rendered by the client, in the viewer's language.
+ */
+export interface IncompleteDownloadNote {
+  kind: "incomplete_download";
+  /** Fragments yt-dlp gave up on and left out. */
+  skippedFragments: number;
+  /** Where the content is missing; empty when the gaps could not be located. */
+  gaps: Array<{ stream: "video" | "audio"; atSeconds: number; gapSeconds: number }>;
+}
+
 export interface DownloadHistoryItem {
   id: string;
   title: string;

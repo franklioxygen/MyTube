@@ -6,6 +6,7 @@ import {
   pathExistsSafeSync,
   validateVideoPath,
 } from "../../utils/security";
+import type { IncompleteDownloadNote } from "../storageService/types";
 import { parseSourceDurationSeconds } from "./downloadIntegrity";
 
 /**
@@ -328,21 +329,19 @@ export async function findTimelineGaps(filePath: string): Promise<TimelineGapRes
 /**
  * The note for a download saved although yt-dlp left fragments out, or null
  * when none were. Locates the gaps so the note can say what is missing and
- * where; if they cannot be located, it still says fragments were lost.
+ * where; if they cannot be located, it still records that fragments were lost.
+ * It is data rather than a sentence so the client can word it in the viewer's
+ * language.
  */
 export async function describeSkippedFragments(
   filePath: string,
   skippedFragments: number
-): Promise<string | null> {
+): Promise<IncompleteDownloadNote | null> {
   if (skippedFragments <= 0) return null;
   const { gaps } = await findTimelineGaps(filePath);
-  const lost =
-    `yt-dlp could not download ${skippedFragments} ` +
-    `fragment${skippedFragments === 1 ? "" : "s"}`;
-  const note =
-    gaps.length > 0
-      ? `Saved with content missing: ${summarizeTimelineGaps(gaps)}. ${lost}; re-download to try again.`
-      : `Saved with content missing: ${lost}. Re-download to try again.`;
-  logger.warn(`Download saved with content missing (${filePath}): ${note}`);
-  return note;
+  logger.warn(
+    `Download saved with ${skippedFragments} fragment(s) missing (${filePath})` +
+      (gaps.length > 0 ? `: ${summarizeTimelineGaps(gaps)}` : "")
+  );
+  return { kind: "incomplete_download", skippedFragments, gaps };
 }

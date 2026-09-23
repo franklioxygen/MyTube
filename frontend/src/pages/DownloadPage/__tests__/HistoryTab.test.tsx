@@ -34,7 +34,12 @@ const mockHistoryItems = [
         status: 'success' as const,
         sourceUrl: 'http://example.com/1b',
         videoId: 'vid-gap',
-        error: 'Saved with content missing: 4.0s of video is missing across 1 gap(s), at 0:18:47 (4.0s).',
+        // What the backend stores: data, worded here in the viewer's language.
+        error: JSON.stringify({
+            kind: 'incomplete_download',
+            skippedFragments: 1,
+            gaps: [{ stream: 'video', atSeconds: 1127.92, gapSeconds: 4.03 }],
+        }),
     },
     {
         id: '2',
@@ -248,7 +253,12 @@ describe('HistoryTab incomplete save', () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
-        (useLanguage as Mock).mockReturnValue({ t: (key: string) => key });
+        // Show the interpolated values so the test can see what reaches t().
+        (useLanguage as Mock).mockReturnValue({
+            language: 'en',
+            t: (key: string, params?: Record<string, string | number>) =>
+                params ? `${key} ${JSON.stringify(params)}` : key,
+        });
         (useSettings as Mock).mockReturnValue({ data: {} });
         (useTheme as Mock).mockReturnValue({ breakpoints: { down: vi.fn() } });
         (useMediaQuery as Mock).mockReturnValue(false);
@@ -269,12 +279,28 @@ describe('HistoryTab incomplete save', () => {
         </BrowserRouter>
     );
 
-    it('is shown as incomplete, with what is missing', () => {
+    it('is shown as incomplete, with what is missing, in the viewer\'s language', () => {
         renderIncompleteSave();
 
         expect(screen.getByText('partialDownload')).toBeInTheDocument();
         expect(screen.queryByText('success')).not.toBeInTheDocument();
-        expect(screen.getByText(/4\.0s of video is missing/)).toBeInTheDocument();
+        expect(screen.getByText(
+            'incompleteDownloadVideoGap {"seconds":"4.0","positions":"18:47"}',
+        )).toBeInTheDocument();
+        expect(screen.getByText('incompleteDownloadFragments {"count":1}')).toBeInTheDocument();
+        // The stored JSON itself is never shown.
+        expect(screen.queryByText(/incomplete_download/)).not.toBeInTheDocument();
+    });
+
+    it('formats seconds for the viewer\'s locale', () => {
+        (useLanguage as Mock).mockReturnValue({
+            language: 'de',
+            t: (key: string, params?: Record<string, string | number>) =>
+                params ? `${key} ${JSON.stringify(params)}` : key,
+        });
+        renderIncompleteSave();
+
+        expect(screen.getByText(/"seconds":"4,0"/)).toBeInTheDocument();
     });
 
     it('can still be watched', () => {

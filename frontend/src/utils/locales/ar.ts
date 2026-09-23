@@ -961,6 +961,9 @@ export const ar = {
   retryAttemptProgress: "إعادة المحاولة {current} من {total}",
   missingEpisodes: "الحلقات المفقودة",
   missingVideos: "مقاطع الفيديو المفقودة",
+  incompleteDownloadVideoGap: "الفيديو: {seconds} ث مفقودة عند {positions}",
+  incompleteDownloadAudioGap: "الصوت: {seconds} ث مفقودة عند {positions}",
+  incompleteDownloadFragments: "أجزاء لم يتم تنزيلها: {count}. أعد التنزيل لمحاولة استعادتها.",
 
 
   // Snackbar Messages

@@ -1000,6 +1000,9 @@ export const de = {
   retryAttemptProgress: "Wiederholung {current} von {total}",
   missingEpisodes: "Fehlende Folgen",
   missingVideos: "Fehlende Videos",
+  incompleteDownloadVideoGap: "Video: {seconds} s fehlen bei {positions}",
+  incompleteDownloadAudioGap: "Audio: {seconds} s fehlen bei {positions}",
+  incompleteDownloadFragments: "Nicht heruntergeladene Fragmente: {count}. Erneut herunterladen, um sie wiederherzustellen.",
 
 
   // Snackbar Messages

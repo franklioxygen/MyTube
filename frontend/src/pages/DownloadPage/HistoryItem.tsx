@@ -23,7 +23,10 @@ import { Link as RouterLink } from 'react-router';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { getBilibiliRetryGapSummary } from '../../utils/bilibiliRetryMetadata';
 import { formatDisplayDateTime } from '../../utils/formatUtils';
-import { isIncompleteSave } from './historyStatus';
+import {
+    parseIncompleteDownloadNote,
+    summarizeIncompleteDownloadGaps,
+} from '../../utils/incompleteDownloadNote';
 
 export interface DownloadHistoryItem {
     id: string;
@@ -74,10 +77,18 @@ export function HistoryItem({
     isCancellingRetry = false,
     dontSkipDeletedVideo
 }: HistoryItemProps) {
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     const isPendingRetry = item.status === 'pending_retry';
     const isPartial = item.status === 'partial';
-    const incompleteSave = isIncompleteSave(item);
+    // A save with content missing: still a success row, with a note of the gaps.
+    const incompleteNote =
+        item.status === 'success' ? parseIncompleteDownloadNote(item.error) : undefined;
+    const incompleteSave = incompleteNote !== undefined;
+    const formatSeconds = (seconds: number) =>
+        new Intl.NumberFormat(language, {
+            minimumFractionDigits: 1,
+            maximumFractionDigits: 1,
+        }).format(seconds);
     const retryGapSummary =
         item.downloadType === 'bilibili'
             ? getBilibiliRetryGapSummary(item.retryMetadata)
@@ -247,12 +258,22 @@ export function HistoryItem({
                                     )}
                                 </Box>
                             )}
-                            {item.error && (
-                                <Typography
-                                    variant="caption"
-                                    color={incompleteSave ? 'warning.main' : 'error'}
-                                    component="span"
-                                >
+                            {incompleteNote ? (
+                                <>
+                                    {summarizeIncompleteDownloadGaps(incompleteNote).map((gap) => (
+                                        <Typography key={gap.labelKey} variant="caption" color="warning.main" component="span">
+                                            {t(gap.labelKey, {
+                                                seconds: formatSeconds(gap.seconds),
+                                                positions: gap.positions,
+                                            })}
+                                        </Typography>
+                                    ))}
+                                    <Typography variant="caption" color="warning.main" component="span">
+                                        {t('incompleteDownloadFragments', { count: incompleteNote.skippedFragments })}
+                                    </Typography>
+                                </>
+                            ) : item.error && (
+                                <Typography variant="caption" color="error" component="span">
                                     {item.error}
                                 </Typography>
                             )}

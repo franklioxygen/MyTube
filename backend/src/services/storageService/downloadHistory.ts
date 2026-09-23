@@ -4,7 +4,12 @@ import { db } from "../../db";
 import { downloadHistory, subscriptions, videos } from "../../db/schema";
 import { logger } from "../../utils/logger";
 import { getSettings } from "./settings";
-import { DownloadHistoryItem, MediaType, normalizeMediaType } from "./types";
+import {
+  DownloadHistoryItem,
+  IncompleteDownloadNote,
+  MediaType,
+  normalizeMediaType,
+} from "./types";
 import { PARTIAL_STATUS, PENDING_RETRY_STATUS } from "./downloadHistoryStatus";
 
 function mapDownloadHistoryRow(row: typeof downloadHistory.$inferSelect): DownloadHistoryItem {
@@ -48,10 +53,13 @@ const MAX_INCOMPLETE_DOWNLOAD_NOTES = 200;
  * clears it, so a note left by an earlier attempt cannot attach to a later
  * clean download of the same video.
  */
-export function setIncompleteDownloadNote(videoId: string, note: string | null): void {
+export function setIncompleteDownloadNote(
+  videoId: string,
+  note: IncompleteDownloadNote | null
+): void {
   incompleteDownloadNotes.delete(videoId);
   if (!note) return;
-  incompleteDownloadNotes.set(videoId, note);
+  incompleteDownloadNotes.set(videoId, JSON.stringify(note));
   if (incompleteDownloadNotes.size > MAX_INCOMPLETE_DOWNLOAD_NOTES) {
     const oldest = incompleteDownloadNotes.keys().next().value;
     if (oldest !== undefined) incompleteDownloadNotes.delete(oldest);
@@ -69,7 +77,8 @@ export function addDownloadHistoryItem(item: DownloadHistoryItem): void {
   try {
     // The row stays "success": retention, renames and deletion tombstones all
     // key on that status, and the video is in the library. The note rides in
-    // `error`, which the history view shows as an incomplete download.
+    // `error` as JSON, which the history view renders, localized, as an
+    // incomplete download.
     const incompleteNote = takeIncompleteDownloadNote(item);
     const values = {
       id: item.id,

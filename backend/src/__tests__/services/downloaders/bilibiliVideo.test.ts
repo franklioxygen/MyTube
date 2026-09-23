@@ -122,7 +122,7 @@ vi.mock("../../../services/storageService", () => ({
 
 vi.mock("../../../services/downloaders/timelineGaps", () => ({
   describeSkippedFragments: vi.fn(async (_path: string, skipped: number) =>
-    skipped > 0 ? `missing content, ${skipped} fragment(s)` : null),
+    skipped > 0 ? { kind: "incomplete_download", skippedFragments: skipped, gaps: [] } : null),
 }));
 
 vi.mock("../../../services/thumbnailMirrorService", () => ({
@@ -582,7 +582,7 @@ describe("bilibiliVideo.downloadSinglePart", () => {
     expect(result.videoData?.id).toBeTruthy();
     expect(mocks.setIncompleteDownloadNote).toHaveBeenCalledExactlyOnceWith(
       result.videoData?.id,
-      "missing content, 1 fragment(s)",
+      { kind: "incomplete_download", skippedFragments: 1, gaps: [] },
     );
   });
 

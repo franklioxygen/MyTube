@@ -26,7 +26,7 @@ vi.mock('../../../services/downloaders/downloadIntegrity', () => ({
 }));
 vi.mock('../../../services/downloaders/timelineGaps', () => ({
   describeSkippedFragments: vi.fn(async (_path: string, skipped: number) =>
-    skipped > 0 ? `missing content, ${skipped} fragment(s)` : null),
+    skipped > 0 ? { kind: 'incomplete_download', skippedFragments: skipped, gaps: [] } : null),
 }));
 
 // A playlist body the mocked browser reports having fetched itself. The
@@ -605,7 +605,7 @@ describe('MissAVDownloader', () => {
         expect(video.id).toBeTruthy();
         expect(storageService.setIncompleteDownloadNote).toHaveBeenCalledExactlyOnceWith(
           video.id,
-          'missing content, 1 fragment(s)',
+          { kind: 'incomplete_download', skippedFragments: 1, gaps: [] },
         );
       });
 

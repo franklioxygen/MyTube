@@ -33,6 +33,7 @@ export {
     removeDownloadHistoryItem,
     setIncompleteDownloadNote
 } from "./downloadHistory";
+export type { IncompleteDownloadNote } from "./types";
 
 // Video Download Tracking
 export {

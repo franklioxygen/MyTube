@@ -19,7 +19,7 @@ vi.mock('../../../services/downloaders/downloadIntegrity', async (importOriginal
 }));
 vi.mock('../../../services/downloaders/timelineGaps', () => ({
     describeSkippedFragments: vi.fn(async (_path: string, skipped: number) =>
-        skipped > 0 ? `missing content, ${skipped} fragment(s)` : null),
+        skipped > 0 ? { kind: 'incomplete_download', skippedFragments: skipped, gaps: [] } : null),
 }));
 const videoPathExistsChecks = vi.hoisted(() => new Map<string, number>());
 // Flipped by the no-output gate test to model yt-dlp exiting 0 without writing.
@@ -231,7 +231,7 @@ describe('YtDlpDownloader format defaults', () => {
         expect(storageService.saveVideo).toHaveBeenCalled();
         expect(storageService.setIncompleteDownloadNote).toHaveBeenCalledWith(
             video.id,
-            'missing content, 2 fragment(s)',
+            { kind: 'incomplete_download', skippedFragments: 2, gaps: [] },
         );
     });
 
