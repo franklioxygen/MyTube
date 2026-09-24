@@ -3,6 +3,7 @@ import { Video } from '../types';
 import { isNewVideo } from '../utils/videoCardUtils';
 import { useCloudStorageUrl } from './useCloudStorageUrl';
 import { useThumbnailCandidates } from './useThumbnailCandidates';
+import { encodeLocalMediaPath, isHttpUrl } from '../utils/localMediaPath';
 
 interface UseVideoCardMetadataProps {
     video: Video;
@@ -43,8 +44,9 @@ export const useVideoCardMetadata = ({ video }: UseVideoCardMetadataProps) => {
 
         // Otherwise, construct URL from videoPath
         if (video.videoPath) {
+            if (isHttpUrl(video.videoPath)) return video.videoPath;
             const videoPath = video.videoPath.startsWith('/') ? video.videoPath : `/${video.videoPath}`;
-            return `${window.location.origin}${videoPath}`;
+            return `${window.location.origin}${encodeLocalMediaPath(videoPath)}`;
         }
         return video.sourceUrl || '';
     };

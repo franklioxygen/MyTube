@@ -7,6 +7,7 @@ import { useCloudStorageUrl } from '../../../hooks/useCloudStorageUrl';
 import { Collection, Video } from '../../../types';
 
 import { getBackendUrl } from '../../../utils/apiUrl';
+import { encodeLocalMediaPath, isHttpUrl } from '../../../utils/localMediaPath';
 
 const BACKEND_URL = getBackendUrl();
 
@@ -30,6 +31,11 @@ const VideoMetadata: React.FC<VideoMetadataProps> = ({
         video.videoPath,
         video.mediaType === 'audio' ? 'audio' : 'video',
     );
+    const downloadUrl = videoUrl ?? (video.videoPath
+        ? isHttpUrl(video.videoPath)
+            ? video.videoPath
+            : `${BACKEND_URL}${encodeLocalMediaPath(video.videoPath)}`
+        : undefined);
 
     const fallbackCopy = (text: string): boolean => {
         const textArea = document.createElement('textarea');
@@ -134,9 +140,7 @@ const VideoMetadata: React.FC<VideoMetadataProps> = ({
                             fontSize: { xs: '0.75rem', sm: '0.875rem' }
                         }}
                     >
-                        <a href={videoUrl || (video.videoPath && (video.videoPath.startsWith("http://") || video.videoPath.startsWith("https://"))
-                            ? video.videoPath
-                            : `${BACKEND_URL}${video.videoPath}`)} download style={{ color: theme.palette.primary.main, textDecoration: 'none', display: 'flex', alignItems: 'center' }}>
+                        <a href={downloadUrl} download style={{ color: theme.palette.primary.main, textDecoration: 'none', display: 'flex', alignItems: 'center' }}>
                             <Download sx={{ mr: 0.5, fontSize: { xs: '0.875rem', sm: '1rem' } }} />
                             <strong>{t('download')}</strong>
                         </a>

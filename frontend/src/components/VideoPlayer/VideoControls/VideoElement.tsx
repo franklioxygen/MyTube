@@ -4,6 +4,7 @@ import React, { useId, useMemo } from 'react';
 import { useLanguage } from '../../../contexts/LanguageContext';
 import { neutral, overlay } from '../../../theme/colors';
 import { getBackendUrl } from '../../../utils/apiUrl';
+import { encodeLocalMediaPath, isHttpUrl } from '../../../utils/localMediaPath';
 import { getSubtitleLanguageLabel, getSubtitleTrackLanguage } from '../../../utils/formatUtils';
 import { getMediaCrossOriginAttr } from '../../../utils/mediaOrigin';
 import { computePreloadStrategy } from '../../../utils/preloadStrategy';
@@ -268,7 +269,7 @@ const VideoElement: React.FC<VideoElementProps> = ({
                     <track
                         key={`${subtitle.language}-${index}`}
                         kind="subtitles"
-                        src={`${getBackendUrl()}${subtitle.path}`}
+                        src={isHttpUrl(subtitle.path) ? subtitle.path : `${getBackendUrl()}${encodeLocalMediaPath(subtitle.path)}`}
                         srcLang={getSubtitleTrackLanguage(subtitle.language, subtitle.path)}
                         label={getSubtitleLanguageLabel(subtitle.language, subtitle.path)}
                     />

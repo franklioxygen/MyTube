@@ -6,6 +6,7 @@ import {
 } from "../utils/cloudStorage";
 
 import { getBackendUrl } from "../utils/apiUrl";
+import { encodeLocalMediaPath, isHttpUrl } from "../utils/localMediaPath";
 
 /**
  * Helper function to construct full URL from initialUrl
@@ -13,7 +14,7 @@ import { getBackendUrl } from "../utils/apiUrl";
 const constructFullUrl = (initialUrl: string): string => {
   const BACKEND_URL = getBackendUrl();
   // Construct full URL if it's a relative path
-  return initialUrl.startsWith("http://") || initialUrl.startsWith("https://")
+  return isHttpUrl(initialUrl)
     ? initialUrl
     : `${BACKEND_URL}${initialUrl}`;
 };
@@ -44,14 +45,14 @@ type: "video" | "audio" | "thumbnail" = "video",
     }
 
     // If already a full URL, use it directly
-    if (path.startsWith("http://") || path.startsWith("https://")) {
+    if (isHttpUrl(path)) {
       return path;
     }
 
-    // For regular paths (non-cloud, non-mount), return path directly
-    // These paths like /avatars/..., /images/..., /videos/... work with nginx proxy
+    // Local paths work through the nginx proxy, but filename characters such as
+    // '#' must be encoded so the browser includes them in the request path.
     if (!isCloudStoragePath(path) && !isMountDirectoryPath(path)) {
-      return path;
+      return encodeLocalMediaPath(path);
     }
 
     // For cloud storage and mount paths, return undefined here

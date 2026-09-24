@@ -25,6 +25,26 @@ describe('imageOptimization', () => {
         ).toBe('/images-small/thumb.jpg?t=123');
     });
 
+    it('encodes hashes in local cover paths while retaining a cache suffix', () => {
+        expect(buildThumbnailCandidates('', '/videos/Show #1/cover #43.jpg', '/videos/Show%20%231/cover%20%2343.jpg?t=9')).toEqual([
+            '/images-small/Show%20%231/cover%20%2343.jpg?t=9',
+            '/videos/Show%20%231/cover%20%2343.jpg?t=9',
+        ]);
+    });
+
+    it('retains the backend cache suffix when the thumbnail URL contains a raw hash', () => {
+        const path = '/videos/Show #1/cover #43.jpg';
+        const refreshedUrl = `${path}?t=123`;
+
+        expect(extractThumbnailCacheSuffix(path, refreshedUrl)).toBe('?t=123');
+        expect(buildSmallThumbnailUrl(path, refreshedUrl))
+            .toBe('/images-small/Show%20%231/cover%20%2343.jpg?t=123');
+        expect(buildThumbnailCandidates('', path, refreshedUrl).slice(0, 2)).toEqual([
+            '/images-small/Show%20%231/cover%20%2343.jpg?t=123',
+            '/videos/Show%20%231/cover%20%2343.jpg?t=123',
+        ]);
+    });
+
     it('returns undefined for non-local thumbnail paths', () => {
         expect(toSmallThumbnailPath('cloud:thumb.jpg')).toBeUndefined();
         expect(buildSmallThumbnailAbsoluteUrl('http://localhost:3000', 'cloud:thumb.jpg')).toBeUndefined();

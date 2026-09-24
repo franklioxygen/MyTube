@@ -1,3 +1,5 @@
+import { encodeLocalMediaPath } from './localMediaPath';
+
 const stripQuery = (value: string): string => value.split('?')[0];
 
 const normalizePath = (value: string): string => {
@@ -42,8 +44,15 @@ export const extractThumbnailCacheSuffix = (
 
     try {
         const normalizedThumbnailPath = normalizePath(thumbnailPath);
+        // The backend can return a raw filesystem path followed by ?t=... .
+        // Parse that suffix separately so '#' in the filename is not treated
+        // as the start of a URL fragment.
+        if (thumbnailUrl.startsWith(`${normalizedThumbnailPath}?`)) {
+            return new URL(thumbnailUrl.slice(normalizedThumbnailPath.length), window.location.origin).search;
+        }
+
         const normalizedThumbnailUrl = new URL(thumbnailUrl, window.location.origin);
-        return normalizedThumbnailUrl.pathname === normalizedThumbnailPath
+        return normalizedThumbnailUrl.pathname === encodeLocalMediaPath(normalizedThumbnailPath)
             ? normalizedThumbnailUrl.search
             : '';
     } catch {
@@ -77,7 +86,7 @@ export const buildSmallThumbnailUrl = (
         return undefined;
     }
 
-    return `${smallThumbnailPath}${extractThumbnailCacheSuffix(thumbnailPath, thumbnailUrl)}`;
+    return `${encodeLocalMediaPath(smallThumbnailPath)}${extractThumbnailCacheSuffix(thumbnailPath, thumbnailUrl)}`;
 };
 
 export const buildSmallThumbnailAbsoluteUrl = (
@@ -122,7 +131,7 @@ export const buildThumbnailCandidates = (
             continue;
         }
         for (const origin of origins) {
-            candidates.push(`${origin}${mediaPath}${cacheSuffix}`);
+            candidates.push(`${origin}${encodeLocalMediaPath(mediaPath)}${cacheSuffix}`);
         }
     }
 
