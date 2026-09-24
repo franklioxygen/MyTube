@@ -5,7 +5,9 @@
 # Users should run 'npm run build' to generate these files
 *.js
 *.js.map
-!locales/*.js  # Locale files are source files, not compiled
+# These JavaScript files are maintained as source files.
+!locales/*.js
+!scripts/*.js
 
 # Optional: Uncomment if you want to ignore icons during development
 # icons/*.png
@@ -17,5 +19,4 @@ package-lock.json
 # Package files
 .package-temp/
 
-# Store submission archives (build artifacts — attach to GitHub Releases instead)
-*.zip
+# Keep the versioned extension archive linked from the installation docs.

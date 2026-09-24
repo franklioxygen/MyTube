@@ -14,7 +14,7 @@ A Chrome extension that allows one-click downloading of videos from YouTube, Bil
 
 ### Quick Install (Recommended)
 
-1. Download the [mytube-extension-v1.0.2.zip](mytube-extension-v1.0.2.zip) file.
+1. Download the [mytube-extension-v1.0.3.zip](mytube-extension-v1.0.3.zip) file.
 2. Unzip the file to a folder.
 3. Open Chrome and navigate to `chrome://extensions/`
 4. Enable "Developer mode" (toggle in the top right)
@@ -175,7 +175,7 @@ This will:
 3. Include only the necessary files (manifest.json, compiled JS files, HTML, CSS, icons, locales)
 4. Exclude development files (TypeScript sources, node_modules, etc.)
 
-The zip file will be created in the `chrome-extension` directory and is ready to upload to the [Chrome Web Store Developer Dashboard](https://chrome.google.com/webstore/devconsole).
+The zip file will be created in the `chrome-extension` directory. When updating the extension, commit the new archive and update the download links in this README and the English and Chinese installation guides.
 
 ### Manual Packaging
 
