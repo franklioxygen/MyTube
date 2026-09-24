@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { EventEmitter } from 'events';
+import { logger } from '../../../utils/logger';
 
 const mocks = vi.hoisted(() => ({
   execFileSafe: vi.fn(),
@@ -86,7 +87,9 @@ describe('parseFrameShortfall', () => {
   it('leaves non-AAC audio unmeasured, since its frame size is not fixed', () => {
     const opus = { ...aac(100000, 2000), codec_name: 'opus' };
 
-    expect(parseFrameShortfall(header([opus])).audio).toBeNull();
+    const result = parseFrameShortfall(header([opus]));
+    expect(result.audio).toBeNull();
+    expect(result.presentStreams).toEqual(['audio']);
   });
 
   it.each([
@@ -142,13 +145,15 @@ describe('createGapFinder', () => {
 
 describe('findTimelineGaps', () => {
   /** A fake ffprobe packet scan that emits the given timestamps and exits. */
-  const fakeScan = (timestamps: number[], exitCode = 0) => {
+  const fakeScan = (timestamps: number[], exitCode = 0, stderr = '') => {
     const child = Object.assign(new EventEmitter(), {
       stdout: new EventEmitter(),
+      stderr: new EventEmitter(),
       kill: vi.fn(),
     });
     queueMicrotask(() => {
       child.stdout.emit('data', Buffer.from(timestamps.map(String).join('\n') + '\n'));
+      if (stderr) child.stderr.emit('data', Buffer.from(stderr));
       child.emit('close', exitCode);
     });
     return child;
@@ -169,6 +174,40 @@ describe('findTimelineGaps', () => {
 
     expect(result).toEqual({ gaps: [], scannedStreams: [], complete: true });
     expect(mocks.spawn).not.toHaveBeenCalled();
+  });
+
+  it('treats attached cover art as absent, not an unchecked video stream', async () => {
+    const cover = { ...video(1, '90000/1', 60), disposition: { attached_pic: 1 } };
+    mocks.execFileSafe.mockResolvedValue({ stdout: header([cover, aac(2813, 60.010667)]) });
+
+    expect(await findTimelineGaps('/videos/a.mp4')).toEqual({
+      gaps: [], scannedStreams: [], complete: true,
+    });
+    expect(mocks.spawn).not.toHaveBeenCalled();
+  });
+
+  it('scans present video when its frame count is unavailable', async () => {
+    const noCount = { ...video(1800, '30/1', 60), nb_frames: 'N/A' };
+    mocks.execFileSafe.mockResolvedValue({ stdout: header([noCount, aac(2813, 60.010667)]) });
+    mocks.spawn.mockImplementation(() => fakeScan([0, 0.033, 4.066]));
+
+    const result = await findTimelineGaps('/videos/a.mp4');
+
+    expect(result).toMatchObject({ complete: true, scannedStreams: ['video'] });
+    expect(result.gaps).toEqual([{ stream: 'video', atSeconds: 0.03, gapSeconds: 4.03 }]);
+    expect(mocks.spawn.mock.calls[0][1]).toContain('v:0');
+  });
+
+  it('scans present non-AAC audio even though its frame duration is unknown', async () => {
+    const opus = { ...aac(100000, 60.010667), codec_name: 'opus' };
+    mocks.execFileSafe.mockResolvedValue({ stdout: header([video(1800, '30/1', 60), opus]) });
+    mocks.spawn.mockImplementation(() => fakeScan([0, 0.021, 4.042]));
+
+    const result = await findTimelineGaps('/videos/a.mp4');
+
+    expect(result).toMatchObject({ complete: true, scannedStreams: ['audio'] });
+    expect(result.gaps).toEqual([{ stream: 'audio', atSeconds: 0.02, gapSeconds: 4.02 }]);
+    expect(mocks.spawn.mock.calls[0][1]).toContain('a:0');
   });
 
   it('scans only the stream that falls short, and reports where the gap is', async () => {
@@ -201,6 +240,31 @@ describe('findTimelineGaps', () => {
     mocks.spawn.mockImplementation(() => fakeScan([0, 10, 20], 1));
 
     expect(await findTimelineGaps('/videos/a.mp4')).toMatchObject({ gaps: [], complete: false });
+  });
+
+  it('does not call a scan complete when ffprobe returns no usable timestamps', async () => {
+    mocks.execFileSafe.mockResolvedValue({ stdout: header([video(210994, '30/1', 7037.13)]) });
+    mocks.spawn.mockImplementation(() => fakeScan([]));
+
+    expect(await findTimelineGaps('/videos/a.mp4')).toMatchObject({
+      gaps: [], scannedStreams: ['video'], complete: false,
+    });
+  });
+
+  it('drains noisy ffprobe stderr and keeps only a bounded diagnostic tail', async () => {
+    mocks.execFileSafe.mockResolvedValue({ stdout: header([video(210994, '30/1', 7037.13)]) });
+    mocks.spawn.mockImplementation(() => fakeScan([0, 10], 1, 'x'.repeat(10000) + 'last error'));
+
+    const result = await findTimelineGaps('/videos/a.mp4');
+
+    expect(result.complete).toBe(false);
+    expect(mocks.spawn.mock.results[0].value.stderr.listenerCount('data')).toBe(1);
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.stringContaining('exited with code 1'),
+      expect.stringMatching(/last error$/),
+    );
+    const warnings = vi.mocked(logger.warn).mock.calls;
+    expect(warnings[warnings.length - 1][1]).toHaveLength(4096);
   });
 
   it('fails open when ffprobe is unavailable', async () => {

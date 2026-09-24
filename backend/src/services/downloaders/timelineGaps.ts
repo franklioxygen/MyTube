@@ -59,11 +59,13 @@ export interface FrameShortfall {
    */
   video: number | null;
   audio: number | null;
+  /** Null when the header could not be read; absent streams are omitted. */
+  presentStreams: TimelineStream[] | null;
 }
 
 export interface TimelineGapResult {
   gaps: TimelineGap[];
-  /** Streams that were scanned packet by packet, because stage one flagged them. */
+  /** Streams scanned because of a shortfall or an unavailable frame count. */
   scannedStreams: TimelineStream[];
   /** False when the header probe or any required packet scan could not finish. */
   complete: boolean;
@@ -85,6 +87,7 @@ const MAX_REPORTED_GAPS = 50;
 // A packet scan reads the whole file; an eight-hour download off a NAS can take a
 // couple of minutes. Past this the scan is abandoned and reported as unknown.
 const PACKET_SCAN_TIMEOUT_MS = 10 * 60 * 1000;
+const SCAN_STDERR_TAIL_CHARS = 4096;
 
 // AAC frames carry a fixed 1024 samples, which is what makes an audio frame count
 // convertible into a duration. Other codecs are left unmeasured.
@@ -113,7 +116,7 @@ function parseRational(value: unknown): number | null {
  * the arithmetic is testable without a media file.
  */
 export function parseFrameShortfall(stdout: string): FrameShortfall {
-  const none: FrameShortfall = { video: null, audio: null };
+  const none: FrameShortfall = { video: null, audio: null, presentStreams: null };
   let payload: { streams?: FfprobeFrameStream[] };
   try {
     payload = JSON.parse(stdout);
@@ -121,7 +124,8 @@ export function parseFrameShortfall(stdout: string): FrameShortfall {
     return none;
   }
 
-  const streams = Array.isArray(payload?.streams) ? payload.streams : [];
+  if (!Array.isArray(payload?.streams)) return none;
+  const streams = payload.streams;
   const real = (type: string) =>
     streams.find(
       (stream) =>
@@ -151,6 +155,9 @@ export function parseFrameShortfall(stdout: string): FrameShortfall {
   return {
     video: shortfall(parseSourceDurationSeconds(video?.duration), videoImplied),
     audio: shortfall(parseSourceDurationSeconds(audio?.duration), audioImplied),
+    presentStreams: (["video", "audio"] as const).filter((stream) =>
+      stream === "video" ? video !== undefined : audio !== undefined
+    ),
   };
 }
 
@@ -159,7 +166,7 @@ export async function probeFrameShortfall(filePath: string): Promise<FrameShortf
   try {
     const validatedPath = validateVideoPath(filePath);
     if (!pathExistsSafeSync(validatedPath, VIDEOS_DIR)) {
-      return { video: null, audio: null };
+      return { video: null, audio: null, presentStreams: null };
     }
     const { stdout } = await execFileSafe(
       "ffprobe",
@@ -177,7 +184,7 @@ export async function probeFrameShortfall(filePath: string): Promise<FrameShortf
     return parseFrameShortfall(stdout);
   } catch (error) {
     logger.warn(`Could not read frame counts for ${filePath}:`, error);
-    return { video: null, audio: null };
+    return { video: null, audio: null, presentStreams: null };
   }
 }
 
@@ -187,11 +194,13 @@ export async function probeFrameShortfall(filePath: string): Promise<FrameShortf
  */
 export function createGapFinder(stream: TimelineStream) {
   let previous: number | null = null;
+  let timestampCount = 0;
   const gaps: TimelineGap[] = [];
   return {
     push(line: string): void {
       const timestamp = Number.parseFloat(line);
       if (!Number.isFinite(timestamp)) return;
+      timestampCount += 1;
       if (previous !== null) {
         const step = timestamp - previous;
         if (step > CONTIGUOUS_GAP_SECONDS && gaps.length < MAX_REPORTED_GAPS) {
@@ -205,6 +214,7 @@ export function createGapFinder(stream: TimelineStream) {
       previous = timestamp;
     },
     gaps: (): TimelineGap[] => gaps,
+    hasComparableTimestamps: (): boolean => timestampCount >= 2,
   };
 }
 
@@ -233,6 +243,7 @@ async function scanStreamForGaps(
       validatedPath,
     ]);
     let buffered = "";
+    let stderrTail = "";
     let settled = false;
     const finish = (result: TimelineGap[] | null) => {
       if (settled) return;
@@ -254,13 +265,20 @@ async function scanStreamForGaps(
         buffered = buffered.slice(newline + 1);
       }
     });
+    // A noisy malformed file can fill an unread stderr pipe and stall ffprobe.
+    child.stderr?.on("data", (chunk: Buffer) => {
+      stderrTail = (stderrTail + chunk.toString()).slice(-SCAN_STDERR_TAIL_CHARS);
+    });
     child.on("error", (error) => {
       logger.warn(`Timeline scan of ${validatedPath} failed:`, error);
       finish(null);
     });
     child.on("close", (code) => {
       if (buffered) finder.push(buffered);
-      finish(code === 0 ? finder.gaps() : null);
+      if (code !== 0) {
+        logger.warn(`Timeline scan of ${validatedPath} exited with code ${code}:`, stderrTail);
+      }
+      finish(code === 0 && finder.hasComparableTimestamps() ? finder.gaps() : null);
     });
   });
 }
@@ -305,15 +323,15 @@ export function summarizeTimelineGaps(gaps: TimelineGap[]): string {
  */
 export async function findTimelineGaps(filePath: string): Promise<TimelineGapResult> {
   const shortfall = await probeFrameShortfall(filePath);
-  const suspicious: TimelineStream[] = (["video", "audio"] as const).filter(
-    (stream) => (shortfall[stream] ?? 0) > FRAME_SHORTFALL_PREFILTER_SECONDS
+  if (!shortfall.presentStreams?.length) {
+    return { gaps: [], scannedStreams: [], complete: false };
+  }
+  const suspicious = shortfall.presentStreams.filter(
+    (stream) =>
+      shortfall[stream] === null || shortfall[stream] > FRAME_SHORTFALL_PREFILTER_SECONDS
   );
   if (suspicious.length === 0) {
-    return {
-      gaps: [],
-      scannedStreams: [],
-      complete: shortfall.video !== null || shortfall.audio !== null,
-    };
+    return { gaps: [], scannedStreams: [], complete: true };
   }
 
   let validatedPath: string;
