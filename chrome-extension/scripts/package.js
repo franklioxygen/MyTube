@@ -30,6 +30,7 @@ const requiredFiles = [
   'icons/icon32.png',
   'icons/icon48.png',
   'icons/icon128.png',
+  'icons/mytube-logo.png',
   ...['en', 'zh', 'de', 'es', 'fr', 'ja', 'ko', 'pt', 'ru', 'ar'].map(
     (language) => `locales/${language}.js`
   ),

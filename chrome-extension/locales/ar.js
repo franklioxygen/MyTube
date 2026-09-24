@@ -14,6 +14,8 @@ window.currentTranslations = {
   configureConnection: "تكوين اتصال خادم MyTube",
   serverUrl: "رابط خادم MyTube",
   serverUrlHint: "أدخل رابط خادم MyTube الخاص بك (مثال: http://localhost:3000)",
+  apiKey: "مفتاح API (اختياري)",
+  apiKeyHint: "ألصق مفتاح API من إعدادات الأمان في MyTube. يُستخدم فقط لطلبات التنزيل.",
   testConnection: "اختبار الاتصال",
   testing: "جارٍ الاختبار...",
   saveSettings: "حفظ الإعدادات",

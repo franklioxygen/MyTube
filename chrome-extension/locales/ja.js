@@ -14,6 +14,8 @@ window.currentTranslations = {
   configureConnection: "MyTubeサーバー接続を設定",
   serverUrl: "MyTubeサーバー URL",
   serverUrlHint: "MyTubeサーバーのURLを入力してください（例：http://localhost:3000）",
+  apiKey: "APIキー（任意）",
+  apiKeyHint: "MyTubeのセキュリティ設定からAPIキーを貼り付けてください。ダウンロードリクエストにのみ使用します。",
   testConnection: "接続をテスト",
   testing: "テスト中...",
   saveSettings: "設定を保存",

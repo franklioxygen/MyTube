@@ -35,5 +35,5 @@ jobs:
         working-directory: chrome-extension
         run: |
           for file in *.js locales/*.js; do
-            node --check "$file"
+            node --input-type=commonjs --check < "$file"
           done

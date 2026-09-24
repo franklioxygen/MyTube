@@ -14,6 +14,8 @@ window.currentTranslations = {
   configureConnection: "Configurar conexão do servidor MyTube",
   serverUrl: "URL do servidor MyTube",
   serverUrlHint: "Digite a URL do seu servidor MyTube (ex. http://localhost:3000)",
+  apiKey: "Chave de API (opcional)",
+  apiKeyHint: "Cole sua chave de API das configurações de segurança do MyTube. Ela é usada apenas para solicitações de download.",
   testConnection: "Testar Conexão",
   testing: "Testando...",
   saveSettings: "Salvar Configurações",

@@ -14,6 +14,8 @@ window.currentTranslations = {
   configureConnection: "MyTube 서버 연결 구성",
   serverUrl: "MyTube 서버 URL",
   serverUrlHint: "MyTube 서버의 URL을 입력하세요 (예: http://localhost:3000)",
+  apiKey: "API 키(선택 사항)",
+  apiKeyHint: "MyTube 보안 설정에서 API 키를 붙여넣으세요. 다운로드 요청에만 사용됩니다.",
   testConnection: "연결 테스트",
   testing: "테스트 중...",
   saveSettings: "설정 저장",
