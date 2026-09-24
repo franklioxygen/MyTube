@@ -41,6 +41,12 @@ describe('useCloudStorageUrl', () => {
         expect(result.current).toBe('/local/path.mp4');
     });
 
+    it('encodes a hash in a local video filename before playback', () => {
+        vi.mocked(cloudStorageUtils.isCloudStoragePath).mockReturnValue(false);
+        const { result } = renderHook(() => useCloudStorageUrl('/videos/Show/Episode #43.mp4'));
+        expect(result.current).toBe('/videos/Show/Episode%20%2343.mp4');
+    });
+
     it('should resolve cloud paths asynchronously', async () => {
         vi.mocked(cloudStorageUtils.isCloudStoragePath).mockReturnValue(true);
         vi.mocked(cloudStorageUtils.getFileUrl).mockResolvedValue('https://s3.signed/url');

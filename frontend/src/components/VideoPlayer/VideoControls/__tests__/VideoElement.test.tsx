@@ -63,4 +63,22 @@ describe('VideoElement', () => {
         expect(track).toHaveAttribute('srclang', 'en');
         expect(track).toHaveAttribute('label', 'English');
     });
+
+    it('encodes a hash in a local subtitle filename', () => {
+        const { container } = render(
+            <VideoElement
+                {...defaultProps}
+                subtitles={[{
+                    language: 'en',
+                    filename: 'Episode #43.en.vtt',
+                    path: '/videos/Show/Episode #43.en.vtt',
+                }]}
+            />
+        );
+
+        expect(container.querySelector('track')).toHaveAttribute(
+            'src',
+            '/videos/Show/Episode%20%2343.en.vtt',
+        );
+    });
 });

@@ -72,6 +72,8 @@ describe('cloudStorage', () => {
         it('should prepend backend URL for local paths', async () => {
             const url = await cloudStorage.getFileUrl('/uploads/video.mp4');
             expect(url).toBe('http://localhost:5551/uploads/video.mp4');
+            expect(await cloudStorage.getFileUrl('/videos/Episode #43.mp4'))
+                .toBe('http://localhost:5551/videos/Episode%20%2343.mp4');
         });
 
         it('should resolve cloud paths', async () => {
@@ -92,6 +94,8 @@ describe('cloudStorage', () => {
 
         it('should prepend backend URL for local paths', () => {
             expect(cloudStorage.getFileUrlSync('/uploads/video.mp4')).toBe('http://localhost:5551/uploads/video.mp4');
+            expect(cloudStorage.getFileUrlSync('/videos/Episode #43.mp4'))
+                .toBe('http://localhost:5551/videos/Episode%20%2343.mp4');
         });
         
         it('should return marker for cloud paths', () => {

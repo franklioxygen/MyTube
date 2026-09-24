@@ -37,6 +37,7 @@ import { useVideoRecommendations } from '../hooks/useVideoRecommendations';
 import { resolvePlaybackQueue } from '../utils/recommendations';
 import { useVideoSubscriptions } from '../hooks/useVideoSubscriptions';
 import { getBackendUrl } from '../utils/apiUrl';
+import { encodeLocalMediaPath } from '../utils/localMediaPath';
 import { isCompatibilityModeForced } from '../utils/compatibilityMode/deployment';
 import { isCompatibilityModeSupported } from '../utils/compatibilityMode/support';
 import { getBestVideoResumeProgress } from '../utils/videoResumeProgress';
@@ -194,7 +195,7 @@ const VideoPlayer: React.FC = () => {
     const thumbnailPathForCloud = isVideoInCloud ? video?.thumbnailPath : null;
     const posterUrl = useCloudStorageUrl(thumbnailPathForCloud, 'thumbnail', video?.signedThumbnailUrl);
     const localPosterUrl = !isVideoInCloud && video?.thumbnailPath
-        ? `${getBackendUrl()}${video.thumbnailPath}`
+        ? `${getBackendUrl()}${encodeLocalMediaPath(video.thumbnailPath)}`
         : undefined;
 
     // Use custom hooks

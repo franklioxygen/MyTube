@@ -1,3 +1,5 @@
+import { encodeLocalMediaPath } from './localMediaPath';
+
 const stripQuery = (value: string): string => value.split('?')[0];
 
 const normalizePath = (value: string): string => {
@@ -43,7 +45,7 @@ export const extractThumbnailCacheSuffix = (
     try {
         const normalizedThumbnailPath = normalizePath(thumbnailPath);
         const normalizedThumbnailUrl = new URL(thumbnailUrl, window.location.origin);
-        return normalizedThumbnailUrl.pathname === normalizedThumbnailPath
+        return normalizedThumbnailUrl.pathname === encodeLocalMediaPath(normalizedThumbnailPath)
             ? normalizedThumbnailUrl.search
             : '';
     } catch {
@@ -77,7 +79,7 @@ export const buildSmallThumbnailUrl = (
         return undefined;
     }
 
-    return `${smallThumbnailPath}${extractThumbnailCacheSuffix(thumbnailPath, thumbnailUrl)}`;
+    return `${encodeLocalMediaPath(smallThumbnailPath)}${extractThumbnailCacheSuffix(thumbnailPath, thumbnailUrl)}`;
 };
 
 export const buildSmallThumbnailAbsoluteUrl = (
@@ -122,7 +124,7 @@ export const buildThumbnailCandidates = (
             continue;
         }
         for (const origin of origins) {
-            candidates.push(`${origin}${mediaPath}${cacheSuffix}`);
+            candidates.push(`${origin}${encodeLocalMediaPath(mediaPath)}${cacheSuffix}`);
         }
     }
 
