@@ -44,6 +44,13 @@ export const extractThumbnailCacheSuffix = (
 
     try {
         const normalizedThumbnailPath = normalizePath(thumbnailPath);
+        // The backend can return a raw filesystem path followed by ?t=... .
+        // Parse that suffix separately so '#' in the filename is not treated
+        // as the start of a URL fragment.
+        if (thumbnailUrl.startsWith(`${normalizedThumbnailPath}?`)) {
+            return new URL(thumbnailUrl.slice(normalizedThumbnailPath.length), window.location.origin).search;
+        }
+
         const normalizedThumbnailUrl = new URL(thumbnailUrl, window.location.origin);
         return normalizedThumbnailUrl.pathname === encodeLocalMediaPath(normalizedThumbnailPath)
             ? normalizedThumbnailUrl.search
