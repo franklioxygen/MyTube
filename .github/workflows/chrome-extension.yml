@@ -1,0 +1,39 @@
+name: Chrome extension archive
+
+on:
+  push:
+    paths:
+      - 'chrome-extension/**'
+      - 'documents/en/chrome-extension.md'
+      - 'documents/zh/chrome-extension.md'
+      - '.github/workflows/chrome-extension.yml'
+  pull_request:
+    paths:
+      - 'chrome-extension/**'
+      - 'documents/en/chrome-extension.md'
+      - 'documents/zh/chrome-extension.md'
+      - '.github/workflows/chrome-extension.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  verify-archive:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install extension build dependencies
+        working-directory: chrome-extension
+        run: npm install --no-package-lock --ignore-scripts
+      - name: Verify checked-in extension archive and download links
+        working-directory: chrome-extension
+        run: npm run verify:package
+      - name: Check extension scripts load as classic JavaScript
+        working-directory: chrome-extension
+        run: |
+          for file in *.js locales/*.js; do
+            node --check "$file"
+          done

@@ -49,7 +49,7 @@ function getTranslationValue(
 }
 
 // Get browser language
-export function getBrowserLanguage(): string {
+function getBrowserLanguage(): string {
   // Chrome extensions have chrome.i18n API
   if (typeof chrome !== "undefined" && chrome.i18n) {
     try {
@@ -68,13 +68,13 @@ export function getBrowserLanguage(): string {
 }
 
 // Normalize language code
-export function normalizeLanguage(lang: string): string {
+function normalizeLanguage(lang: string): string {
   if (!lang) return DEFAULT_LANG;
   return getSupportedLanguageCode(lang);
 }
 
 // Translation function (translations should be loaded before use)
-export function t(
+function t(
   key: keyof Translations,
   params: Record<string, string> = {}
 ): string {
@@ -92,7 +92,7 @@ export function t(
 }
 
 // Load translations based on browser language
-export function loadTranslations(callback?: () => void): void {
+function loadTranslations(callback?: () => void): void {
   const lang = normalizeLanguage(getBrowserLanguage());
 
   // Create script element to load translation file

@@ -3,10 +3,11 @@
   "version": "1.0.3",
   "description": "MyTube Chrome Extension",
   "scripts": {
-    "build": "tsc && node -e \"const fs = require('fs'); ['popup.js', 'options.js', 'types.js'].forEach(f => { if (fs.existsSync(f)) { const content = fs.readFileSync(f, 'utf8'); fs.writeFileSync(f, content.replace(/^export \\{\\};?\\s*$/gm, '')); } });\" && node -e \"const fs = require('fs'); if (fs.existsSync('types.js') && fs.readFileSync('types.js', 'utf8').trim() === '') fs.unlinkSync('types.js');\"",
+    "build": "tsc && node -e \"const fs = require('fs'); ['popup.js', 'options.js', 'i18n.js', 'types.js'].forEach(f => { if (fs.existsSync(f)) { const content = fs.readFileSync(f, 'utf8'); fs.writeFileSync(f, content.replace(/^export \\{\\};?\\s*$/gm, '')); } });\" && node -e \"const fs = require('fs'); if (fs.existsSync('types.js') && fs.readFileSync('types.js', 'utf8').trim() === '') fs.unlinkSync('types.js');\"",
     "watch": "tsc --watch",
     "clean": "rm -f *.js *.js.map",
-    "package": "npm run build && node scripts/package.js"
+    "package": "npm run build && node scripts/package.js",
+    "verify:package": "npm run build && node scripts/package.js --verify"
   },
   "devDependencies": {
     "@types/chrome": "^0.0.268",
