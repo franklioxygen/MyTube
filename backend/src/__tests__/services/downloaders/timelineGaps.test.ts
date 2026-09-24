@@ -167,7 +167,7 @@ describe('findTimelineGaps', () => {
 
     const result = await findTimelineGaps('/videos/a.mp4');
 
-    expect(result).toEqual({ gaps: [], scannedStreams: [] });
+    expect(result).toEqual({ gaps: [], scannedStreams: [], complete: true });
     expect(mocks.spawn).not.toHaveBeenCalled();
   });
 
@@ -180,6 +180,7 @@ describe('findTimelineGaps', () => {
     const result = await findTimelineGaps('/videos/a.mp4');
 
     expect(result.scannedStreams).toEqual(['video']);
+    expect(result.complete).toBe(true);
     expect(mocks.spawn).toHaveBeenCalledOnce();
     expect(mocks.spawn.mock.calls[0][1]).toContain('v:0');
     expect(result.gaps).toEqual([{ stream: 'video', atSeconds: 1127.92, gapSeconds: 4.03 }]);
@@ -192,20 +193,20 @@ describe('findTimelineGaps', () => {
       fakeScan(Array.from({ length: 500 }, (_, i) => i * 0.0427)),
     );
 
-    expect((await findTimelineGaps('/videos/a.mp4')).gaps).toEqual([]);
+    expect(await findTimelineGaps('/videos/a.mp4')).toMatchObject({ gaps: [], complete: true });
   });
 
   it('reports nothing when the scan fails, rather than guessing', async () => {
     mocks.execFileSafe.mockResolvedValue({ stdout: header([video(210994, '30/1', 7037.13)]) });
     mocks.spawn.mockImplementation(() => fakeScan([0, 10, 20], 1));
 
-    expect((await findTimelineGaps('/videos/a.mp4')).gaps).toEqual([]);
+    expect(await findTimelineGaps('/videos/a.mp4')).toMatchObject({ gaps: [], complete: false });
   });
 
   it('fails open when ffprobe is unavailable', async () => {
     mocks.execFileSafe.mockRejectedValue(new Error('spawn ffprobe ENOENT'));
 
-    expect(await findTimelineGaps('/videos/a.mp4')).toEqual({ gaps: [], scannedStreams: [] });
+    expect(await findTimelineGaps('/videos/a.mp4')).toEqual({ gaps: [], scannedStreams: [], complete: false });
   });
 });
 

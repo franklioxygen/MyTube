@@ -212,7 +212,8 @@ describe('YtDlpDownloader format defaults', () => {
 
     it('keeps a download yt-dlp left fragments out of, and notes it', async () => {
         mockExecuteYtDlpSpawn.mockReturnValue({
-            stdout: {
+            stdout: { on: vi.fn() },
+            stderr: {
                 on: vi.fn((event: string, cb: (data: Buffer) => void) => {
                     if (event === 'data') {
                         cb(Buffer.from(

@@ -269,6 +269,16 @@ describe('ProgressTracker', () => {
       expect(tracker.skippedFragments).toBe(2);
     });
 
+    it('keeps split stderr warnings separate from interleaved stdout', () => {
+      const tracker = new ProgressTracker();
+      const message = skip(281);
+      tracker.parseAndUpdate(message.slice(0, 30), 'stderr');
+      tracker.parseAndUpdate('[download] 41.5% of 100MiB at 1MiB/s', 'stdout');
+      tracker.parseAndUpdate(message.slice(30), 'stderr');
+
+      expect(tracker.skippedFragments).toBe(1);
+    });
+
     it('does not count a message twice when the next chunk arrives', () => {
       const tracker = new ProgressTracker();
       tracker.parseAndUpdate(skip(281));

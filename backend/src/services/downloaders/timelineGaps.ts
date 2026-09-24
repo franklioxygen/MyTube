@@ -65,6 +65,8 @@ export interface TimelineGapResult {
   gaps: TimelineGap[];
   /** Streams that were scanned packet by packet, because stage one flagged them. */
   scannedStreams: TimelineStream[];
+  /** False when the header probe or any required packet scan could not finish. */
+  complete: boolean;
 }
 
 // Stage one: a stream is worth scanning once its frame count accounts for at
@@ -307,23 +309,29 @@ export async function findTimelineGaps(filePath: string): Promise<TimelineGapRes
     (stream) => (shortfall[stream] ?? 0) > FRAME_SHORTFALL_PREFILTER_SECONDS
   );
   if (suspicious.length === 0) {
-    return { gaps: [], scannedStreams: [] };
+    return {
+      gaps: [],
+      scannedStreams: [],
+      complete: shortfall.video !== null || shortfall.audio !== null,
+    };
   }
 
   let validatedPath: string;
   try {
     validatedPath = validateVideoPath(filePath);
   } catch {
-    return { gaps: [], scannedStreams: [] };
+    return { gaps: [], scannedStreams: [], complete: false };
   }
 
   const gaps: TimelineGap[] = [];
+  let complete = true;
   for (const stream of suspicious) {
     const found = await scanStreamForGaps(validatedPath, stream);
     if (found) gaps.push(...found);
+    else complete = false;
   }
   gaps.sort((a, b) => a.atSeconds - b.atSeconds);
-  return { gaps, scannedStreams: suspicious };
+  return { gaps, scannedStreams: suspicious, complete };
 }
 
 /**

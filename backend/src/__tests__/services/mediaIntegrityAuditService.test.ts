@@ -8,7 +8,7 @@ const mocks = vi.hoisted(() => ({
   findVideoFile: vi.fn(),
   getCollections: vi.fn(() => []),
   readdirSafeSync: vi.fn((..._args: unknown[]) => [] as string[]),
-  findTimelineGaps: vi.fn(async (..._args: unknown[]) => ({ gaps: [] as unknown[], scannedStreams: [] as string[] })),
+  findTimelineGaps: vi.fn(async (..._args: unknown[]) => ({ gaps: [] as unknown[], scannedStreams: [] as string[], complete: true })),
 }));
 
 vi.mock('../../config/paths', async (importOriginal) => {
@@ -81,7 +81,7 @@ describe('auditMediaIntegrity', () => {
     mocks.probeMediaTrackDurations.mockResolvedValue(tracks(600, 600, 600));
     mocks.findVideoFile.mockReturnValue(null);
     mocks.readdirSafeSync.mockReturnValue([]);
-    mocks.findTimelineGaps.mockResolvedValue({ gaps: [], scannedStreams: [] });
+    mocks.findTimelineGaps.mockResolvedValue({ gaps: [], scannedStreams: [], complete: true });
   });
 
   it('reports a clean library', async () => {
@@ -502,7 +502,7 @@ describe('auditMediaIntegrity', () => {
       mocks.getVideosStrict.mockReturnValue([video({ duration: '7037' })]);
       mocks.probeMediaTrackDurations.mockResolvedValue(tracks(7037.13, 7037.13, 7037.10));
       mocks.findTimelineGaps.mockResolvedValue({
-        gaps: [gap('video', 1127.92, 4.03)], scannedStreams: ['video'],
+        gaps: [gap('video', 1127.92, 4.03)], scannedStreams: ['video'], complete: true,
       });
 
       const result = await auditMediaIntegrity({ timeline: true });
@@ -525,7 +525,7 @@ describe('auditMediaIntegrity', () => {
       mocks.probeMediaTrackDurations.mockResolvedValue(tracks(28537.66, 28537.58, 28537.66));
       mocks.findTimelineGaps.mockResolvedValue({
         gaps: Array.from({ length: 21 }, (_, i) => gap('audio', 2656 + i * 12, 5)),
-        scannedStreams: ['audio'],
+        scannedStreams: ['audio'], complete: true,
       });
 
       const { detail } = (await auditMediaIntegrity({ timeline: true })).items[0];
@@ -560,6 +560,23 @@ describe('auditMediaIntegrity', () => {
       await auditMediaIntegrity({ timeline: true });
 
       expect(mocks.findTimelineGaps).toHaveBeenCalledOnce();
+    });
+
+    it('retries an incomplete scan on the next audit', async () => {
+      mocks.getVideosStrict.mockReturnValue([video()]);
+      mocks.findTimelineGaps
+        .mockResolvedValueOnce({ gaps: [], scannedStreams: ['video'], complete: false })
+        .mockResolvedValue({ gaps: [], scannedStreams: ['video'], complete: true });
+
+      const first = await auditMediaIntegrity({ timeline: true });
+      const second = await auditMediaIntegrity({ timeline: true });
+      const third = await auditMediaIntegrity({ timeline: true });
+
+      expect(mocks.findTimelineGaps).toHaveBeenCalledTimes(2);
+      expect(first.summary.timelineIncomplete).toBe(1);
+      expect(first.humanSummary).toContain('could not finish for 1 file');
+      expect(second.summary.timelineIncomplete).toBe(0);
+      expect(third.summary.timelineIncomplete).toBe(0);
     });
 
     it('keeps timeline results well past the probe cache lifetime', async () => {

@@ -80,9 +80,11 @@ export function HistoryItem({
     const { t, language } = useLanguage();
     const isPendingRetry = item.status === 'pending_retry';
     const isPartial = item.status === 'partial';
+    // Deleted rows retain the note in error, but must not render its raw JSON.
+    const storedIncompleteNote = parseIncompleteDownloadNote(item.error);
     // A save with content missing: still a success row, with a note of the gaps.
     const incompleteNote =
-        item.status === 'success' ? parseIncompleteDownloadNote(item.error) : undefined;
+        item.status === 'success' ? storedIncompleteNote : undefined;
     const incompleteSave = incompleteNote !== undefined;
     const formatSeconds = (seconds: number) =>
         new Intl.NumberFormat(language, {
@@ -272,7 +274,7 @@ export function HistoryItem({
                                         {t('incompleteDownloadFragments', { count: incompleteNote.skippedFragments })}
                                     </Typography>
                                 </>
-                            ) : item.error && (
+                            ) : item.error && !storedIncompleteNote && (
                                 <Typography variant="caption" color="error" component="span">
                                     {item.error}
                                 </Typography>

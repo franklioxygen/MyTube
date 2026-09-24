@@ -415,6 +415,9 @@ export async function downloadVideo(
     subprocess.stdout?.on("data", (data: Buffer) => {
       progressTracker.parseAndUpdate(data.toString());
     });
+    subprocess.stderr?.on("data", (data: Buffer) => {
+      progressTracker.parseAndUpdate(data.toString(), "stderr");
+    });
 
     // Wait for download to complete
     try {

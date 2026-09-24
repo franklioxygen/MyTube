@@ -40,7 +40,7 @@ export class ProgressTracker {
   private lastPersistedAt = 0;
   private flushTimer: ReturnType<typeof setTimeout> | null = null;
   private skipped = 0;
-  private skipCarry = "";
+  private skipCarry = { stdout: "", stderr: "" };
 
   constructor(downloadId?: string) {
     this.downloadId = downloadId;
@@ -205,27 +205,27 @@ export class ProgressTracker {
     return this.skipped;
   }
 
-  private countSkippedFragments(output: string): void {
-    const text = this.skipCarry + output;
+  private countSkippedFragments(output: string, source: "stdout" | "stderr"): void {
+    const carry = this.skipCarry[source];
+    const text = carry + output;
     for (const match of text.matchAll(SKIPPED_FRAGMENT_PATTERN)) {
       // A match that ends inside the carried-over text was counted last time.
-      if ((match.index ?? 0) + match[0].length > this.skipCarry.length) {
+      if ((match.index ?? 0) + match[0].length > carry.length) {
         this.skipped += 1;
       }
     }
-    this.skipCarry = text.slice(-SKIPPED_FRAGMENT_CARRY_CHARS);
+    this.skipCarry[source] = text.slice(-SKIPPED_FRAGMENT_CARRY_CHARS);
   }
 
   /**
    * Parse output and update progress if valid progress data is found
    * @param output - Raw output string from download process
    */
-  parseAndUpdate(output: string): void {
-    this.countSkippedFragments(output);
+  parseAndUpdate(output: string, source: "stdout" | "stderr" = "stdout"): void {
+    this.countSkippedFragments(output, source);
     const progress = this.parseYtDlpOutput(output);
     if (progress) {
       this.update(progress);
     }
   }
 }
-

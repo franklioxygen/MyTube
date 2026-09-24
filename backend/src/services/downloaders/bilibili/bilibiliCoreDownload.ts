@@ -291,10 +291,11 @@ export async function downloadVideo(
     // Capture stderr for better error reporting
     let stderrOutput = "";
     subprocess.stderr?.on("data", (data: Buffer) => {
-      stderrOutput += data.toString();
+      const output = data.toString();
+      stderrOutput += output;
+      progressTracker.parseAndUpdate(output, "stderr");
       // Log stderr in real-time for debugging (filter out expected warnings)
-      const lines = data
-        .toString()
+      const lines = output
         .split("\n")
         .filter((line) => line.trim());
       for (const line of lines) {

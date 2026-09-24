@@ -72,6 +72,8 @@ export interface MediaIntegrityAuditSummary {
   unprobeable: number;
   /** Only counted when the audit ran with the timeline check enabled. */
   timelineGaps: number;
+  /** Files whose timeline scan could not finish and should be retried. */
+  timelineIncomplete: number;
   /** Whether this audit ran the timeline check at all. */
   timelineChecked: boolean;
 }
@@ -130,7 +132,9 @@ export function clearMediaIntegrityProbeCache(): void {
   timelineCache.clear();
 }
 
-async function timelineGapsWithCache(absolutePath: string): Promise<TimelineGap[]> {
+async function timelineGapsWithCache(
+  absolutePath: string
+): Promise<{ gaps: TimelineGap[]; complete: boolean }> {
   let stat: { mtimeMs: number; size: number } | null = null;
   try {
     stat = statSafeSync(absolutePath, VIDEOS_DIR);
@@ -147,11 +151,12 @@ async function timelineGapsWithCache(absolutePath: string): Promise<TimelineGap[
     cached.size === stat.size &&
     now - cached.cachedAtMs < TIMELINE_CACHE_MAX_AGE_MS
   ) {
-    return cached.gaps;
+    return { gaps: cached.gaps, complete: true };
   }
 
-  const { gaps } = await findTimelineGaps(absolutePath);
-  if (stat) {
+  const { gaps, complete } = await findTimelineGaps(absolutePath);
+  // A failed scan is unknown; retry it on the next audit.
+  if (stat && complete) {
     timelineCache.set(absolutePath, {
       mtimeMs: stat.mtimeMs,
       size: stat.size,
@@ -159,7 +164,7 @@ async function timelineGapsWithCache(absolutePath: string): Promise<TimelineGap[
       gaps,
     });
   }
-  return gaps;
+  return { gaps, complete };
 }
 
 function readString(value: unknown): string | null {
@@ -357,6 +362,7 @@ export async function auditMediaIntegrity(
     durationMismatches: 0,
     unprobeable: 0,
     timelineGaps: 0,
+    timelineIncomplete: 0,
     timelineChecked: options.timeline === true,
   };
   const items: MediaIntegrityAuditItem[] = [];
@@ -478,10 +484,13 @@ export async function auditMediaIntegrity(
 
       if (options.timeline) {
         try {
-          gaps = await timelineGapsWithCache(absolutePath);
+          const scan = await timelineGapsWithCache(absolutePath);
+          gaps = scan.gaps;
+          if (!scan.complete) summary.timelineIncomplete += 1;
         } catch (error) {
           // findTimelineGaps fails open on its own; reaching here is unexpected.
           logger.warn(`Integrity audit could not scan ${absolutePath}:`, error);
+          summary.timelineIncomplete += 1;
         }
         if (gaps.length > 0) {
           reasons.push("timeline_gap");
@@ -529,16 +538,19 @@ export async function auditMediaIntegrity(
   const scope = summary.timelineChecked
     ? ""
     : " Content missing mid-file was not checked; run with timeline=1 to include it.";
+  const incompleteScope = summary.timelineIncomplete > 0
+    ? ` Timeline scan could not finish for ${summary.timelineIncomplete} file(s); retry the audit.`
+    : "";
   const humanSummary =
     (problems === 0
-      ? `Checked ${summary.probed} file(s); no integrity problems found.`
+      ? `Checked ${summary.probed} file(s); no integrity problems found${summary.timelineIncomplete > 0 ? " in completed checks" : ""}.`
       : `Checked ${summary.probed} file(s) and found ${problems} problem(s): ` +
         `${summary.filesMissing} missing, ${summary.trackDisagreements} truncated, ` +
         `${summary.durationMismatches} with a stale stored duration, ` +
         `${summary.unprobeable} unreadable` +
         (summary.timelineChecked
           ? `, ${summary.timelineGaps} with content missing mid-file.`
-          : ".")) + scope;
+          : ".")) + scope + incompleteScope;
 
   return {
     generatedAt: new Date().toISOString(),

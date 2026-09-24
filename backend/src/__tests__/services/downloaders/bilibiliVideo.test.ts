@@ -559,14 +559,14 @@ describe("bilibiliVideo.downloadSinglePart", () => {
 
   it("keeps a part yt-dlp left a fragment out of, and notes it", async () => {
     const subprocess: any = Promise.resolve(undefined);
-    subprocess.stdout = {
+    subprocess.stdout = { on: vi.fn() };
+    subprocess.stderr = {
       on: vi.fn((event: string, cb: (data: Buffer) => void) => {
         if (event === "data") {
           cb(Buffer.from("[download] fragment not found; Skipping fragment 7 ...\n"));
         }
       }),
     };
-    subprocess.stderr = { on: vi.fn() };
     subprocess.kill = vi.fn();
     mocks.executeYtDlpSpawn.mockReturnValue(subprocess);
 

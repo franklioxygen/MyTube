@@ -820,7 +820,7 @@ export class MissAVDownloader extends BaseDownloader {
               }
             }
           }
-          progressTracker.parseAndUpdate(output);
+          progressTracker.parseAndUpdate(output, source);
         };
 
         logger.info("Starting yt-dlp process with spawn...");

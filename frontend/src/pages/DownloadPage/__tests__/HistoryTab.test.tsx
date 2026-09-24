@@ -292,6 +292,27 @@ describe('HistoryTab incomplete save', () => {
         expect(screen.queryByText(/incomplete_download/)).not.toBeInTheDocument();
     });
 
+    it('does not show the stored note as raw JSON after deletion', () => {
+        render(
+            <BrowserRouter>
+                <HistoryTab
+                    history={[{ ...mockHistoryItems[1], status: 'deleted' }]}
+                    onRemove={vi.fn()}
+                    onCancelRetry={vi.fn()}
+                    onClear={vi.fn()}
+                    onRetry={onRetry}
+                    onReDownload={onReDownload}
+                    onViewVideo={onViewVideo}
+                    isDownloadInProgress={() => false}
+                />
+            </BrowserRouter>,
+        );
+
+        expect(screen.getByText('previouslyDeleted')).toBeInTheDocument();
+        expect(screen.queryByText(/incomplete_download/)).not.toBeInTheDocument();
+        expect(screen.queryByText('partialDownload')).not.toBeInTheDocument();
+    });
+
     it('formats seconds for the viewer\'s locale', () => {
         (useLanguage as Mock).mockReturnValue({
             language: 'de',
