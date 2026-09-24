@@ -67,6 +67,8 @@ describe('cloudStorage', () => {
     describe('getFileUrl', () => {
         it('should return already full URLs as is', async () => {
             expect(await cloudStorage.getFileUrl('https://example.com')).toBe('https://example.com');
+            expect(await cloudStorage.getFileUrl('HTTPS://cdn.example/video.mp4?token=AbC'))
+                .toBe('HTTPS://cdn.example/video.mp4?token=AbC');
         });
 
         it('should prepend backend URL for local paths', async () => {
@@ -90,6 +92,8 @@ describe('cloudStorage', () => {
     describe('getFileUrlSync', () => {
         it('should return already full URLs as is', () => {
              expect(cloudStorage.getFileUrlSync('https://example.com')).toBe('https://example.com');
+             expect(cloudStorage.getFileUrlSync('HTTPS://cdn.example/video.mp4?token=AbC'))
+                 .toBe('HTTPS://cdn.example/video.mp4?token=AbC');
         });
 
         it('should prepend backend URL for local paths', () => {

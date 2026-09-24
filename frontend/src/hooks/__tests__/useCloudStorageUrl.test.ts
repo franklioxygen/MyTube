@@ -34,6 +34,14 @@ describe('useCloudStorageUrl', () => {
         expect(result.current).toBe('https://example.com');
     });
 
+    it('preserves mixed-case remote and pre-signed URLs', () => {
+        const remote = 'HTTPS://cdn.example/video.mp4?token=AbC';
+        const { result: remoteResult } = renderHook(() => useCloudStorageUrl(remote));
+        const { result: signedResult } = renderHook(() => useCloudStorageUrl('cloud:video.mp4', 'video', remote));
+        expect(remoteResult.current).toBe(remote);
+        expect(signedResult.current).toBe(remote);
+    });
+
     it('should calculate local URL synchronously', () => {
         vi.mocked(cloudStorageUtils.isCloudStoragePath).mockReturnValue(false);
         // Assuming default BACKEND_URL

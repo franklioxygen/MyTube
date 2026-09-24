@@ -7,7 +7,7 @@ import { useCloudStorageUrl } from '../../../hooks/useCloudStorageUrl';
 import { Collection, Video } from '../../../types';
 
 import { getBackendUrl } from '../../../utils/apiUrl';
-import { encodeLocalMediaPath } from '../../../utils/localMediaPath';
+import { encodeLocalMediaPath, isHttpUrl } from '../../../utils/localMediaPath';
 
 const BACKEND_URL = getBackendUrl();
 
@@ -32,7 +32,7 @@ const VideoMetadata: React.FC<VideoMetadataProps> = ({
         video.mediaType === 'audio' ? 'audio' : 'video',
     );
     const downloadUrl = videoUrl ?? (video.videoPath
-        ? video.videoPath.startsWith('http://') || video.videoPath.startsWith('https://')
+        ? isHttpUrl(video.videoPath)
             ? video.videoPath
             : `${BACKEND_URL}${encodeLocalMediaPath(video.videoPath)}`
         : undefined);

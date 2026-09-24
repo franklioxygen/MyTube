@@ -6,7 +6,7 @@ import { useSnackbar } from '../../../contexts/SnackbarContext';
 import { useVideo } from '../../../contexts/VideoContext';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useCloudStorageUrl } from '../../../hooks/useCloudStorageUrl';
-import { encodeLocalMediaPath } from '../../../utils/localMediaPath';
+import { encodeLocalMediaPath, isHttpUrl } from '../../../utils/localMediaPath';
 import { useShareVideo } from '../../../hooks/useShareVideo';
 import { Video } from '../../../types'; // Add imports
 import { getAvailablePlayers, getPlayerUrl } from '../../../utils/playerUtils'; // Import new utils
@@ -67,6 +67,7 @@ const VideoActionButtons: React.FC<VideoActionButtonsProps> = ({
 
         // Otherwise, construct URL from videoPath
         if (video.videoPath) {
+            if (isHttpUrl(video.videoPath)) return video.videoPath;
             const videoPath = video.videoPath.startsWith('/') ? video.videoPath : `/${video.videoPath}`;
 
             // Always use current origin for external players to ensure accessibility
@@ -89,6 +90,7 @@ const VideoActionButtons: React.FC<VideoActionButtonsProps> = ({
         if (videoUrl) return videoUrl;
 
         if (video.videoPath && !video.videoPath.startsWith('cloud:')) {
+            if (isHttpUrl(video.videoPath)) return video.videoPath;
             const videoPath = video.videoPath.startsWith('/') ? video.videoPath : `/${video.videoPath}`;
             return `${window.location.origin}${encodeLocalMediaPath(videoPath)}`;
         }

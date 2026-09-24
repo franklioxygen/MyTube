@@ -113,6 +113,14 @@ describe('useVideoCardMetadata', () => {
         await expect(result.current.getVideoUrl()).resolves.toBe(`${window.location.origin}/videos/local.mp4`);
     });
 
+    it('preserves a mixed-case remote URL if the hook has not resolved one', async () => {
+        const remote = 'HTTPS://cdn.example/video.mp4?token=AbC';
+        const { result } = renderHook(() => useVideoCardMetadata({
+            video: { id: 'remote', videoPath: remote } as any,
+        }));
+        await expect(result.current.getVideoUrl()).resolves.toBe(remote);
+    });
+
     it('exposes the original image as a fallback candidate behind the small mirror', () => {
         const mockVideo = {
             id: '4b',

@@ -1,7 +1,7 @@
 import { AxiosError, isAxiosError } from "axios";
 import { api } from "./apiClient";
 import { getBackendUrl } from "./apiUrl";
-import { encodeLocalMediaPath } from "./localMediaPath";
+import { encodeLocalMediaPath, isHttpUrl } from "./localMediaPath";
 
 // Use centralized backend URL helper
 const BACKEND_URL = getBackendUrl();
@@ -220,7 +220,7 @@ export const getFileUrl = async (
   if (!path) return undefined;
 
   // If already a full URL, return as is
-  if (path.startsWith("http://") || path.startsWith("https://")) {
+  if (isHttpUrl(path)) {
     return path;
   }
 
@@ -254,7 +254,7 @@ export const getFileUrlSync = (
   if (!path) return undefined;
 
   // If already a full URL, return as is
-  if (path.startsWith("http://") || path.startsWith("https://")) {
+  if (isHttpUrl(path)) {
     return path;
   }
 
