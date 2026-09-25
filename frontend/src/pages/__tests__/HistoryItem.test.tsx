@@ -324,7 +324,7 @@ describe('HistoryItem', () => {
         it('calls onReDownload when download again is clicked', () => {
             renderHistoryItem({ status: 'deleted', sourceUrl: 'https://example.com/vid' });
             fireEvent.click(screen.getByText('downloadAgain'));
-            expect(defaultProps.onReDownload).toHaveBeenCalledWith('https://example.com/vid');
+            expect(defaultProps.onReDownload).toHaveBeenCalledWith('https://example.com/vid', undefined);
         });
 
         it('does not show view video for items without videoId', () => {
