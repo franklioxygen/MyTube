@@ -195,10 +195,14 @@ export async function probeFrameShortfall(filePath: string): Promise<FrameShortf
  *
  * A step is measured against how long the previous packet should last, so a
  * low-frame-rate stream (a slideshow at one frame every few seconds) is not a
- * run of gaps. That is the shorter of the packet's duration and the step before
- * it: MP4 stores each duration as the distance to the next packet, so across a
- * gap the duration swells to cover it, while the step before keeps the stream's
- * own rhythm. Without a duration, the raw step is used.
+ * run of gaps. That is the shorter of the packet's duration and the stream's
+ * rhythm around it: MP4 stores each duration as the distance to the next packet,
+ * so across a gap the duration swells to cover it, while the packets on either
+ * side keep the stream's own pace. The rhythm is the slower of the step before
+ * the jump and the duration of the packet it lands on. A dropped segment is
+ * followed by the stream's usual frames; a variable-frame-rate stream settling
+ * into longer frames is followed by another long one, so it is not a gap.
+ * Without a duration, the raw step is used.
  */
 export function createGapFinder(stream: TimelineStream) {
   let previous: number | null = null;
@@ -211,14 +215,15 @@ export function createGapFinder(stream: TimelineStream) {
       const [timestampField, durationField] = line.split(",");
       const timestamp = Number.parseFloat(timestampField);
       if (!Number.isFinite(timestamp)) return;
-      const duration = Number.parseFloat(durationField);
+      const parsedDuration = Number.parseFloat(durationField);
+      const duration =
+        Number.isFinite(parsedDuration) && parsedDuration > 0 ? parsedDuration : null;
       timestampCount += 1;
       if (previous !== null) {
         const step = timestamp - previous;
+        const rhythm = Math.max(previousStep ?? previousDuration ?? 0, duration ?? 0);
         const expected =
-          previousDuration === null
-            ? 0
-            : Math.max(0, Math.min(previousDuration, previousStep ?? previousDuration));
+          previousDuration === null ? 0 : Math.max(0, Math.min(previousDuration, rhythm));
         const gap = step - expected;
         if (gap > CONTIGUOUS_GAP_SECONDS && gaps.length < MAX_REPORTED_GAPS) {
           gaps.push({
@@ -230,7 +235,7 @@ export function createGapFinder(stream: TimelineStream) {
         previousStep = step;
       }
       previous = timestamp;
-      previousDuration = Number.isFinite(duration) && duration > 0 ? duration : null;
+      previousDuration = duration;
     },
     gaps: (): TimelineGap[] => gaps,
     hasComparableTimestamps: (): boolean => timestampCount >= 2,

@@ -168,6 +168,19 @@ describe('createGapFinder', () => {
       { stream: 'video', atSeconds: 6, gapSeconds: 4 },
     ]);
   });
+
+  it('does not mistake a variable-frame-rate stream slowing down for a gap', () => {
+    // Short frames, then frames two seconds long: the jump into the slower pace
+    // is followed by another long frame, where a dropped segment is followed by
+    // the stream's usual ones.
+    expect(feedPackets([[0, 0.033], [0.033, 2], [2.033, 2], [4.033, 2]])).toEqual([]);
+  });
+
+  it('still finds a gap when the stream slows down later on', () => {
+    expect(feedPackets([
+      [0, 0.0333], [0.0333, 4.0334], [4.0667, 0.0333], [4.1, 2], [6.1, 2],
+    ])).toEqual([{ stream: 'video', atSeconds: 0.07, gapSeconds: 4 }]);
+  });
 });
 
 describe('findTimelineGaps', () => {
