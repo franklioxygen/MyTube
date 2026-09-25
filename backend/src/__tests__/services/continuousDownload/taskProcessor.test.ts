@@ -90,6 +90,22 @@ describe('TaskProcessor', () => {
     expect(mockTaskRepository.completeTask).toHaveBeenCalledWith(mockTask.id);
   });
 
+  it('records an audio download as audio, so Download Again keeps its mode', async () => {
+    mockVideoUrlFetcher.getAllVideoUrls.mockResolvedValue(['http://vid1']);
+    (downloadService.downloadYouTubeVideo as any).mockResolvedValue({
+        videoData: { id: 'a1', title: 'Audio 1', mediaType: 'audio' }
+    });
+    (storageService.getVideoBySourceUrl as any).mockReturnValue(null);
+
+    await taskProcessor.processTask({ ...mockTask });
+
+    expect(storageService.addDownloadHistoryItem).toHaveBeenCalledWith(expect.objectContaining({
+        status: 'success',
+        videoId: 'a1',
+        mediaType: 'audio'
+    }));
+  });
+
   it('should skip videos that already exist', async () => {
     const videoUrls = ['http://vid1'];
     mockVideoUrlFetcher.getAllVideoUrls.mockResolvedValue(videoUrls);
