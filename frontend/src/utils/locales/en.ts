@@ -1403,6 +1403,8 @@ export const en = {
   mediaIntegrityAudit: "Media Integrity Check",
   mediaIntegrityAuditDescription:
     "Check videos already in your library for files that are missing, truncated or unreadable. Nothing is changed; each problem comes with a recommended fix for you to decide on.",
+  mediaIntegrityAuditCheckTimeline:
+    "Also look for content missing mid-file (slower; can take several minutes on a large library)",
   mediaIntegrityAuditRun: "Run Check",
   mediaIntegrityAuditRunning:
     "Checking your library. This can take several minutes; you can switch tabs while it runs.",
@@ -1413,6 +1415,10 @@ export const en = {
     "Checked {checked} video(s); no problems found.",
   mediaIntegrityAuditSummaryProblems:
     "Checked {checked} video(s); {count} need attention.",
+  mediaIntegrityAuditTimelineNotChecked:
+    "Content missing mid-file was not checked. Tick the option above to include it.",
+  mediaIntegrityAuditTimelineIncomplete:
+    "The mid-file check could not finish for {count} file(s). Run the check again to retry them.",
   mediaIntegrityAuditActionRedownload:
     "Recommended: download this video again.",
   mediaIntegrityAuditActionRefreshDuration:

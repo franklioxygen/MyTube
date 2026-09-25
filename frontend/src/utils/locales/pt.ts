@@ -1448,6 +1448,8 @@ export const pt = {
   mediaIntegrityAudit: "Verificação de integridade de mídia",
   mediaIntegrityAuditDescription:
     "Verifica os vídeos que já estão na sua biblioteca em busca de arquivos ausentes, truncados ou ilegíveis. Nada é alterado; cada problema vem com uma correção recomendada para você decidir.",
+  mediaIntegrityAuditCheckTimeline:
+    "Procurar também conteúdo ausente no meio do arquivo (mais lento; pode levar vários minutos em uma biblioteca grande)",
   mediaIntegrityAuditRun: "Executar verificação",
   mediaIntegrityAuditRunning:
     "Verificando sua biblioteca. Isso pode levar vários minutos; você pode trocar de aba enquanto ela é executada.",
@@ -1458,6 +1460,10 @@ export const pt = {
     "{checked} vídeo(s) verificado(s); nenhum problema encontrado.",
   mediaIntegrityAuditSummaryProblems:
     "{checked} vídeo(s) verificado(s); {count} precisam de atenção.",
+  mediaIntegrityAuditTimelineNotChecked:
+    "O conteúdo ausente no meio dos arquivos não foi verificado. Marque a opção acima para incluí-lo.",
+  mediaIntegrityAuditTimelineIncomplete:
+    "A verificação do meio do arquivo não pôde ser concluída para {count} arquivo(s). Execute a verificação novamente para tentar de novo.",
   mediaIntegrityAuditActionRedownload:
     "Recomendado: baixar este vídeo novamente.",
   mediaIntegrityAuditActionRefreshDuration:

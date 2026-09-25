@@ -1441,6 +1441,8 @@ export const ru = {
   mediaIntegrityAudit: "Проверка целостности медиафайлов",
   mediaIntegrityAuditDescription:
     "Проверяет видео, уже находящиеся в вашей библиотеке, на отсутствующие, обрезанные или нечитаемые файлы. Ничего не изменяется; для каждой проблемы предлагается рекомендуемое действие, а решение принимаете вы.",
+  mediaIntegrityAuditCheckTimeline:
+    "Также искать пропущенный контент в середине файла (медленнее; в большой библиотеке может занять несколько минут)",
   mediaIntegrityAuditRun: "Запустить проверку",
   mediaIntegrityAuditRunning:
     "Проверка библиотеки. Это может занять несколько минут; во время проверки можно переключиться на другую вкладку.",
@@ -1451,6 +1453,10 @@ export const ru = {
     "Проверено видео: {checked}; проблем не найдено.",
   mediaIntegrityAuditSummaryProblems:
     "Проверено видео: {checked}; требуют внимания: {count}.",
+  mediaIntegrityAuditTimelineNotChecked:
+    "Пропущенный контент в середине файлов не проверялся. Отметьте параметр выше, чтобы включить эту проверку.",
+  mediaIntegrityAuditTimelineIncomplete:
+    "Не удалось завершить проверку середины файла для файлов: {count}. Запустите проверку снова, чтобы повторить попытку.",
   mediaIntegrityAuditActionRedownload:
     "Рекомендуется: скачать это видео заново.",
   mediaIntegrityAuditActionRefreshDuration:

@@ -295,6 +295,7 @@
 - `GET /api/media-integrity-audit` - 检查媒体库中本地媒体文件是否损坏 (仅管理员)
   - 只读：只报告问题并给出建议操作，不会修复或重新下载任何内容
   - 报告以下情况：文件缺失、音视频轨道时长不一致、存储的时长与文件不符、ffprobe 无法读取
+  - 查询参数: `timeline=1` 额外检查文件中间缺失的内容（例如下载时被跳过的分片），以原因 `timeline_gap` 报告，并附带 `gaps` 列表 `{ stream, atSeconds, gapSeconds }`。需要主动开启，因为它会读取整个文件；未改动文件的结果缓存一天
   - `cloud:`、`mount:` 和 `http(s)` 记录会被跳过，不会报告为缺失
   - 响应: `{ success, audit: { generatedAt, summary, items, humanSummary } }`
   - 每一项: `{ localVideoId, title, mediaType, sourceUrl, videoPath, reasons, detail, storedDurationSeconds, measured, recommendedAction }`，其中 `mediaType` 为 `video` 或 `audio`，`recommendedAction` 为 `redownload`、`refresh_duration` 或 `manual_review`
