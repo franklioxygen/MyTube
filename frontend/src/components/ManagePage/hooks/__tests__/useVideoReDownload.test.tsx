@@ -122,6 +122,22 @@ describe('useVideoReDownload', () => {
         expect(invalidateQueriesSpy).toHaveBeenCalledWith({ queryKey: ['downloadStatus'] });
     });
 
+    it('re-downloads an audio item as audio, not as a new video', async () => {
+        vi.mocked(api.post).mockResolvedValue({ data: { downloadId: 'download-1' } } as any);
+        const { wrapper } = createWrapper();
+        const { result } = renderHook(() => useVideoReDownload(), { wrapper });
+
+        await act(async () => {
+            await result.current.handleReDownload({ ...baseVideo, mediaType: 'audio' } as any);
+        });
+
+        expect(api.post).toHaveBeenCalledWith('/download', {
+            youtubeUrl: baseVideo.sourceUrl,
+            forceDownload: true,
+            audioOnly: true,
+        });
+    });
+
     it('shows backend download errors from the API response', async () => {
         const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
         vi.mocked(api.post).mockRejectedValue({

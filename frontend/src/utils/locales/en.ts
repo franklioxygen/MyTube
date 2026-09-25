@@ -1396,6 +1396,27 @@ export const en = {
     "Warning: This will permanently delete all backup database files (mytube-backup-*.db.backup) that were created during previous imports. This action cannot be undone. Are you sure you want to continue?",
   backupDatabasesCleanedUp: "Backup databases cleaned up successfully",
 
+  // Media Integrity Audit
+  mediaIntegrityAudit: "Media Integrity Check",
+  mediaIntegrityAuditDescription:
+    "Check videos already in your library for files that are missing, truncated or unreadable. Nothing is changed; each problem comes with a recommended fix for you to decide on.",
+  mediaIntegrityAuditRun: "Run Check",
+  mediaIntegrityAuditRunning:
+    "Checking your library. This can take several minutes; you can switch tabs while it runs.",
+  mediaIntegrityAuditTimeout:
+    "The check ran longer than the server allows for a single request. It carries on in the background and remembers the files it has finished, so run it again in a few minutes to continue from there.",
+  mediaIntegrityAuditFailed: "The integrity check failed.",
+  mediaIntegrityAuditSummaryClean:
+    "Checked {checked} video(s); no problems found.",
+  mediaIntegrityAuditSummaryProblems:
+    "Checked {checked} video(s); {count} need attention.",
+  mediaIntegrityAuditActionRedownload:
+    "Recommended: download this video again.",
+  mediaIntegrityAuditActionRefreshDuration:
+    "Recommended: refresh the stored duration. The file itself looks intact.",
+  mediaIntegrityAuditActionManualReview:
+    "Recommended: check this file manually.",
+
   // History Filter
   filterAll: "All",
   backupDatabasesCleanupFailed: "Failed to clean up backup databases",

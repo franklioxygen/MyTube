@@ -28,6 +28,7 @@ import DownloadSettings from '../components/Settings/DownloadSettings';
 import FileOrganizationSettings from '../components/Settings/FileOrganizationSettings';
 import HookSettings from '../components/Settings/HookSettings';
 import InterfaceDisplaySettings from '../components/Settings/InterfaceDisplaySettings';
+import MediaIntegrityAuditSettings from '../components/Settings/MediaIntegrityAuditSettings';
 import MountDirectoriesSettings from '../components/Settings/MountDirectoriesSettings';
 import RssFeedSettings from '../components/Settings/RssFeedSettings';
 import SecuritySettings from '../components/Settings/SecuritySettings';
@@ -588,6 +589,7 @@ const SettingsPage: React.FC = () => {
                 isSaving={isSaving}
                 lastBackupInfo={lastBackupInfo}
             />
+            <MediaIntegrityAuditSettings />
         </Box>
     );
 

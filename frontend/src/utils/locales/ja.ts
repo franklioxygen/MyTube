@@ -1433,6 +1433,24 @@ export const ja = {
   backupDatabasesCleanedUp:
     "バックアップデータベースのクリーンアップが成功しました",
 
+  // Media Integrity Audit
+  mediaIntegrityAudit: "メディア整合性チェック",
+  mediaIntegrityAuditDescription:
+    "ライブラリにある動画のファイルが欠落している、途中で切れている、または読み取れない状態になっていないかを確認します。何も変更されません。問題ごとに推奨される対処が表示されるので、実行するかどうかを判断してください。",
+  mediaIntegrityAuditRun: "チェックを実行",
+  mediaIntegrityAuditRunning:
+    "ライブラリをチェックしています。数分かかる場合があります。実行中は別のタブに切り替えても構いません。",
+  mediaIntegrityAuditTimeout:
+    "チェックが、サーバーが 1 回のリクエストに許可する時間を超えました。チェックはバックグラウンドで続行され、完了したファイルは記録されます。数分後にもう一度実行すると、続きから再開されます。",
+  mediaIntegrityAuditFailed: "整合性チェックに失敗しました。",
+  mediaIntegrityAuditSummaryClean: "{checked} 本の動画をチェックしました。問題は見つかりませんでした。",
+  mediaIntegrityAuditSummaryProblems:
+    "{checked} 本の動画をチェックしました。{count} 本に対処が必要です。",
+  mediaIntegrityAuditActionRedownload: "推奨: この動画を再ダウンロードしてください。",
+  mediaIntegrityAuditActionRefreshDuration:
+    "推奨: 保存されている再生時間を更新してください。ファイル自体は正常に見えます。",
+  mediaIntegrityAuditActionManualReview: "推奨: このファイルを手動で確認してください。",
+
   // History Filter
   filterAll: "すべて",
   backupDatabasesCleanupFailed:

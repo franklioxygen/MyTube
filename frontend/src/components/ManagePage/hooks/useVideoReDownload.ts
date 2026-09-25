@@ -11,7 +11,7 @@ export const useVideoReDownload = () => {
     const { showSnackbar } = useSnackbar();
     const { t } = useLanguage();
 
-    const handleReDownload = async (video: Video) => {
+    const handleReDownload = async (video: Pick<Video, 'sourceUrl' | 'mediaType'>) => {
         if (!video.sourceUrl) {
             showSnackbar(t('noSourceUrlAvailable') || 'No source URL available', 'error');
             return;
@@ -28,7 +28,9 @@ export const useVideoReDownload = () => {
         try {
             const response = await api.post('/download', {
                 youtubeUrl: video.sourceUrl,
-                forceDownload: true
+                forceDownload: true,
+                // Audio and video are separate items; replace the one this is.
+                ...(video.mediaType === 'audio' ? { audioOnly: true } : {})
             });
 
             if (response.data.downloadId) {

@@ -1461,6 +1461,27 @@ export const fr = {
   backupDatabasesCleanedUp:
     "Bases de données de sauvegarde nettoyées avec succès",
 
+  // Media Integrity Audit
+  mediaIntegrityAudit: "Vérification de l'intégrité des médias",
+  mediaIntegrityAuditDescription:
+    "Vérifie les vidéos déjà présentes dans votre bibliothèque pour détecter les fichiers manquants, tronqués ou illisibles. Rien n'est modifié ; chaque problème s'accompagne d'une correction recommandée, à vous de décider.",
+  mediaIntegrityAuditRun: "Lancer la vérification",
+  mediaIntegrityAuditRunning:
+    "Vérification de votre bibliothèque en cours. Cela peut prendre plusieurs minutes ; vous pouvez changer d'onglet pendant l'exécution.",
+  mediaIntegrityAuditTimeout:
+    "La vérification a duré plus longtemps que le serveur ne l'autorise pour une seule requête. Elle se poursuit en arrière-plan et mémorise les fichiers déjà traités : relancez-la dans quelques minutes pour reprendre là où elle s'est arrêtée.",
+  mediaIntegrityAuditFailed: "La vérification de l'intégrité a échoué.",
+  mediaIntegrityAuditSummaryClean:
+    "{checked} vidéo(s) vérifiée(s) ; aucun problème trouvé.",
+  mediaIntegrityAuditSummaryProblems:
+    "{checked} vidéo(s) vérifiée(s) ; {count} nécessitent votre attention.",
+  mediaIntegrityAuditActionRedownload:
+    "Recommandé : retélécharger cette vidéo.",
+  mediaIntegrityAuditActionRefreshDuration:
+    "Recommandé : actualiser la durée enregistrée. Le fichier lui-même semble intact.",
+  mediaIntegrityAuditActionManualReview:
+    "Recommandé : vérifier ce fichier manuellement.",
+
   // History Filter
   filterAll: "Tous",
   backupDatabasesCleanupFailed:

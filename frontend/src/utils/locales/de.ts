@@ -1455,6 +1455,27 @@ export const de = {
     "Warnung: Dies löscht dauerhaft alle Backup-Datenbankdateien (mytube-backup-*.db.backup), die bei vorherigen Importen erstellt wurden. Diese Aktion kann nicht rückgängig gemacht werden. Sind Sie sicher, dass Sie fortfahren möchten?",
   backupDatabasesCleanedUp: "Backup-Datenbanken erfolgreich bereinigt",
 
+  // Media Integrity Audit
+  mediaIntegrityAudit: "Medien-Integritätsprüfung",
+  mediaIntegrityAuditDescription:
+    "Prüft Videos, die sich bereits in Ihrer Mediathek befinden, auf fehlende, abgeschnittene oder unlesbare Dateien. Es wird nichts verändert; zu jedem Problem gibt es eine empfohlene Maßnahme, über die Sie entscheiden.",
+  mediaIntegrityAuditRun: "Prüfung starten",
+  mediaIntegrityAuditRunning:
+    "Mediathek wird geprüft. Das kann mehrere Minuten dauern; Sie können währenddessen den Tab wechseln.",
+  mediaIntegrityAuditTimeout:
+    "Die Prüfung hat länger gedauert, als der Server für eine einzelne Anfrage erlaubt. Sie läuft im Hintergrund weiter und merkt sich bereits geprüfte Dateien. Starten Sie sie in ein paar Minuten erneut, um dort fortzufahren.",
+  mediaIntegrityAuditFailed: "Die Integritätsprüfung ist fehlgeschlagen.",
+  mediaIntegrityAuditSummaryClean:
+    "{checked} Video(s) geprüft; keine Probleme gefunden.",
+  mediaIntegrityAuditSummaryProblems:
+    "{checked} Video(s) geprüft; {count} erfordern Aufmerksamkeit.",
+  mediaIntegrityAuditActionRedownload:
+    "Empfohlen: dieses Video erneut herunterladen.",
+  mediaIntegrityAuditActionRefreshDuration:
+    "Empfohlen: die gespeicherte Dauer aktualisieren. Die Datei selbst scheint intakt zu sein.",
+  mediaIntegrityAuditActionManualReview:
+    "Empfohlen: diese Datei manuell prüfen.",
+
   // History Filter
   filterAll: "Alle",
   backupDatabasesCleanupFailed: "Fehler beim Bereinigen der Backup-Datenbanken",

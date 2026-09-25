@@ -329,6 +329,10 @@ vi.mock('../../components/Settings/DatabaseSettings', () => ({
   ),
 }));
 
+vi.mock('../../components/Settings/MediaIntegrityAuditSettings', () => ({
+  default: () => <div data-testid="media-integrity-audit-settings" />,
+}));
+
 vi.mock('../../components/Settings/FileOrganizationSettings', () => ({
   default: ({
     onCleanupAuthorCollections,
@@ -456,6 +460,18 @@ describe('SettingsPage', () => {
     expect(screen.queryByTestId('rss-feed-settings')).not.toBeInTheDocument();
   });
 
+  it('opens the media integrity audit from a library deep link for admins only', () => {
+    mockIsDesktop = true;
+
+    const { unmount } = renderPage('/settings?tab=library');
+    expect(screen.getByTestId('media-integrity-audit-settings')).toBeInTheDocument();
+    unmount();
+
+    mockUserRole = 'visitor';
+    renderPage('/settings?tab=library');
+    expect(screen.queryByTestId('media-integrity-audit-settings')).not.toBeInTheDocument();
+  });
+
   it('renders RSS settings for admin and login-disabled access models', () => {
     mockIsDesktop = true;
 
@@ -578,6 +594,7 @@ describe('SettingsPage', () => {
     expect(screen.getByTestId('tags-settings')).toBeInTheDocument();
     expect(screen.getByTestId('cloud-drive-settings')).toBeInTheDocument();
     expect(screen.getByTestId('database-settings')).toBeInTheDocument();
+    expect(screen.getByTestId('media-integrity-audit-settings')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('tab', { name: 'securityAccess' }));
     expect(screen.getByTestId('security-settings')).toBeInTheDocument();
