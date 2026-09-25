@@ -141,6 +141,33 @@ describe('createGapFinder', () => {
   it('caps how many gaps it keeps', () => {
     expect(feed(Array.from({ length: 200 }, () => 2))).toHaveLength(50);
   });
+
+  /** Feed `dts,duration` lines, as the packet scan emits them. */
+  const feedPackets = (packets: [number, number][]) => {
+    const finder = createGapFinder('video');
+    for (const [dts, duration] of packets) finder.push(`${dts},${duration}`);
+    return finder.gaps();
+  };
+
+  it('does not mistake a low-frame-rate stream for a run of gaps', () => {
+    // A slideshow at one frame every two seconds: every step is 2s, and so is
+    // every frame.
+    expect(feedPackets([[0, 2], [2, 2], [4, 2], [6, 2]])).toEqual([]);
+  });
+
+  it('still finds a gap in MP4, where the frame before it swells to cover it', () => {
+    // MP4 stores a frame's duration as the step to the next frame, so the last
+    // frame before a dropped segment claims the missing 4s as its own.
+    const gaps = feedPackets([[2.9, 0.0333], [2.9333, 0.0333], [2.9667, 4.0333], [7, 0.0333]]);
+
+    expect(gaps).toEqual([{ stream: 'video', atSeconds: 3, gapSeconds: 4 }]);
+  });
+
+  it('finds a dropped segment in a low-frame-rate stream', () => {
+    expect(feedPackets([[0, 2], [2, 2], [4, 6], [10, 2]])).toEqual([
+      { stream: 'video', atSeconds: 6, gapSeconds: 4 },
+    ]);
+  });
 });
 
 describe('findTimelineGaps', () => {
@@ -211,6 +238,7 @@ describe('findTimelineGaps', () => {
     expect(result).toMatchObject({ complete: true, scannedStreams: ['video'] });
     expect(mocks.spawn.mock.calls[0][1]).toContain('V:0');
     expect(mocks.spawn.mock.calls[0][1]).not.toContain('v:0');
+    expect(mocks.spawn.mock.calls[0][1]).toContain('packet=dts_time,duration_time');
   });
 
   it('scans present non-AAC audio even though its frame duration is unknown', async () => {

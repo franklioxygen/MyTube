@@ -76,9 +76,10 @@ export interface TimelineGapResult {
 // few milliseconds; the smallest real gap found in production was 1.06s.
 const FRAME_SHORTFALL_PREFILTER_SECONDS = 1.0;
 
-// Stage two: a timestamp step larger than this is a gap. Normal steps are a
-// single frame (0.02-0.04s), and the per-segment packaging artefacts described
-// above never exceeded 0.06s. A dropped HLS segment is several seconds.
+// Stage two: a timestamp step that overshoots the previous packet by more than
+// this is a gap. Normal steps are a single frame (0.02-0.04s), and the
+// per-segment packaging artefacts described above never exceeded 0.06s. A
+// dropped HLS segment is several seconds.
 const CONTIGUOUS_GAP_SECONDS = 1.0;
 
 // Keep the report readable for a file with a burst of dropped fragments.
@@ -189,29 +190,47 @@ export async function probeFrameShortfall(filePath: string): Promise<FrameShortf
 }
 
 /**
- * Find contiguous jumps in a sequence of timestamps. Pure, and fed a line at a
- * time so a multi-hour stream never has to be held in memory.
+ * Find contiguous jumps in a sequence of `timestamp[,duration]` lines. Pure, and
+ * fed a line at a time so a multi-hour stream never has to be held in memory.
+ *
+ * A step is measured against how long the previous packet should last, so a
+ * low-frame-rate stream (a slideshow at one frame every few seconds) is not a
+ * run of gaps. That is the shorter of the packet's duration and the step before
+ * it: MP4 stores each duration as the distance to the next packet, so across a
+ * gap the duration swells to cover it, while the step before keeps the stream's
+ * own rhythm. Without a duration, the raw step is used.
  */
 export function createGapFinder(stream: TimelineStream) {
   let previous: number | null = null;
+  let previousDuration: number | null = null;
+  let previousStep: number | null = null;
   let timestampCount = 0;
   const gaps: TimelineGap[] = [];
   return {
     push(line: string): void {
-      const timestamp = Number.parseFloat(line);
+      const [timestampField, durationField] = line.split(",");
+      const timestamp = Number.parseFloat(timestampField);
       if (!Number.isFinite(timestamp)) return;
+      const duration = Number.parseFloat(durationField);
       timestampCount += 1;
       if (previous !== null) {
         const step = timestamp - previous;
-        if (step > CONTIGUOUS_GAP_SECONDS && gaps.length < MAX_REPORTED_GAPS) {
+        const expected =
+          previousDuration === null
+            ? 0
+            : Math.max(0, Math.min(previousDuration, previousStep ?? previousDuration));
+        const gap = step - expected;
+        if (gap > CONTIGUOUS_GAP_SECONDS && gaps.length < MAX_REPORTED_GAPS) {
           gaps.push({
             stream,
-            atSeconds: Math.round(previous * 100) / 100,
-            gapSeconds: Math.round(step * 100) / 100,
+            atSeconds: Math.round((previous + expected) * 100) / 100,
+            gapSeconds: Math.round(gap * 100) / 100,
           });
         }
+        previousStep = step;
       }
       previous = timestamp;
+      previousDuration = Number.isFinite(duration) && duration > 0 ? duration : null;
     },
     gaps: (): TimelineGap[] => gaps,
     hasComparableTimestamps: (): boolean => timestampCount >= 2,
@@ -238,7 +257,7 @@ async function scanStreamForGaps(
       "-select_streams",
       stream === "video" ? "V:0" : "a:0",
       "-show_entries",
-      "packet=dts_time",
+      "packet=dts_time,duration_time",
       "-of",
       "csv=p=0",
       validatedPath,
