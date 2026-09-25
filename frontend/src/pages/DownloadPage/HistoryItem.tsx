@@ -42,6 +42,7 @@ export interface DownloadHistoryItem {
     videoId?: string;
     downloadedAt?: number;
     deletedAt?: number;
+    mediaType?: 'video' | 'audio';
     subscriptionId?: string;
     taskId?: string;
     downloadType?: string;
@@ -57,7 +58,7 @@ interface HistoryItemProps {
     onRemove: (id: string) => void;
     onCancelRetry: (id: string) => void;
     onRetry: (sourceUrl: string) => void;
-    onReDownload: (sourceUrl: string) => void;
+    onReDownload: (sourceUrl: string, mediaType?: 'video' | 'audio') => void;
     onViewVideo: (videoId: string) => void;
     isDownloadInProgress: (sourceUrl: string) => boolean;
     isRemoving?: boolean;
@@ -370,7 +371,7 @@ export function HistoryItem({
                                 color="primary"
                                 size="small"
                                 startIcon={<ReplayIcon />}
-                                onClick={() => onReDownload(item.sourceUrl!)}
+                                onClick={() => onReDownload(item.sourceUrl!, item.mediaType)}
                                 disabled={isDownloadInProgress(item.sourceUrl)}
                                 loading={isDownloadInProgress(item.sourceUrl)}
                                 loadingPosition="start"

@@ -231,11 +231,12 @@ async function scanStreamForGaps(
 ): Promise<TimelineGap[] | null> {
   const finder = createGapFinder(stream);
   return new Promise((resolve) => {
+    // "V" skips attached pictures, matching the stream the header probe measured.
     const child = spawn("ffprobe", [
       "-v",
       "error",
       "-select_streams",
-      stream === "video" ? "v:0" : "a:0",
+      stream === "video" ? "V:0" : "a:0",
       "-show_entries",
       "packet=dts_time",
       "-of",

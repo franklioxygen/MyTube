@@ -340,7 +340,28 @@ describe('HistoryTab incomplete save', () => {
         expect(screen.queryByText('retry')).not.toBeInTheDocument();
         fireEvent.click(screen.getByText('downloadAgain'));
 
-        expect(onReDownload).toHaveBeenCalledWith('http://example.com/1b');
+        expect(onReDownload).toHaveBeenCalledWith('http://example.com/1b', undefined);
         expect(onRetry).not.toHaveBeenCalled();
+    });
+
+    it('re-downloads an audio item as audio', () => {
+        render(
+            <BrowserRouter>
+                <HistoryTab
+                    history={[{ ...mockHistoryItems[1], mediaType: 'audio' as const }]}
+                    onRemove={vi.fn()}
+                    onCancelRetry={vi.fn()}
+                    onClear={vi.fn()}
+                    onRetry={onRetry}
+                    onReDownload={onReDownload}
+                    onViewVideo={onViewVideo}
+                    isDownloadInProgress={() => false}
+                />
+            </BrowserRouter>,
+        );
+
+        fireEvent.click(screen.getByText('downloadAgain'));
+
+        expect(onReDownload).toHaveBeenCalledWith('http://example.com/1b', 'audio');
     });
 });

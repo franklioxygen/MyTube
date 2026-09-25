@@ -210,7 +210,7 @@ const DownloadPage: React.FC = () => {
     };
 
     // Re-download deleted video
-    const handleReDownload = async (sourceUrl: string) => {
+    const handleReDownload = async (sourceUrl: string, mediaType?: 'video' | 'audio') => {
         if (!sourceUrl) return;
 
         if (isDownloadInProgress(sourceUrl)) {
@@ -223,7 +223,9 @@ const DownloadPage: React.FC = () => {
         try {
             const response = await api.post('/download', {
                 youtubeUrl: sourceUrl,
-                forceDownload: true
+                forceDownload: true,
+                // Audio and video are separate items; replace the one this row is about.
+                audioOnly: mediaType === 'audio'
             });
 
             if (response.data.downloadId) {

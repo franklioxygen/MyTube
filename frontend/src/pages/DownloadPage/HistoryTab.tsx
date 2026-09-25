@@ -24,7 +24,7 @@ interface HistoryTabProps {
     onCancelRetry: (id: string) => void;
     onClear: () => void;
     onRetry: (sourceUrl: string) => void;
-    onReDownload: (sourceUrl: string) => void;
+    onReDownload: (sourceUrl: string, mediaType?: 'video' | 'audio') => void;
     onViewVideo: (videoId: string) => void;
     isDownloadInProgress: (sourceUrl: string) => boolean;
     removingId?: string | null;

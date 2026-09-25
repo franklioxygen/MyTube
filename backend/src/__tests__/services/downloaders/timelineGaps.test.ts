@@ -195,7 +195,22 @@ describe('findTimelineGaps', () => {
 
     expect(result).toMatchObject({ complete: true, scannedStreams: ['video'] });
     expect(result.gaps).toEqual([{ stream: 'video', atSeconds: 0.03, gapSeconds: 4.03 }]);
-    expect(mocks.spawn.mock.calls[0][1]).toContain('v:0');
+    expect(mocks.spawn.mock.calls[0][1]).toContain('V:0');
+  });
+
+  it('scans the real video, not cover art stored ahead of it', async () => {
+    const cover = { ...video(1, '90000/1', 60), disposition: { attached_pic: 1 } };
+    const noCount = { ...video(1800, '30/1', 60), nb_frames: 'N/A' };
+    mocks.execFileSafe.mockResolvedValue({
+      stdout: header([cover, noCount, aac(2813, 60.010667)]),
+    });
+    mocks.spawn.mockImplementation(() => fakeScan([0, 0.033, 4.066]));
+
+    const result = await findTimelineGaps('/videos/a.mp4');
+
+    expect(result).toMatchObject({ complete: true, scannedStreams: ['video'] });
+    expect(mocks.spawn.mock.calls[0][1]).toContain('V:0');
+    expect(mocks.spawn.mock.calls[0][1]).not.toContain('v:0');
   });
 
   it('scans present non-AAC audio even though its frame duration is unknown', async () => {
@@ -221,7 +236,7 @@ describe('findTimelineGaps', () => {
     expect(result.scannedStreams).toEqual(['video']);
     expect(result.complete).toBe(true);
     expect(mocks.spawn).toHaveBeenCalledOnce();
-    expect(mocks.spawn.mock.calls[0][1]).toContain('v:0');
+    expect(mocks.spawn.mock.calls[0][1]).toContain('V:0');
     expect(result.gaps).toEqual([{ stream: 'video', atSeconds: 1127.92, gapSeconds: 4.03 }]);
   });
 
