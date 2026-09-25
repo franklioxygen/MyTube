@@ -1405,6 +1405,23 @@ export const ar = {
     "تحذير: سيؤدي هذا إلى حذف جميع ملفات قاعدة البيانات الاحتياطية (mytube-backup-*.db.backup) التي تم إنشاؤها أثناء عمليات الاستيراد السابقة بشكل دائم. لا يمكن التراجع عن هذا الإجراء. هل أنت متأكد أنك تريد المتابعة؟",
   backupDatabasesCleanedUp: "تم تنظيف قواعد البيانات الاحتياطية بنجاح",
 
+  // Media Integrity Audit
+  mediaIntegrityAudit: "فحص سلامة الوسائط",
+  mediaIntegrityAuditDescription:
+    "يفحص مقاطع الفيديو الموجودة بالفعل في مكتبتك بحثًا عن ملفات مفقودة أو مقطوعة أو غير قابلة للقراءة. لا يتم تغيير أي شيء؛ ويأتي مع كل مشكلة إجراء موصى به لتقرر بشأنه.",
+  mediaIntegrityAuditCheckTimeline:
+    "البحث أيضًا عن محتوى مفقود في منتصف الملف (أبطأ؛ قد يستغرق عدة دقائق في مكتبة كبيرة)",
+  mediaIntegrityAuditRun: "تشغيل الفحص",
+  mediaIntegrityAuditRunning:
+    "جارٍ فحص مكتبتك. قد يستغرق ذلك عدة دقائق؛ يمكنك التبديل إلى علامة تبويب أخرى أثناء التشغيل.",
+  mediaIntegrityAuditTimeout:
+    "استغرق الفحص وقتًا أطول مما يسمح به الخادم لطلب واحد. يستمر الفحص في الخلفية ويتذكر الملفات التي أنهاها، لذا شغّله مرة أخرى بعد بضع دقائق للمتابعة من حيث توقف.",
+  mediaIntegrityAuditFailed: "فشل فحص السلامة.",
+  mediaIntegrityAuditActionRedownload: "موصى به: أعد تنزيل هذا الفيديو.",
+  mediaIntegrityAuditActionRefreshDuration:
+    "موصى به: حدّث المدة المخزنة. يبدو الملف نفسه سليمًا.",
+  mediaIntegrityAuditActionManualReview: "موصى به: افحص هذا الملف يدويًا.",
+
   // History Filter
   filterAll: "الكل",
   backupDatabasesCleanupFailed: "فشل تنظيف قواعد البيانات الاحتياطية",

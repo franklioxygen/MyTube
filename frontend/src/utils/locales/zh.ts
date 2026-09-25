@@ -1361,6 +1361,20 @@ export const zh = {
     "警告：此操作将永久删除所有在之前导入时创建的备份数据库文件（mytube-backup-*.db.backup）。此操作无法撤销。您确定要继续吗？",
   backupDatabasesCleanedUp: "备份数据库清理成功",
 
+  // Media Integrity Audit
+  mediaIntegrityAudit: "媒体完整性检查",
+  mediaIntegrityAuditDescription:
+    "检查媒体库中已有视频的文件是否缺失、被截断或无法读取。此操作不会修改任何内容；每个问题都会附带建议的处理方式，由你决定是否执行。",
+  mediaIntegrityAuditCheckTimeline: "同时检查文件中间缺失的内容（较慢；大型媒体库可能需要几分钟）",
+  mediaIntegrityAuditRun: "开始检查",
+  mediaIntegrityAuditRunning: "正在检查媒体库。这可能需要几分钟；检查期间可以切换到其他标签页。",
+  mediaIntegrityAuditTimeout:
+    "检查时间超过了服务器对单个请求的限制。检查会在后台继续进行，并记住已完成的文件，请在几分钟后再次运行，从中断处继续。",
+  mediaIntegrityAuditFailed: "完整性检查失败。",
+  mediaIntegrityAuditActionRedownload: "建议：重新下载此视频。",
+  mediaIntegrityAuditActionRefreshDuration: "建议：刷新已存储的时长。文件本身看起来完好。",
+  mediaIntegrityAuditActionManualReview: "建议：手动检查此文件。",
+
   // History Filter
   filterAll: "全部",
   backupDatabasesCleanupFailed: "清理备份数据库失败",

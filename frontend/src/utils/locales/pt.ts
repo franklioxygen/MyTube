@@ -1441,6 +1441,25 @@ export const pt = {
     "Aviso: Isso excluirá permanentemente todos os arquivos de banco de dados de backup (mytube-backup-*.db.backup) que foram criados durante importações anteriores. Esta ação não pode ser desfeita. Tem certeza de que deseja continuar?",
   backupDatabasesCleanedUp: "Bancos de dados de backup limpos com sucesso",
 
+  // Media Integrity Audit
+  mediaIntegrityAudit: "Verificação de integridade de mídia",
+  mediaIntegrityAuditDescription:
+    "Verifica os vídeos que já estão na sua biblioteca em busca de arquivos ausentes, truncados ou ilegíveis. Nada é alterado; cada problema vem com uma correção recomendada para você decidir.",
+  mediaIntegrityAuditCheckTimeline:
+    "Procurar também conteúdo ausente no meio do arquivo (mais lento; pode levar vários minutos em uma biblioteca grande)",
+  mediaIntegrityAuditRun: "Executar verificação",
+  mediaIntegrityAuditRunning:
+    "Verificando sua biblioteca. Isso pode levar vários minutos; você pode trocar de aba enquanto ela é executada.",
+  mediaIntegrityAuditTimeout:
+    "A verificação demorou mais do que o servidor permite para uma única solicitação. Ela continua em segundo plano e lembra os arquivos já concluídos, então execute-a novamente em alguns minutos para continuar de onde parou.",
+  mediaIntegrityAuditFailed: "A verificação de integridade falhou.",
+  mediaIntegrityAuditActionRedownload:
+    "Recomendado: baixar este vídeo novamente.",
+  mediaIntegrityAuditActionRefreshDuration:
+    "Recomendado: atualizar a duração armazenada. O arquivo em si parece intacto.",
+  mediaIntegrityAuditActionManualReview:
+    "Recomendado: verificar este arquivo manualmente.",
+
   // History Filter
   filterAll: "Todos",
   backupDatabasesCleanupFailed: "Falha ao limpar bancos de dados de backup",

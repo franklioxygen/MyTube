@@ -11,7 +11,7 @@ export const useVideoReDownload = () => {
     const { showSnackbar } = useSnackbar();
     const { t } = useLanguage();
 
-    const handleReDownload = async (video: Video) => {
+    const handleReDownload = async (video: Pick<Video, 'sourceUrl'>) => {
         if (!video.sourceUrl) {
             showSnackbar(t('noSourceUrlAvailable') || 'No source URL available', 'error');
             return;

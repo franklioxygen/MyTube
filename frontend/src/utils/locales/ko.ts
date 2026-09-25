@@ -1413,6 +1413,23 @@ export const ko = {
     "경고: 이 작업은 이전 가져오기 중에 생성된 모든 백업 데이터베이스 파일(mytube-backup-*.db.backup)을 영구적으로 삭제합니다. 이 작업은 취소할 수 없습니다. 계속하시겠습니까?",
   backupDatabasesCleanedUp: "백업 데이터베이스 정리 성공",
 
+  // Media Integrity Audit
+  mediaIntegrityAudit: "미디어 무결성 검사",
+  mediaIntegrityAuditDescription:
+    "라이브러리에 이미 있는 동영상 파일이 누락되었거나, 잘렸거나, 읽을 수 없는지 검사합니다. 아무것도 변경되지 않으며, 각 문제에는 권장 조치가 함께 표시되므로 직접 결정하면 됩니다.",
+  mediaIntegrityAuditCheckTimeline:
+    "파일 중간에 누락된 콘텐츠도 찾기 (더 느림, 라이브러리가 크면 몇 분이 걸릴 수 있음)",
+  mediaIntegrityAuditRun: "검사 실행",
+  mediaIntegrityAuditRunning:
+    "라이브러리를 검사하는 중입니다. 몇 분이 걸릴 수 있으며, 실행 중에 다른 탭으로 전환해도 됩니다.",
+  mediaIntegrityAuditTimeout:
+    "검사 시간이 서버가 단일 요청에 허용하는 시간을 초과했습니다. 검사는 백그라운드에서 계속되며 완료된 파일을 기억하므로, 몇 분 후에 다시 실행하면 이어서 진행됩니다.",
+  mediaIntegrityAuditFailed: "무결성 검사에 실패했습니다.",
+  mediaIntegrityAuditActionRedownload: "권장: 이 동영상을 다시 다운로드하세요.",
+  mediaIntegrityAuditActionRefreshDuration:
+    "권장: 저장된 재생 시간을 새로 고치세요. 파일 자체는 정상으로 보입니다.",
+  mediaIntegrityAuditActionManualReview: "권장: 이 파일을 직접 확인하세요.",
+
   // History Filter
   filterAll: "전체",
   backupDatabasesCleanupFailed: "백업 데이터베이스 정리 실패",
