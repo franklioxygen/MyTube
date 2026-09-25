@@ -1465,6 +1465,14 @@ export const es = {
   mediaIntegrityAuditTimeout:
     "La comprobación tardó más de lo que el servidor permite para una sola solicitud. Continúa en segundo plano y recuerda los archivos que ya ha terminado, así que vuelva a ejecutarla en unos minutos para continuar desde ahí.",
   mediaIntegrityAuditFailed: "La comprobación de integridad ha fallado.",
+  mediaIntegrityAuditSummaryClean:
+    "Se revisaron {checked} video(s); no se encontraron problemas.",
+  mediaIntegrityAuditSummaryProblems:
+    "Se revisaron {checked} video(s); {count} requieren atención.",
+  mediaIntegrityAuditTimelineNotChecked:
+    "No se comprobó el contenido que falta en mitad del archivo. Marque la opción de arriba para incluirlo.",
+  mediaIntegrityAuditTimelineIncomplete:
+    "La comprobación de contenido en mitad del archivo no pudo terminar para {count} archivo(s). Vuelva a ejecutar la comprobación para reintentarlo.",
   mediaIntegrityAuditActionRedownload:
     "Recomendado: volver a descargar este video.",
   mediaIntegrityAuditActionRefreshDuration:

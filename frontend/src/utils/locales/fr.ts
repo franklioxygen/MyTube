@@ -1473,6 +1473,14 @@ export const fr = {
   mediaIntegrityAuditTimeout:
     "La vérification a duré plus longtemps que le serveur ne l'autorise pour une seule requête. Elle se poursuit en arrière-plan et mémorise les fichiers déjà traités : relancez-la dans quelques minutes pour reprendre là où elle s'est arrêtée.",
   mediaIntegrityAuditFailed: "La vérification de l'intégrité a échoué.",
+  mediaIntegrityAuditSummaryClean:
+    "{checked} vidéo(s) vérifiée(s) ; aucun problème trouvé.",
+  mediaIntegrityAuditSummaryProblems:
+    "{checked} vidéo(s) vérifiée(s) ; {count} nécessitent votre attention.",
+  mediaIntegrityAuditTimelineNotChecked:
+    "Le contenu manquant au milieu des fichiers n'a pas été vérifié. Cochez l'option ci-dessus pour l'inclure.",
+  mediaIntegrityAuditTimelineIncomplete:
+    "La vérification du contenu au milieu des fichiers n'a pas pu se terminer pour {count} fichier(s). Relancez la vérification pour réessayer.",
   mediaIntegrityAuditActionRedownload:
     "Recommandé : retélécharger cette vidéo.",
   mediaIntegrityAuditActionRefreshDuration:

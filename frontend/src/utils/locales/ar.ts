@@ -1417,6 +1417,14 @@ export const ar = {
   mediaIntegrityAuditTimeout:
     "استغرق الفحص وقتًا أطول مما يسمح به الخادم لطلب واحد. يستمر الفحص في الخلفية ويتذكر الملفات التي أنهاها، لذا شغّله مرة أخرى بعد بضع دقائق للمتابعة من حيث توقف.",
   mediaIntegrityAuditFailed: "فشل فحص السلامة.",
+  mediaIntegrityAuditSummaryClean:
+    "تم فحص {checked} فيديو؛ لم يتم العثور على مشاكل.",
+  mediaIntegrityAuditSummaryProblems:
+    "تم فحص {checked} فيديو؛ {count} منها تحتاج إلى معالجة.",
+  mediaIntegrityAuditTimelineNotChecked:
+    "لم يتم فحص المحتوى المفقود في منتصف الملفات. حدد الخيار أعلاه لتضمينه.",
+  mediaIntegrityAuditTimelineIncomplete:
+    "تعذّر إكمال فحص منتصف الملف لـ {count} ملف. شغّل الفحص مرة أخرى لإعادة المحاولة.",
   mediaIntegrityAuditActionRedownload: "موصى به: أعد تنزيل هذا الفيديو.",
   mediaIntegrityAuditActionRefreshDuration:
     "موصى به: حدّث المدة المخزنة. يبدو الملف نفسه سليمًا.",

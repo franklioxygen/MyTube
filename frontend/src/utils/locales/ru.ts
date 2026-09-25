@@ -1446,6 +1446,14 @@ export const ru = {
   mediaIntegrityAuditTimeout:
     "Проверка заняла больше времени, чем сервер допускает для одного запроса. Она продолжается в фоновом режиме и запоминает уже проверенные файлы, поэтому запустите её снова через несколько минут, чтобы продолжить с того же места.",
   mediaIntegrityAuditFailed: "Не удалось выполнить проверку целостности.",
+  mediaIntegrityAuditSummaryClean:
+    "Проверено видео: {checked}; проблем не найдено.",
+  mediaIntegrityAuditSummaryProblems:
+    "Проверено видео: {checked}; требуют внимания: {count}.",
+  mediaIntegrityAuditTimelineNotChecked:
+    "Пропущенный контент в середине файлов не проверялся. Отметьте параметр выше, чтобы включить эту проверку.",
+  mediaIntegrityAuditTimelineIncomplete:
+    "Не удалось завершить проверку середины файла для файлов: {count}. Запустите проверку снова, чтобы повторить попытку.",
   mediaIntegrityAuditActionRedownload:
     "Рекомендуется: скачать это видео заново.",
   mediaIntegrityAuditActionRefreshDuration:

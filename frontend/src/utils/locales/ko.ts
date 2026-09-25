@@ -1425,6 +1425,13 @@ export const ko = {
   mediaIntegrityAuditTimeout:
     "검사 시간이 서버가 단일 요청에 허용하는 시간을 초과했습니다. 검사는 백그라운드에서 계속되며 완료된 파일을 기억하므로, 몇 분 후에 다시 실행하면 이어서 진행됩니다.",
   mediaIntegrityAuditFailed: "무결성 검사에 실패했습니다.",
+  mediaIntegrityAuditSummaryClean: "동영상 {checked}개를 검사했으며 문제가 없습니다.",
+  mediaIntegrityAuditSummaryProblems:
+    "동영상 {checked}개를 검사했으며 {count}개에 조치가 필요합니다.",
+  mediaIntegrityAuditTimelineNotChecked:
+    "파일 중간에 누락된 콘텐츠는 검사하지 않았습니다. 포함하려면 위의 옵션을 선택하세요.",
+  mediaIntegrityAuditTimelineIncomplete:
+    "파일 {count}개의 중간 콘텐츠 검사를 완료하지 못했습니다. 다시 검사를 실행하여 재시도하세요.",
   mediaIntegrityAuditActionRedownload: "권장: 이 동영상을 다시 다운로드하세요.",
   mediaIntegrityAuditActionRefreshDuration:
     "권장: 저장된 재생 시간을 새로 고치세요. 파일 자체는 정상으로 보입니다.",

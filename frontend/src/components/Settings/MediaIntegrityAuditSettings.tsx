@@ -35,9 +35,20 @@ interface MediaIntegrityAuditItem {
     recommendedAction: RecommendedAction;
 }
 
+interface MediaIntegrityAuditSummary {
+    totalVideos: number;
+    /** cloud:, mount: and remote rows, which the audit does not open. */
+    skippedExternal: number;
+    /** Absent from backends that cannot run the mid-file check. */
+    timelineChecked?: boolean;
+    timelineIncomplete?: number;
+}
+
+// The response's humanSummary is English prose, so the summary is worded here
+// from the counts instead.
 interface MediaIntegrityAudit {
     items: MediaIntegrityAuditItem[];
-    humanSummary: string;
+    summary: MediaIntegrityAuditSummary;
 }
 
 const ACTION_LABEL_KEYS: Record<RecommendedAction, TranslationKey> = {
@@ -137,11 +148,26 @@ const MediaIntegrityAuditSettings: React.FC = () => {
         if (!audit) {
             return null;
         }
+        const checked = audit.summary.totalVideos - audit.summary.skippedExternal;
+        const timelineIncomplete = audit.summary.timelineIncomplete ?? 0;
         return (
             <>
                 <Alert severity={audit.items.length === 0 ? 'success' : 'warning'} sx={{ mt: 2 }}>
-                    {audit.humanSummary}
+                    {audit.items.length === 0
+                        ? t('mediaIntegrityAuditSummaryClean', { checked })
+                        : t('mediaIntegrityAuditSummaryProblems', { checked, count: audit.items.length })}
+                    {/* A clean result must not read as covering what was never checked. */}
+                    {!audit.summary.timelineChecked && (
+                        <Box component="span" sx={{ display: 'block', mt: 0.5 }}>
+                            {t('mediaIntegrityAuditTimelineNotChecked')}
+                        </Box>
+                    )}
                 </Alert>
+                {timelineIncomplete > 0 && (
+                    <Alert severity="warning" sx={{ mt: 1 }}>
+                        {t('mediaIntegrityAuditTimelineIncomplete', { count: timelineIncomplete })}
+                    </Alert>
+                )}
                 {audit.items.length > 0 && (
                     <List disablePadding sx={{ mt: 1 }}>
                         {audit.items.map(renderItem)}

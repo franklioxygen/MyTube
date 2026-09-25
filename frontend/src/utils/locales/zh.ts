@@ -1371,6 +1371,10 @@ export const zh = {
   mediaIntegrityAuditTimeout:
     "检查时间超过了服务器对单个请求的限制。检查会在后台继续进行，并记住已完成的文件，请在几分钟后再次运行，从中断处继续。",
   mediaIntegrityAuditFailed: "完整性检查失败。",
+  mediaIntegrityAuditSummaryClean: "已检查 {checked} 个视频，未发现问题。",
+  mediaIntegrityAuditSummaryProblems: "已检查 {checked} 个视频，其中 {count} 个需要处理。",
+  mediaIntegrityAuditTimelineNotChecked: "未检查文件中间缺失的内容。勾选上方选项即可包含此项检查。",
+  mediaIntegrityAuditTimelineIncomplete: "有 {count} 个文件未能完成中间内容检查。请再次运行检查以重试。",
   mediaIntegrityAuditActionRedownload: "建议：重新下载此视频。",
   mediaIntegrityAuditActionRefreshDuration: "建议：刷新已存储的时长。文件本身看起来完好。",
   mediaIntegrityAuditActionManualReview: "建议：手动检查此文件。",

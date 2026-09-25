@@ -1453,6 +1453,14 @@ export const pt = {
   mediaIntegrityAuditTimeout:
     "A verificação demorou mais do que o servidor permite para uma única solicitação. Ela continua em segundo plano e lembra os arquivos já concluídos, então execute-a novamente em alguns minutos para continuar de onde parou.",
   mediaIntegrityAuditFailed: "A verificação de integridade falhou.",
+  mediaIntegrityAuditSummaryClean:
+    "{checked} vídeo(s) verificado(s); nenhum problema encontrado.",
+  mediaIntegrityAuditSummaryProblems:
+    "{checked} vídeo(s) verificado(s); {count} precisam de atenção.",
+  mediaIntegrityAuditTimelineNotChecked:
+    "O conteúdo ausente no meio dos arquivos não foi verificado. Marque a opção acima para incluí-lo.",
+  mediaIntegrityAuditTimelineIncomplete:
+    "A verificação do meio do arquivo não pôde ser concluída para {count} arquivo(s). Execute a verificação novamente para tentar de novo.",
   mediaIntegrityAuditActionRedownload:
     "Recomendado: baixar este vídeo novamente.",
   mediaIntegrityAuditActionRefreshDuration:

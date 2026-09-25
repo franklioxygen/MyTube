@@ -1408,6 +1408,14 @@ export const en = {
   mediaIntegrityAuditTimeout:
     "The check ran longer than the server allows for a single request. It carries on in the background and remembers the files it has finished, so run it again in a few minutes to continue from there.",
   mediaIntegrityAuditFailed: "The integrity check failed.",
+  mediaIntegrityAuditSummaryClean:
+    "Checked {checked} video(s); no problems found.",
+  mediaIntegrityAuditSummaryProblems:
+    "Checked {checked} video(s); {count} need attention.",
+  mediaIntegrityAuditTimelineNotChecked:
+    "Content missing mid-file was not checked. Tick the option above to include it.",
+  mediaIntegrityAuditTimelineIncomplete:
+    "The mid-file check could not finish for {count} file(s). Run the check again to retry them.",
   mediaIntegrityAuditActionRedownload:
     "Recommended: download this video again.",
   mediaIntegrityAuditActionRefreshDuration:

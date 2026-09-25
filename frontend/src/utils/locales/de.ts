@@ -1467,6 +1467,14 @@ export const de = {
   mediaIntegrityAuditTimeout:
     "Die Prüfung hat länger gedauert, als der Server für eine einzelne Anfrage erlaubt. Sie läuft im Hintergrund weiter und merkt sich bereits geprüfte Dateien. Starten Sie sie in ein paar Minuten erneut, um dort fortzufahren.",
   mediaIntegrityAuditFailed: "Die Integritätsprüfung ist fehlgeschlagen.",
+  mediaIntegrityAuditSummaryClean:
+    "{checked} Video(s) geprüft; keine Probleme gefunden.",
+  mediaIntegrityAuditSummaryProblems:
+    "{checked} Video(s) geprüft; {count} erfordern Aufmerksamkeit.",
+  mediaIntegrityAuditTimelineNotChecked:
+    "Fehlende Inhalte mitten in Dateien wurden nicht geprüft. Aktivieren Sie die Option oben, um sie einzubeziehen.",
+  mediaIntegrityAuditTimelineIncomplete:
+    "Die Prüfung auf fehlende Inhalte mitten in der Datei konnte für {count} Datei(en) nicht abgeschlossen werden. Starten Sie die Prüfung erneut, um es noch einmal zu versuchen.",
   mediaIntegrityAuditActionRedownload:
     "Empfohlen: dieses Video erneut herunterladen.",
   mediaIntegrityAuditActionRefreshDuration:

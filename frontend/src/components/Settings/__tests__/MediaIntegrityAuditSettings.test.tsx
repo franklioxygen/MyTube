@@ -5,8 +5,15 @@ import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import MediaIntegrityAuditSettings from '../MediaIntegrityAuditSettings';
 
+// t echoes the key, followed by any interpolated values, so assertions can
+// check both the wording chosen and the numbers passed to it.
 vi.mock('../../../contexts/LanguageContext', () => ({
-    useLanguage: () => ({ t: (key: string) => key }),
+    useLanguage: () => ({
+        t: (key: string, replacements?: Record<string, string | number>) =>
+            replacements
+                ? `${key} ${Object.entries(replacements).map(([name, value]) => `${name}=${value}`).join(' ')}`
+                : key,
+    }),
 }));
 
 const showSnackbarMock = vi.fn();
@@ -34,10 +41,14 @@ const buildItem = (overrides: Record<string, unknown> = {}) => ({
     ...overrides,
 });
 
-const auditResponse = (items: unknown[], humanSummary = 'Checked 3 file(s) and found problems.') => ({
+const auditResponse = (items: unknown[], summary: Record<string, unknown> = {}) => ({
     data: {
         success: true,
-        audit: { items, summary: {}, humanSummary },
+        audit: {
+            items,
+            summary: { totalVideos: 5, skippedExternal: 2, ...summary },
+            humanSummary: 'English prose the UI does not show',
+        },
     },
 });
 
@@ -81,7 +92,9 @@ describe('MediaIntegrityAuditSettings', () => {
 
         await user.click(screen.getByRole('button', { name: 'mediaIntegrityAuditRun' }));
 
-        expect(await screen.findByText('Checked 3 file(s) and found problems.')).toBeInTheDocument();
+        // External rows are skipped, so they are not counted as checked.
+        expect(await screen.findByText('mediaIntegrityAuditSummaryProblems checked=3 count=2')).toBeInTheDocument();
+        expect(screen.queryByText('English prose the UI does not show')).not.toBeInTheDocument();
         expect(apiGetMock).toHaveBeenCalledWith('/media-integrity-audit', { timeout: 300000 });
 
         expect(screen.getByRole('link', { name: 'Truncated video' })).toHaveAttribute('href', '/video/video-1');
@@ -94,16 +107,41 @@ describe('MediaIntegrityAuditSettings', () => {
     });
 
     it('requests the mid-file gap check when opted in', async () => {
-        apiGetMock.mockResolvedValue(auditResponse([], 'Checked 3 file(s); no integrity problems found.'));
+        apiGetMock.mockResolvedValue(auditResponse([], { timelineChecked: true, timelineIncomplete: 0 }));
         const user = userEvent.setup();
 
         renderPanel();
         await user.click(screen.getByRole('checkbox', { name: 'mediaIntegrityAuditCheckTimeline' }));
         await user.click(screen.getByRole('button', { name: 'mediaIntegrityAuditRun' }));
 
-        expect(await screen.findByText('Checked 3 file(s); no integrity problems found.')).toBeInTheDocument();
+        expect(await screen.findByText('mediaIntegrityAuditSummaryClean checked=3')).toBeInTheDocument();
         expect(apiGetMock).toHaveBeenCalledWith('/media-integrity-audit?timeline=1', { timeout: 300000 });
         expect(screen.queryByRole('list')).not.toBeInTheDocument();
+        expect(screen.queryByText('mediaIntegrityAuditTimelineNotChecked')).not.toBeInTheDocument();
+        expect(screen.queryByText(/mediaIntegrityAuditTimelineIncomplete/)).not.toBeInTheDocument();
+    });
+
+    it('says when the mid-file check did not run, so a clean result is not over-read', async () => {
+        // A backend without the mid-file check sends no timeline fields at all.
+        apiGetMock.mockResolvedValue(auditResponse([]));
+        const user = userEvent.setup();
+
+        renderPanel();
+        await user.click(screen.getByRole('button', { name: 'mediaIntegrityAuditRun' }));
+
+        expect(await screen.findByText('mediaIntegrityAuditSummaryClean checked=3')).toBeInTheDocument();
+        expect(screen.getByText('mediaIntegrityAuditTimelineNotChecked')).toBeInTheDocument();
+    });
+
+    it('warns when the mid-file check could not finish for some files', async () => {
+        apiGetMock.mockResolvedValue(auditResponse([], { timelineChecked: true, timelineIncomplete: 2 }));
+        const user = userEvent.setup();
+
+        renderPanel();
+        await user.click(screen.getByRole('checkbox', { name: 'mediaIntegrityAuditCheckTimeline' }));
+        await user.click(screen.getByRole('button', { name: 'mediaIntegrityAuditRun' }));
+
+        expect(await screen.findByText('mediaIntegrityAuditTimelineIncomplete count=2')).toBeInTheDocument();
     });
 
     it('shows a pending state and locks the options while the audit runs', async () => {

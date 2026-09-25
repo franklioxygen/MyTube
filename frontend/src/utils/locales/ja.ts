@@ -1445,6 +1445,13 @@ export const ja = {
   mediaIntegrityAuditTimeout:
     "チェックが、サーバーが 1 回のリクエストに許可する時間を超えました。チェックはバックグラウンドで続行され、完了したファイルは記録されます。数分後にもう一度実行すると、続きから再開されます。",
   mediaIntegrityAuditFailed: "整合性チェックに失敗しました。",
+  mediaIntegrityAuditSummaryClean: "{checked} 本の動画をチェックしました。問題は見つかりませんでした。",
+  mediaIntegrityAuditSummaryProblems:
+    "{checked} 本の動画をチェックしました。{count} 本に対処が必要です。",
+  mediaIntegrityAuditTimelineNotChecked:
+    "ファイル途中のコンテンツ欠落はチェックしていません。含めるには上のオプションをオンにしてください。",
+  mediaIntegrityAuditTimelineIncomplete:
+    "{count} 個のファイルでファイル途中のチェックを完了できませんでした。もう一度チェックを実行して再試行してください。",
   mediaIntegrityAuditActionRedownload: "推奨: この動画を再ダウンロードしてください。",
   mediaIntegrityAuditActionRefreshDuration:
     "推奨: 保存されている再生時間を更新してください。ファイル自体は正常に見えます。",

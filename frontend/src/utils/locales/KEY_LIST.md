@@ -11,7 +11,7 @@ UPDATE_KEY_LIST=1 npx vitest run src/utils/locales/__tests__/localeParity.test.t
 
 This list is intentionally unnumbered. When new keys are inserted, only the local section order changes.
 
-Total keys: 1385
+Total keys: 1389
 
 ## Summary
 
@@ -55,7 +55,7 @@ Total keys: 1385
 | yt-dlp Configuration | 58 | `ytDlpConfiguration` | `cleanupAuthorCollectionsFailed` |
 | Cloudflare Tunnel | 16 | `cloudflaredTunnel` | `managedInDashboard` |
 | Database Export/Import | 41 | `exportImportDatabase` | `backupDatabasesCleanedUp` |
-| Media Integrity Audit | 10 | `mediaIntegrityAudit` | `mediaIntegrityAuditActionManualReview` |
+| Media Integrity Audit | 14 | `mediaIntegrityAudit` | `mediaIntegrityAuditActionManualReview` |
 | History Filter | 33 | `filterAll` | `browserVideoFormatNotSupported` |
 | RSS Feed Settings | 42 | `rssFeedSettings` | `rssDays` |
 | Role-based settings middleware errors | 5 | `settingsApiKeyForbidden` | `settingsAuthRequired` |
@@ -1360,6 +1360,10 @@ Total keys: 1385
 | `mediaIntegrityAuditRunning` |
 | `mediaIntegrityAuditTimeout` |
 | `mediaIntegrityAuditFailed` |
+| `mediaIntegrityAuditSummaryClean` |
+| `mediaIntegrityAuditSummaryProblems` |
+| `mediaIntegrityAuditTimelineNotChecked` |
+| `mediaIntegrityAuditTimelineIncomplete` |
 | `mediaIntegrityAuditActionRedownload` |
 | `mediaIntegrityAuditActionRefreshDuration` |
 | `mediaIntegrityAuditActionManualReview` |
