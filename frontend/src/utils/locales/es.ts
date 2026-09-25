@@ -1457,8 +1457,6 @@ export const es = {
   mediaIntegrityAudit: "Comprobación de integridad de medios",
   mediaIntegrityAuditDescription:
     "Comprueba los videos que ya están en su biblioteca en busca de archivos que falten, estén truncados o no se puedan leer. No se modifica nada; cada problema incluye una solución recomendada para que usted decida.",
-  mediaIntegrityAuditCheckTimeline:
-    "Buscar también contenido que falta en mitad del archivo (más lento; puede tardar varios minutos en una biblioteca grande)",
   mediaIntegrityAuditRun: "Ejecutar comprobación",
   mediaIntegrityAuditRunning:
     "Comprobando su biblioteca. Esto puede tardar varios minutos; puede cambiar de pestaña mientras se ejecuta.",
@@ -1469,10 +1467,6 @@ export const es = {
     "Se revisaron {checked} video(s); no se encontraron problemas.",
   mediaIntegrityAuditSummaryProblems:
     "Se revisaron {checked} video(s); {count} requieren atención.",
-  mediaIntegrityAuditTimelineNotChecked:
-    "No se comprobó el contenido que falta en mitad del archivo. Marque la opción de arriba para incluirlo.",
-  mediaIntegrityAuditTimelineIncomplete:
-    "La comprobación de contenido en mitad del archivo no pudo terminar para {count} archivo(s). Vuelva a ejecutar la comprobación para reintentarlo.",
   mediaIntegrityAuditActionRedownload:
     "Recomendado: volver a descargar este video.",
   mediaIntegrityAuditActionRefreshDuration:

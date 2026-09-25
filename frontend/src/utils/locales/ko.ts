@@ -1417,8 +1417,6 @@ export const ko = {
   mediaIntegrityAudit: "미디어 무결성 검사",
   mediaIntegrityAuditDescription:
     "라이브러리에 이미 있는 동영상 파일이 누락되었거나, 잘렸거나, 읽을 수 없는지 검사합니다. 아무것도 변경되지 않으며, 각 문제에는 권장 조치가 함께 표시되므로 직접 결정하면 됩니다.",
-  mediaIntegrityAuditCheckTimeline:
-    "파일 중간에 누락된 콘텐츠도 찾기 (더 느림, 라이브러리가 크면 몇 분이 걸릴 수 있음)",
   mediaIntegrityAuditRun: "검사 실행",
   mediaIntegrityAuditRunning:
     "라이브러리를 검사하는 중입니다. 몇 분이 걸릴 수 있으며, 실행 중에 다른 탭으로 전환해도 됩니다.",
@@ -1428,10 +1426,6 @@ export const ko = {
   mediaIntegrityAuditSummaryClean: "동영상 {checked}개를 검사했으며 문제가 없습니다.",
   mediaIntegrityAuditSummaryProblems:
     "동영상 {checked}개를 검사했으며 {count}개에 조치가 필요합니다.",
-  mediaIntegrityAuditTimelineNotChecked:
-    "파일 중간에 누락된 콘텐츠는 검사하지 않았습니다. 포함하려면 위의 옵션을 선택하세요.",
-  mediaIntegrityAuditTimelineIncomplete:
-    "파일 {count}개의 중간 콘텐츠 검사를 완료하지 못했습니다. 다시 검사를 실행하여 재시도하세요.",
   mediaIntegrityAuditActionRedownload: "권장: 이 동영상을 다시 다운로드하세요.",
   mediaIntegrityAuditActionRefreshDuration:
     "권장: 저장된 재생 시간을 새로 고치세요. 파일 자체는 정상으로 보입니다.",

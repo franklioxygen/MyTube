@@ -1365,7 +1365,6 @@ export const zh = {
   mediaIntegrityAudit: "媒体完整性检查",
   mediaIntegrityAuditDescription:
     "检查媒体库中已有视频的文件是否缺失、被截断或无法读取。此操作不会修改任何内容；每个问题都会附带建议的处理方式，由你决定是否执行。",
-  mediaIntegrityAuditCheckTimeline: "同时检查文件中间缺失的内容（较慢；大型媒体库可能需要几分钟）",
   mediaIntegrityAuditRun: "开始检查",
   mediaIntegrityAuditRunning: "正在检查媒体库。这可能需要几分钟；检查期间可以切换到其他标签页。",
   mediaIntegrityAuditTimeout:
@@ -1373,8 +1372,6 @@ export const zh = {
   mediaIntegrityAuditFailed: "完整性检查失败。",
   mediaIntegrityAuditSummaryClean: "已检查 {checked} 个视频，未发现问题。",
   mediaIntegrityAuditSummaryProblems: "已检查 {checked} 个视频，其中 {count} 个需要处理。",
-  mediaIntegrityAuditTimelineNotChecked: "未检查文件中间缺失的内容。勾选上方选项即可包含此项检查。",
-  mediaIntegrityAuditTimelineIncomplete: "有 {count} 个文件未能完成中间内容检查。请再次运行检查以重试。",
   mediaIntegrityAuditActionRedownload: "建议：重新下载此视频。",
   mediaIntegrityAuditActionRefreshDuration: "建议：刷新已存储的时长。文件本身看起来完好。",
   mediaIntegrityAuditActionManualReview: "建议：手动检查此文件。",

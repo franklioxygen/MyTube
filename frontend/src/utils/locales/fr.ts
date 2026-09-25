@@ -1465,8 +1465,6 @@ export const fr = {
   mediaIntegrityAudit: "Vérification de l'intégrité des médias",
   mediaIntegrityAuditDescription:
     "Vérifie les vidéos déjà présentes dans votre bibliothèque pour détecter les fichiers manquants, tronqués ou illisibles. Rien n'est modifié ; chaque problème s'accompagne d'une correction recommandée, à vous de décider.",
-  mediaIntegrityAuditCheckTimeline:
-    "Rechercher aussi le contenu manquant au milieu des fichiers (plus lent ; peut prendre plusieurs minutes sur une grande bibliothèque)",
   mediaIntegrityAuditRun: "Lancer la vérification",
   mediaIntegrityAuditRunning:
     "Vérification de votre bibliothèque en cours. Cela peut prendre plusieurs minutes ; vous pouvez changer d'onglet pendant l'exécution.",
@@ -1477,10 +1475,6 @@ export const fr = {
     "{checked} vidéo(s) vérifiée(s) ; aucun problème trouvé.",
   mediaIntegrityAuditSummaryProblems:
     "{checked} vidéo(s) vérifiée(s) ; {count} nécessitent votre attention.",
-  mediaIntegrityAuditTimelineNotChecked:
-    "Le contenu manquant au milieu des fichiers n'a pas été vérifié. Cochez l'option ci-dessus pour l'inclure.",
-  mediaIntegrityAuditTimelineIncomplete:
-    "La vérification du contenu au milieu des fichiers n'a pas pu se terminer pour {count} fichier(s). Relancez la vérification pour réessayer.",
   mediaIntegrityAuditActionRedownload:
     "Recommandé : retélécharger cette vidéo.",
   mediaIntegrityAuditActionRefreshDuration:

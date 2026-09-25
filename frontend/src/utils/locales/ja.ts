@@ -1437,8 +1437,6 @@ export const ja = {
   mediaIntegrityAudit: "メディア整合性チェック",
   mediaIntegrityAuditDescription:
     "ライブラリにある動画のファイルが欠落している、途中で切れている、または読み取れない状態になっていないかを確認します。何も変更されません。問題ごとに推奨される対処が表示されるので、実行するかどうかを判断してください。",
-  mediaIntegrityAuditCheckTimeline:
-    "ファイル途中のコンテンツ欠落もチェックする（低速。大きなライブラリでは数分かかる場合があります）",
   mediaIntegrityAuditRun: "チェックを実行",
   mediaIntegrityAuditRunning:
     "ライブラリをチェックしています。数分かかる場合があります。実行中は別のタブに切り替えても構いません。",
@@ -1448,10 +1446,6 @@ export const ja = {
   mediaIntegrityAuditSummaryClean: "{checked} 本の動画をチェックしました。問題は見つかりませんでした。",
   mediaIntegrityAuditSummaryProblems:
     "{checked} 本の動画をチェックしました。{count} 本に対処が必要です。",
-  mediaIntegrityAuditTimelineNotChecked:
-    "ファイル途中のコンテンツ欠落はチェックしていません。含めるには上のオプションをオンにしてください。",
-  mediaIntegrityAuditTimelineIncomplete:
-    "{count} 個のファイルでファイル途中のチェックを完了できませんでした。もう一度チェックを実行して再試行してください。",
   mediaIntegrityAuditActionRedownload: "推奨: この動画を再ダウンロードしてください。",
   mediaIntegrityAuditActionRefreshDuration:
     "推奨: 保存されている再生時間を更新してください。ファイル自体は正常に見えます。",
