@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Feature
+
+- Run the media integrity audit from Settings. `GET /api/media-integrity-audit` had no caller in the app, so finding a damaged video already in the library still meant calling the API by hand or playing the video until it broke. Settings → Library & Storage now has a Media Integrity Check section (admin only) that runs the audit on request and lists each finding with what was found, the recommended action and a link to the video. Where a re-download is recommended and the row has a source URL, Download Again queues the same forced download as the Manage page's re-download button; a row with no source URL says so instead of offering a button that cannot work. The check for content missing mid-file is an opt-in checkbox because it reads whole files. The request waits as long as the `/api` proxy does (300 seconds), and a browser timeout or a proxy 504 is reported as a timeout rather than a failure: the server keeps scanning after the connection drops and caches each finished file, so running the check again continues where it stopped. The result is held in the query cache so it survives switching settings tabs, and a failed scan is never retried automatically, since a retry would repeat minutes of work. The summary line is built in the browser from the audit's counts, because the response's `humanSummary` is English prose; it counts only the videos the audit actually opens, and says when the mid-file check did not run or could not finish, so a clean result is not read as covering more than it did. Each finding's detail text is still the server's English.
+
 ## v1.11.10 (2026-09-22)
 
 ### Feature

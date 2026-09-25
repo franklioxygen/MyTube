@@ -43,6 +43,7 @@ Built using the [franklioxygen/agent-workflows](https://github.com/franklioxygen
 - **Parallel Downloads**: Queue multiple downloads and track their progress simultaneously.
 - **Batch Download**: Add multiple video URLs at once to the download queue.
 - **Cloud Storage Integration**: Automatically upload videos and thumbnails to cloud storage (OpenList/Alist) after download.
+- **Media Integrity Check** (admin): Find videos already in your library whose files are missing, truncated or unreadable, under **Settings → Library & Storage**. It only reports; each finding links to the video and, where a re-download is recommended, offers **Download Again**.
 - **Auto Subtitles**: Automatically download YouTube / Bilibili default language subtitles.
 - **Live Audio Translation** (admin, optional): Stream the playing video's audio to Google Gemini Live Translation and play translated speech with live subtitles in the player's subtitle menu. Configure it under **Settings → Basic → Video Playback** (enable, Gemini API key, model, source/target language). The key is stored server-side and never sent to the browser. **Privacy:** while live translation is active, the video's audio is streamed to Google's Gemini API; transcripts are not persisted or logged. Requires an admin account when login is enabled and a same-origin (non-cross-origin) audio source.
 - **Subscriptions**: Manage YouTube, Bilibili and Twitch channel subscriptions to automatically download new content.

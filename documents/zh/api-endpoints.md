@@ -292,6 +292,13 @@
 - `POST /api/scan-mount-directories` - 扫描配置的挂载目录并与数据库同步
   - 请求体: `{ directories: string[] }` (非空)
 - `POST /api/cleanup-temp-files` - 移除临时下载文件 (`.part`, `.ytdl`, `temp_*`)
+- `GET /api/media-integrity-audit` - 检查媒体库中本地媒体文件是否损坏 (仅管理员)
+  - 只读：只报告问题并给出建议操作，不会修复或重新下载任何内容
+  - 报告以下情况：文件缺失、音视频轨道时长不一致、存储的时长与文件不符、ffprobe 无法读取
+  - `cloud:`、`mount:` 和 `http(s)` 记录会被跳过，不会报告为缺失
+  - 响应: `{ success, audit: { generatedAt, summary, items, humanSummary } }`
+  - 每一项: `{ localVideoId, title, sourceUrl, videoPath, reasons, detail, storedDurationSeconds, measured, recommendedAction }`，其中 `recommendedAction` 为 `redownload`、`refresh_duration` 或 `manual_review`
+  - 界面入口: 设置 → 媒体库与存储 → 媒体完整性检查
 
 ## 云存储
 

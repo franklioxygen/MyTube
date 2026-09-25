@@ -307,6 +307,13 @@ While a gesture credential exists, a settings update that disables password logi
 - `POST /api/scan-mount-directories` - Scan configured mount directories and sync with DB
   - Body: `{ directories: string[] }` (non-empty)
 - `POST /api/cleanup-temp-files` - Remove temporary download files (`.part`, `.ytdl`, `temp_*`)
+- `GET /api/media-integrity-audit` - Check the library's local media files for damage (admin only)
+  - Read-only: reports findings and recommends an action, but never repairs or re-downloads anything
+  - Reports rows whose file is missing, whose audio and video tracks disagree in length, whose stored duration no longer matches the file, or that ffprobe cannot read
+  - `cloud:`, `mount:` and `http(s)` rows are skipped, not reported as missing
+  - Response: `{ success, audit: { generatedAt, summary, items, humanSummary } }`
+  - Each item: `{ localVideoId, title, sourceUrl, videoPath, reasons, detail, storedDurationSeconds, measured, recommendedAction }`, where `recommendedAction` is `redownload`, `refresh_duration` or `manual_review`
+  - Available in the UI as Settings → Library & Storage → Media Integrity Check
 
 ## Cloud Storage
 
