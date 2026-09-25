@@ -12,7 +12,7 @@ import {
 } from "./downloaders/downloadIntegrity";
 import { resolveManagedWebPath } from "./filenameTemplate/pathHelpers";
 import * as storageService from "./storageService";
-import type { Video } from "./storageService/types";
+import { normalizeMediaType, type MediaType, type Video } from "./storageService/types";
 
 /**
  * Library-wide media integrity audit.
@@ -41,6 +41,8 @@ export type MediaIntegrityRecommendedAction =
 export interface MediaIntegrityAuditItem {
   localVideoId: string;
   title: string;
+  /** Audio and video are separate rows; a re-download must replace the same kind. */
+  mediaType: MediaType;
   sourceUrl: string | null;
   videoPath: string | null;
   reasons: MediaIntegrityAuditReason[];
@@ -325,6 +327,7 @@ export async function auditMediaIntegrity(): Promise<MediaIntegrityAuditResult> 
       items.push({
         localVideoId: video.id,
         title: video.title || "",
+        mediaType: normalizeMediaType(video.mediaType),
         sourceUrl: readString(video.sourceUrl),
         videoPath: webPath,
         reasons: ["file_missing"],
@@ -340,6 +343,7 @@ export async function auditMediaIntegrity(): Promise<MediaIntegrityAuditResult> 
       items.push({
         localVideoId: video.id,
         title: video.title || "",
+        mediaType: normalizeMediaType(video.mediaType),
         sourceUrl: readString(video.sourceUrl),
         videoPath: webPath,
         reasons: ["unprobeable"],
@@ -395,6 +399,7 @@ export async function auditMediaIntegrity(): Promise<MediaIntegrityAuditResult> 
     items.push({
       localVideoId: video.id,
       title: video.title || "",
+      mediaType: normalizeMediaType(video.mediaType),
       sourceUrl: readString(video.sourceUrl),
       videoPath: readString(video.videoPath),
       reasons,

@@ -101,6 +101,22 @@ describe('auditMediaIntegrity', () => {
     expect(result.summary.trackDisagreements).toBe(1);
   });
 
+  it('says which kind of item each finding is, so a re-download replaces the same kind', async () => {
+    // Legacy rows carry no mediaType and are videos.
+    mocks.getVideosStrict.mockReturnValue([
+      video({ id: 'a1', mediaType: 'audio', duration: '2640' }),
+      video({ id: 'v1', duration: '2640' }),
+    ]);
+    mocks.probeMediaTrackDurations.mockResolvedValue(tracks(600, 600, 600));
+
+    const result = await auditMediaIntegrity();
+
+    expect(result.items.map((item) => [item.localVideoId, item.mediaType])).toEqual([
+      ['a1', 'audio'],
+      ['v1', 'video'],
+    ]);
+  });
+
   const fsError = (code: string) => Object.assign(new Error(code), { code });
 
   it('flags a row whose file is gone', async () => {

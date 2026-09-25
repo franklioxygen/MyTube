@@ -312,7 +312,7 @@ While a gesture credential exists, a settings update that disables password logi
   - Reports rows whose file is missing, whose audio and video tracks disagree in length, whose stored duration no longer matches the file, or that ffprobe cannot read
   - `cloud:`, `mount:` and `http(s)` rows are skipped, not reported as missing
   - Response: `{ success, audit: { generatedAt, summary, items, humanSummary } }`
-  - Each item: `{ localVideoId, title, sourceUrl, videoPath, reasons, detail, storedDurationSeconds, measured, recommendedAction }`, where `recommendedAction` is `redownload`, `refresh_duration` or `manual_review`
+  - Each item: `{ localVideoId, title, mediaType, sourceUrl, videoPath, reasons, detail, storedDurationSeconds, measured, recommendedAction }`, where `mediaType` is `video` or `audio` and `recommendedAction` is `redownload`, `refresh_duration` or `manual_review`
   - Available in the UI as Settings → Library & Storage → Media Integrity Check
 
 ## Cloud Storage

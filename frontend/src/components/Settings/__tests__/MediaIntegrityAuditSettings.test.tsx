@@ -21,6 +21,14 @@ vi.mock('../../../contexts/SnackbarContext', () => ({
     useSnackbar: () => ({ showSnackbar: showSnackbarMock }),
 }));
 
+const downloadState: { activeDownloads: unknown[]; queuedDownloads: unknown[] } = {
+    activeDownloads: [],
+    queuedDownloads: [],
+};
+vi.mock('../../../contexts/DownloadContext', () => ({
+    useDownload: () => downloadState,
+}));
+
 const apiGetMock = vi.fn();
 const apiPostMock = vi.fn();
 vi.mock('../../../utils/apiClient', () => ({
@@ -33,6 +41,7 @@ vi.mock('../../../utils/apiClient', () => ({
 const buildItem = (overrides: Record<string, unknown> = {}) => ({
     localVideoId: 'video-1',
     title: 'Truncated video',
+    mediaType: 'video',
     sourceUrl: 'https://www.youtube.com/watch?v=abc',
     videoPath: '/videos/truncated.mp4',
     reasons: ['track_disagreement'],
@@ -71,6 +80,8 @@ describe('MediaIntegrityAuditSettings', () => {
         apiGetMock.mockReset();
         apiPostMock.mockReset();
         showSnackbarMock.mockReset();
+        downloadState.activeDownloads = [];
+        downloadState.queuedDownloads = [];
     });
 
     it('runs the audit only when asked and lists each problem', async () => {
@@ -151,6 +162,39 @@ describe('MediaIntegrityAuditSettings', () => {
             })
         );
         expect(showSnackbarMock).toHaveBeenCalledWith('videoDownloading');
+    });
+
+    it('re-downloads an audio finding as audio', async () => {
+        apiGetMock.mockResolvedValue(auditResponse([buildItem({ mediaType: 'audio' })]));
+        apiPostMock.mockResolvedValue({ data: { downloadId: 'dl-1' } });
+        const user = userEvent.setup();
+
+        renderPanel();
+        await user.click(screen.getByRole('button', { name: 'mediaIntegrityAuditRun' }));
+        await user.click(await screen.findByRole('button', { name: 'downloadAgain' }));
+
+        await waitFor(() =>
+            expect(apiPostMock).toHaveBeenCalledWith('/download', {
+                youtubeUrl: 'https://www.youtube.com/watch?v=abc',
+                forceDownload: true,
+                audioOnly: true,
+            })
+        );
+    });
+
+    it.each([
+        ['active', 'activeDownloads'],
+        ['queued', 'queuedDownloads'],
+    ] as const)('offers no re-download while the source is already %s', async (_label, list) => {
+        downloadState[list] = [{ id: 'task-1', sourceUrl: 'https://www.youtube.com/watch?v=abc' }];
+        apiGetMock.mockResolvedValue(auditResponse([buildItem()]));
+        const user = userEvent.setup();
+
+        renderPanel();
+        await user.click(screen.getByRole('button', { name: 'mediaIntegrityAuditRun' }));
+
+        expect(await screen.findByRole('link', { name: 'Truncated video' })).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'downloadAgain' })).not.toBeInTheDocument();
     });
 
     it('explains why a missing file without a source URL cannot be re-downloaded', async () => {

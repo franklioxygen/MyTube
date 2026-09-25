@@ -297,7 +297,7 @@
   - 报告以下情况：文件缺失、音视频轨道时长不一致、存储的时长与文件不符、ffprobe 无法读取
   - `cloud:`、`mount:` 和 `http(s)` 记录会被跳过，不会报告为缺失
   - 响应: `{ success, audit: { generatedAt, summary, items, humanSummary } }`
-  - 每一项: `{ localVideoId, title, sourceUrl, videoPath, reasons, detail, storedDurationSeconds, measured, recommendedAction }`，其中 `recommendedAction` 为 `redownload`、`refresh_duration` 或 `manual_review`
+  - 每一项: `{ localVideoId, title, mediaType, sourceUrl, videoPath, reasons, detail, storedDurationSeconds, measured, recommendedAction }`，其中 `mediaType` 为 `video` 或 `audio`，`recommendedAction` 为 `redownload`、`refresh_duration` 或 `manual_review`
   - 界面入口: 设置 → 媒体库与存储 → 媒体完整性检查
 
 ## 云存储

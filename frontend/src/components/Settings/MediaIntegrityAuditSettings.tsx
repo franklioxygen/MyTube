@@ -13,6 +13,7 @@ import { useQuery } from '@tanstack/react-query';
 import axios from 'axios';
 import React from 'react';
 import { Link as RouterLink } from 'react-router';
+import { useDownload } from '../../contexts/DownloadContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { api } from '../../utils/apiClient';
 import { getApiErrorMessage, hasAxiosStatus } from '../../utils/errors';
@@ -29,6 +30,7 @@ type RecommendedAction = 'redownload' | 'refresh_duration' | 'manual_review';
 interface MediaIntegrityAuditItem {
     localVideoId: string;
     title: string;
+    mediaType: 'video' | 'audio';
     sourceUrl: string | null;
     detail: string;
     recommendedAction: RecommendedAction;
@@ -61,6 +63,13 @@ const isTimeout = (error: unknown): boolean =>
 const MediaIntegrityAuditSettings: React.FC = () => {
     const { t } = useLanguage();
     const { handleReDownload, isReDownloading } = useVideoReDownload();
+    const { activeDownloads, queuedDownloads } = useDownload();
+
+    // Same guard as the Manage table: forceDownload always enqueues a new task,
+    // so offering the button while the source is already downloading would queue
+    // a duplicate that writes the same replacement.
+    const isSourceDownloading = (sourceUrl: string) =>
+        [...activeDownloads, ...queuedDownloads].some((download) => download.sourceUrl === sourceUrl);
 
     // A query rather than a mutation so a running or finished audit survives
     // switching settings tabs. It runs only when asked, and never retries: a
@@ -95,12 +104,12 @@ const MediaIntegrityAuditSettings: React.FC = () => {
                     <Typography variant="body2">
                         {t(ACTION_LABEL_KEYS[item.recommendedAction] ?? ACTION_LABEL_KEYS.manual_review)}
                     </Typography>
-                    {needsRedownload && sourceUrl && (
+                    {needsRedownload && sourceUrl && (!isSourceDownloading(sourceUrl) || isReDownloading(sourceUrl)) && (
                         <Button
                             variant="outlined"
                             size="small"
                             startIcon={<Download />}
-                            onClick={() => void handleReDownload({ sourceUrl })}
+                            onClick={() => void handleReDownload({ sourceUrl, mediaType: item.mediaType })}
                             loading={isReDownloading(sourceUrl)}
                             loadingPosition="start"
                         >
