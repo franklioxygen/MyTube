@@ -418,6 +418,9 @@ describe("bilibiliCollection.downloadCollection", () => {
         expectedCount: 2,
         downloadedCount: 1,
         skippedCount: 1,
+        // Only the newly saved member, so its history row keeps its own
+        // skipped-fragment note; the reused BV1 already has a row.
+        downloadedVideos: [{ id: "video-2" }],
       }),
     );
     expect(retryMetadata.linkedCollectionId).toBe("col-existing");

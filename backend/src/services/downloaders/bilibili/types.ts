@@ -61,7 +61,7 @@ export interface BilibiliAggregateDownloadResult {
   skippedCount: number;
   failedPartNumbers: number[];
   firstVideo?: Video;
-  /** Videos newly saved by an all-parts task, excluding skipped existing rows. */
+  /** Videos newly saved by an all-parts or collection task, excluding skipped existing rows. */
   downloadedVideos?: Video[];
   collectionId?: string;
   videosDownloaded?: number;

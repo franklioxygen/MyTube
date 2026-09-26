@@ -600,6 +600,10 @@ export async function downloadCollection(
   onStart?: (cancel: () => void) => void,
   retryMetadata?: DownloadRetryMetadata,
 ): Promise<CollectionDownloadResult> {
+  const downloadedVideos: NonNullable<
+    CollectionDownloadResult["downloadedVideos"]
+  > = [];
+
   try {
     const { type, id, mid, title, count } = collectionInfo;
 
@@ -836,6 +840,7 @@ export async function downloadCollection(
         // If download was successful, add to collection
         if (result.success && result.videoData) {
           downloadedCount++;
+          downloadedVideos.push(result.videoData);
           if (!firstVideo) {
             firstVideo = result.videoData;
           }
@@ -951,6 +956,7 @@ export async function downloadCollection(
       skippedCount,
       failedPartNumbers,
       firstVideo,
+      downloadedVideos,
       collectionId: mytubeCollectionId,
       videosDownloaded: downloadedCount,
       isCollection: true,
@@ -968,6 +974,7 @@ export async function downloadCollection(
       downloadedCount: 0,
       skippedCount: 0,
       failedPartNumbers: [],
+      downloadedVideos,
       isCollection: true,
       error: getErrorMessage(error),
     };
