@@ -139,6 +139,32 @@ function resolveMissAvConcurrentFragments(
   return MISSAV_DEFAULT_CONCURRENT_FRAGMENTS;
 }
 
+/**
+ * Resolve the `--retry-sleep` rules for a MissAV download.
+ *
+ * yt-dlp reads an untyped `--retry-sleep` as an `http:` rule, so a user's own
+ * value only replaces the fragment backoff when it names the `fragment` type
+ * (alone or in a list such as `http,fragment:`). Otherwise both rules are kept.
+ */
+function resolveMissAvRetrySleep(
+  userConfig: Record<string, unknown>,
+): string | string[] {
+  const configured = userConfig.retrySleep;
+  if (typeof configured !== "string" || !configured.trim()) {
+    return MISSAV_DEFAULT_FRAGMENT_RETRY_SLEEP;
+  }
+
+  const types = configured.trim().match(/^([\w-]+(?:,[\w-]+)*):/)?.[1];
+  const coversFragments = types
+    ?.toLowerCase()
+    .split(",")
+    .includes("fragment");
+
+  return coversFragments
+    ? configured
+    : [configured, MISSAV_DEFAULT_FRAGMENT_RETRY_SLEEP];
+}
+
 function isPuppeteerTimeoutError(error: unknown): boolean {
   return error instanceof Error && error.name === "TimeoutError";
 }
@@ -758,7 +784,7 @@ export class MissAVDownloader extends BaseDownloader {
           N: resolveMissAvConcurrentFragments(userConfig),
           fragmentRetries:
             userConfig.fragmentRetries ?? MISSAV_DEFAULT_FRAGMENT_RETRIES,
-          retrySleep: userConfig.retrySleep ?? MISSAV_DEFAULT_FRAGMENT_RETRY_SLEEP,
+          retrySleep: resolveMissAvRetrySleep(userConfig),
           addHeader: [`Referer:${referer}`],
         };
 

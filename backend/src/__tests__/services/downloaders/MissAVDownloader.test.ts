@@ -1173,8 +1173,25 @@ describe('MissAVDownloader', () => {
       const calls = (flagsToArgs as ReturnType<typeof vi.fn>).mock.calls;
       const flags = calls[calls.length - 1]?.[0] ?? {};
       expect(flags.fragmentRetries).toBe('infinite');
-      expect(flags.retrySleep).toBe('linear=1::2');
+      // An untyped rule is yt-dlp's http default, so the fragment backoff stays.
+      expect(flags.retrySleep).toEqual(['linear=1::2', 'fragment:exp=1:20']);
     });
+
+    it.each(['fragment:linear=1::2', 'HTTP,Fragment:linear=1::2'])(
+      'lets a user retry sleep that covers fragments (%s) replace the default',
+      async (retrySleep) => {
+        (getUserYtDlpConfig as ReturnType<typeof vi.fn>).mockReturnValue({ retrySleep });
+        const mockPage = buildPageMock('success');
+        const mockBrowser = { newPage: vi.fn().mockResolvedValue(mockPage), close: vi.fn().mockResolvedValue(undefined) };
+        (puppeteer.launch as ReturnType<typeof vi.fn>).mockResolvedValue(mockBrowser);
+
+        await MissAVDownloader.downloadVideo('https://missav.com/test-video').catch(() => {});
+
+        const calls = (flagsToArgs as ReturnType<typeof vi.fn>).mock.calls;
+        const flags = calls[calls.length - 1]?.[0] ?? {};
+        expect(flags.retrySleep).toBe(retrySleep);
+      },
+    );
 
     it('falls back to the default when the configured fragment count is not a number', async () => {
       (getUserYtDlpConfig as ReturnType<typeof vi.fn>).mockReturnValue({

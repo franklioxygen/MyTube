@@ -72,6 +72,15 @@ export function flagsToArgs(flags: Record<string, any>): string[] {
       continue;
     }
 
+    if (key === "retrySleep" && Array.isArray(value)) {
+      // Each --retry-sleep carries one [TYPE:]EXPR rule; a comma-joined value
+      // would be read as a single malformed expression.
+      for (const rule of value) {
+        args.push("--retry-sleep", String(rule));
+      }
+      continue;
+    }
+
     // Handle short options (single letter flags)
     let argName: string;
     if (SHORT_TO_LONG[key]) {
