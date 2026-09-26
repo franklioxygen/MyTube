@@ -148,6 +148,11 @@ describe('createGapFinder', () => {
     for (const [dts, duration] of packets) finder.push(`${dts},${duration}`);
     return finder.gaps();
   };
+  const possiblePackets = (packets: [number, number][]) => {
+    const finder = createGapFinder('video');
+    for (const [dts, duration] of packets) finder.push(`${dts},${duration}`);
+    return finder.possibleGaps();
+  };
 
   it('does not mistake a low-frame-rate stream for a run of gaps', () => {
     // A slideshow at one frame every two seconds: every step is 2s, and so is
@@ -155,16 +160,17 @@ describe('createGapFinder', () => {
     expect(feedPackets([[0, 2], [2, 2], [4, 2], [6, 2]])).toEqual([]);
   });
 
-  it('still finds a gap in MP4, where the frame before it swells to cover it', () => {
+  it('marks an MP4-sized packet as possible rather than a proven gap', () => {
     // MP4 stores a frame's duration as the step to the next frame, so the last
     // frame before a dropped segment claims the missing 4s as its own.
-    const gaps = feedPackets([[2.9, 0.0333], [2.9333, 0.0333], [2.9667, 4.0333], [7, 0.0333]]);
+    const packets: [number, number][] = [[2.9, 0.0333], [2.9333, 0.0333], [2.9667, 4.0333], [7, 0.0333]];
 
-    expect(gaps).toEqual([{ stream: 'video', atSeconds: 3, gapSeconds: 4 }]);
+    expect(feedPackets(packets)).toEqual([]);
+    expect(possiblePackets(packets)).toEqual([{ stream: 'video', atSeconds: 3, gapSeconds: 4 }]);
   });
 
   it('finds a dropped segment in a low-frame-rate stream', () => {
-    expect(feedPackets([[0, 2], [2, 2], [4, 6], [10, 2]])).toEqual([
+    expect(possiblePackets([[0, 2], [2, 2], [4, 6], [10, 2]])).toEqual([
       { stream: 'video', atSeconds: 6, gapSeconds: 4 },
     ]);
   });
@@ -177,15 +183,30 @@ describe('createGapFinder', () => {
   });
 
   it('still finds a gap when the stream slows down later on', () => {
-    expect(feedPackets([
+    expect(possiblePackets([
       [0, 0.0333], [0.0333, 4.0334], [4.0667, 0.0333], [4.1, 2], [6.1, 2],
     ])).toEqual([{ stream: 'video', atSeconds: 0.07, gapSeconds: 4 }]);
+  });
+
+  it('does not call an isolated held frame a definite gap', () => {
+    const packets: [number, number][] = [[0, 0.033], [0.033, 2], [2.033, 0.033], [2.066, 0.033]];
+
+    expect(feedPackets(packets)).toEqual([]);
+    expect(possiblePackets(packets)).toEqual([
+      { stream: 'video', atSeconds: 0.07, gapSeconds: 1.97 },
+    ]);
+  });
+
+  it('keeps a step beyond the packet duration as a definite gap', () => {
+    expect(feedPackets([[0, 0.033], [0.033, 0.033], [2.033, 0.033]])).toEqual([
+      { stream: 'video', atSeconds: 0.07, gapSeconds: 1.97 },
+    ]);
   });
 });
 
 describe('findTimelineGaps', () => {
   /** A fake ffprobe packet scan that emits the given timestamps and exits. */
-  const fakeScan = (timestamps: number[], exitCode = 0, stderr = '') => {
+  const fakeScan = (timestamps: Array<number | string>, exitCode = 0, stderr = '') => {
     const child = Object.assign(new EventEmitter(), {
       stdout: new EventEmitter(),
       stderr: new EventEmitter(),
@@ -279,6 +300,20 @@ describe('findTimelineGaps', () => {
     expect(mocks.spawn).toHaveBeenCalledOnce();
     expect(mocks.spawn.mock.calls[0][1]).toContain('V:0');
     expect(result.gaps).toEqual([{ stream: 'video', atSeconds: 1127.92, gapSeconds: 4.03 }]);
+  });
+
+  it('keeps an isolated long frame out of definite gap findings', async () => {
+    mocks.execFileSafe.mockResolvedValue({ stdout: header([video(2, '30/1', 2.066)]) });
+    mocks.spawn.mockImplementation(() => fakeScan([
+      '0,0.033', '0.033,2', '2.033,0.033', '2.066,0.033',
+    ]));
+
+    const result = await findTimelineGaps('/videos/a.mp4');
+
+    expect(result.gaps).toEqual([]);
+    expect(result.possibleGaps).toEqual([
+      { stream: 'video', atSeconds: 0.07, gapSeconds: 1.97 },
+    ]);
   });
 
   it('reports nothing when the shortfall comes from packaging, not a jump', async () => {

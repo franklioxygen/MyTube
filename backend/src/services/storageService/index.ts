@@ -30,8 +30,7 @@ export {
     getPendingRetryHistoryItems,
     finalizePendingRetryHistoryItem,
     markDownloadHistoryDeletedByVideoId,
-    removeDownloadHistoryItem,
-    setIncompleteDownloadNote
+    removeDownloadHistoryItem
 } from "./downloadHistory";
 export type { IncompleteDownloadNote } from "./types";
 

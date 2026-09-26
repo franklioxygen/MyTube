@@ -93,7 +93,10 @@ describe('TaskProcessor', () => {
   it('records an audio download as audio, so Download Again keeps its mode', async () => {
     mockVideoUrlFetcher.getAllVideoUrls.mockResolvedValue(['http://vid1']);
     (downloadService.downloadYouTubeVideo as any).mockResolvedValue({
-        videoData: { id: 'a1', title: 'Audio 1', mediaType: 'audio' }
+        videoData: {
+          id: 'a1', title: 'Audio 1', mediaType: 'audio',
+          incompleteDownloadNote: { kind: 'incomplete_download', skippedFragments: 1, gaps: [] },
+        }
     });
     (storageService.getVideoBySourceUrl as any).mockReturnValue(null);
 
@@ -102,7 +105,8 @@ describe('TaskProcessor', () => {
     expect(storageService.addDownloadHistoryItem).toHaveBeenCalledWith(expect.objectContaining({
         status: 'success',
         videoId: 'a1',
-        mediaType: 'audio'
+        mediaType: 'audio',
+        incompleteDownloadNote: { kind: 'incomplete_download', skippedFragments: 1, gaps: [] },
     }));
   });
 

@@ -242,6 +242,7 @@ describe("storageService videos", () => {
         title: "Test",
         tags: ["tag1"],
         subtitles: [{ filename: "sub.vtt", language: "en" }],
+        incompleteDownloadNote: { kind: "incomplete_download", skippedFragments: 1, gaps: [] },
       } as any;
       const saved = saveVideo(video, { suppressStatistics: true });
 
@@ -250,6 +251,7 @@ describe("storageService videos", () => {
       const valuesArg = vi.mocked(db.insert).mock.results[0].value.values.mock.calls[0][0];
       expect(valuesArg.tags).toBe('["tag1"]');
       expect(valuesArg.subtitles).toContain("sub.vtt");
+      expect(valuesArg).not.toHaveProperty("incompleteDownloadNote");
     });
 
     it("should throw DatabaseError when saveVideo fails", () => {

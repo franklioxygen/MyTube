@@ -8,7 +8,9 @@ const mocks = vi.hoisted(() => ({
   findVideoFile: vi.fn(),
   getCollections: vi.fn(() => []),
   readdirSafeSync: vi.fn((..._args: unknown[]) => [] as string[]),
-  findTimelineGaps: vi.fn(async (..._args: unknown[]) => ({ gaps: [] as unknown[], scannedStreams: [] as string[], complete: true })),
+  findTimelineGaps: vi.fn(async (..._args: unknown[]): Promise<{
+    gaps: unknown[]; possibleGaps?: unknown[]; scannedStreams: string[]; complete: boolean;
+  }> => ({ gaps: [], scannedStreams: [], complete: true })),
 }));
 
 vi.mock('../../config/paths', async (importOriginal) => {
@@ -517,6 +519,25 @@ describe('auditMediaIntegrity', () => {
       expect(result.summary).toMatchObject({ timelineGaps: 1, timelineChecked: true });
       expect(result.humanSummary).toContain('1 with content missing mid-file');
       expect(result.humanSummary).not.toContain('was not checked');
+    });
+
+    it('asks for manual review when a long frame could be an intentional hold', async () => {
+      mocks.getVideosStrict.mockReturnValue([video()]);
+      mocks.findTimelineGaps.mockResolvedValue({
+        gaps: [],
+        possibleGaps: [gap('video', 1127.92, 1.97)],
+        scannedStreams: ['video'], complete: true,
+      });
+
+      const first = await auditMediaIntegrity({ timeline: true });
+      const second = await auditMediaIntegrity({ timeline: true });
+
+      expect(first.items[0].reasons).toEqual(['timeline_ambiguous']);
+      expect(first.items[0].recommendedAction).toBe('manual_review');
+      expect(first.items[0].detail).toContain('intentional held frame or missing content');
+      expect(first.summary).toMatchObject({ timelineGaps: 0, timelineAmbiguous: 1 });
+      expect(second.items[0].recommendedAction).toBe('manual_review');
+      expect(mocks.findTimelineGaps).toHaveBeenCalledOnce();
     });
 
     it('summarises a burst of gaps per stream', async () => {

@@ -552,7 +552,6 @@ export async function downloadSinglePart(
 
         if (updatedVideo) {
           logger.info(`Video updated in database with new subtitles`);
-          storageService.setIncompleteDownloadNote(updatedVideo.id, incompleteNote);
 
           let finalVideoData = updatedVideo;
 
@@ -592,7 +591,10 @@ export async function downloadSinglePart(
           syncMediaServerArtifactsForRecord(finalVideoData, {
             rawSourceInfo: bilibiliInfo,
           });
-          return { success: true, videoData: finalVideoData };
+          return {
+            success: true,
+            videoData: storageService.withIncompleteDownloadNote(finalVideoData, incompleteNote),
+          };
         }
       }
     }
@@ -617,7 +619,6 @@ export async function downloadSinglePart(
     }
 
     logger.info(`Part ${partNumber}/${totalParts} added to database`);
-    storageService.setIncompleteDownloadNote(videoData.id, incompleteNote);
 
     // Add video to author collection if enabled
     const authorOrganization = storageService.organizeVideoByAuthor(
@@ -636,14 +637,20 @@ export async function downloadSinglePart(
         syncMediaServerArtifactsForRecord(updatedVideo, {
           rawSourceInfo: bilibiliInfo,
         });
-        return { success: true, videoData: updatedVideo };
+        return {
+          success: true,
+          videoData: storageService.withIncompleteDownloadNote(updatedVideo, incompleteNote),
+        };
       }
     }
 
     syncMediaServerArtifactsForRecord(videoData, {
       rawSourceInfo: bilibiliInfo,
     });
-    return { success: true, videoData };
+    return {
+      success: true,
+      videoData: storageService.withIncompleteDownloadNote(videoData, incompleteNote),
+    };
   } catch (error: unknown) {
     // A cancelled part must abort the whole download, not be recorded as a
     // failed episode. downloadCollection relies on a thrown DownloadCancelledError

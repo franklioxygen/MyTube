@@ -21,6 +21,8 @@ export interface Video {
   width?: number;
   height?: number;
   mediaType?: MediaType;
+  /** Transient result metadata for this download attempt; never saved with the video. */
+  incompleteDownloadNote?: IncompleteDownloadNote;
   description?: string;
   // null/0 = auto-delete eligible (unlocked), 1 = locked (protected from all
   // automatic deletion). See db/schema.ts videos.auto_delete_locked.
@@ -72,6 +74,14 @@ export interface IncompleteDownloadNote {
   gaps: Array<{ stream: "video" | "audio"; atSeconds: number; gapSeconds: number }>;
 }
 
+/** Keep an attempt's note with its result, even when another attempt saves the same video ID. */
+export function withIncompleteDownloadNote<T extends Video>(
+  video: T,
+  note: IncompleteDownloadNote | null
+): T {
+  return { ...video, incompleteDownloadNote: note ?? undefined };
+}
+
 export interface DownloadHistoryItem {
   id: string;
   title: string;
@@ -80,6 +90,8 @@ export interface DownloadHistoryItem {
   finishedAt: number;
   status: "success" | "failed" | "partial" | "skipped" | "deleted" | "pending_retry";
   error?: string;
+  /** Transient note from the matching download result, serialized into `error`. */
+  incompleteDownloadNote?: IncompleteDownloadNote;
   videoPath?: string;
   thumbnailPath?: string;
   totalSize?: string;

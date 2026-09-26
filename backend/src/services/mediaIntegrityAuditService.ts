@@ -38,7 +38,9 @@ export type MediaIntegrityAuditReason =
   | "duration_mismatch"
   | "unprobeable"
   /** Content missing mid-file: the timestamps jump over it (usually a dropped fragment). */
-  | "timeline_gap";
+  | "timeline_gap"
+  /** A long packet could be an intentional held frame or missing content. */
+  | "timeline_ambiguous";
 
 export type MediaIntegrityRecommendedAction =
   | "redownload"
@@ -59,6 +61,8 @@ export interface MediaIntegrityAuditItem {
   recommendedAction: MediaIntegrityRecommendedAction;
   /** Where content is missing, when the timeline check ran and found any. */
   gaps?: TimelineGap[];
+  /** Long packets that need source comparison before being called gaps. */
+  possibleGaps?: TimelineGap[];
 }
 
 export interface MediaIntegrityAuditSummary {
@@ -72,6 +76,7 @@ export interface MediaIntegrityAuditSummary {
   unprobeable: number;
   /** Only counted when the audit ran with the timeline check enabled. */
   timelineGaps: number;
+  timelineAmbiguous: number;
   /** Files whose timeline scan could not finish and should be retried. */
   timelineIncomplete: number;
   /** Whether this audit ran the timeline check at all. */
@@ -122,6 +127,7 @@ interface TimelineCacheEntry {
   size: number;
   cachedAtMs: number;
   gaps: TimelineGap[];
+  possibleGaps: TimelineGap[];
 }
 
 const timelineCache = new Map<string, TimelineCacheEntry>();
@@ -134,7 +140,7 @@ export function clearMediaIntegrityProbeCache(): void {
 
 async function timelineGapsWithCache(
   absolutePath: string
-): Promise<{ gaps: TimelineGap[]; complete: boolean }> {
+): Promise<{ gaps: TimelineGap[]; possibleGaps: TimelineGap[]; complete: boolean }> {
   let stat: { mtimeMs: number; size: number } | null = null;
   try {
     stat = statSafeSync(absolutePath, VIDEOS_DIR);
@@ -151,10 +157,10 @@ async function timelineGapsWithCache(
     cached.size === stat.size &&
     now - cached.cachedAtMs < TIMELINE_CACHE_MAX_AGE_MS
   ) {
-    return { gaps: cached.gaps, complete: true };
+    return { gaps: cached.gaps, possibleGaps: cached.possibleGaps, complete: true };
   }
 
-  const { gaps, complete } = await findTimelineGaps(absolutePath);
+  const { gaps, possibleGaps = [], complete } = await findTimelineGaps(absolutePath);
   // A failed scan is unknown; retry it on the next audit.
   if (stat && complete) {
     timelineCache.set(absolutePath, {
@@ -162,9 +168,10 @@ async function timelineGapsWithCache(
       size: stat.size,
       cachedAtMs: now,
       gaps,
+      possibleGaps,
     });
   }
-  return { gaps, complete };
+  return { gaps, possibleGaps, complete };
 }
 
 function readString(value: unknown): string | null {
@@ -244,7 +251,8 @@ function describe(
   reasons: MediaIntegrityAuditReason[],
   tracks: MediaTrackDurations,
   storedDurationSeconds: number | null,
-  gaps: TimelineGap[] = []
+  gaps: TimelineGap[] = [],
+  possibleGaps: TimelineGap[] = []
 ): string {
   const parts: string[] = [];
   for (const reason of reasons) {
@@ -272,6 +280,14 @@ function describe(
       // Most are fragments lost during the download, but a source can carry a
       // gap of its own, and nothing in the file tells the two apart.
       parts.push("if a re-download has the same gap, the source is missing it too");
+    } else if (reason === "timeline_ambiguous") {
+      const where = possibleGaps.slice(0, 5)
+        .map((gap) => `${gap.stream} at ${gap.atSeconds.toFixed(1)}s (${gap.gapSeconds.toFixed(1)}s)`)
+        .join(", ");
+      parts.push(
+        `packet timing at ${where} could be an intentional held frame or missing content; ` +
+        "compare with the source before re-downloading"
+      );
     } else {
       parts.push("the file exists but ffprobe could not read it");
     }
@@ -303,6 +319,9 @@ function resolveAction(
     return "redownload";
   }
   if (reasons.includes("unprobeable")) {
+    return "manual_review";
+  }
+  if (reasons.includes("timeline_ambiguous")) {
     return "manual_review";
   }
   return "refresh_duration";
@@ -362,6 +381,7 @@ export async function auditMediaIntegrity(
     durationMismatches: 0,
     unprobeable: 0,
     timelineGaps: 0,
+    timelineAmbiguous: 0,
     timelineIncomplete: 0,
     timelineChecked: options.timeline === true,
   };
@@ -460,6 +480,7 @@ export async function auditMediaIntegrity(
 
     const reasons: MediaIntegrityAuditReason[] = [];
     let gaps: TimelineGap[] = [];
+    let possibleGaps: TimelineGap[] = [];
 
     if (tracks.container == null && tracks.video == null && tracks.audio == null) {
       reasons.push("unprobeable");
@@ -486,6 +507,7 @@ export async function auditMediaIntegrity(
         try {
           const scan = await timelineGapsWithCache(absolutePath);
           gaps = scan.gaps;
+          possibleGaps = scan.possibleGaps;
           if (!scan.complete) summary.timelineIncomplete += 1;
         } catch (error) {
           // findTimelineGaps fails open on its own; reaching here is unexpected.
@@ -495,6 +517,10 @@ export async function auditMediaIntegrity(
         if (gaps.length > 0) {
           reasons.push("timeline_gap");
           summary.timelineGaps += 1;
+        }
+        if (possibleGaps.length > 0) {
+          reasons.push("timeline_ambiguous");
+          summary.timelineAmbiguous += 1;
         }
       }
     }
@@ -511,10 +537,11 @@ export async function auditMediaIntegrity(
       sourceUrl: readString(video.sourceUrl),
       videoPath: readString(video.videoPath),
       reasons,
-      detail: describe(reasons, tracks, stored, gaps),
+      detail: describe(reasons, tracks, stored, gaps, possibleGaps),
       storedDurationSeconds: stored,
       measured: tracks,
       ...(gaps.length > 0 ? { gaps } : {}),
+      ...(possibleGaps.length > 0 ? { possibleGaps } : {}),
       recommendedAction: resolveAction(
         reasons,
         stored != null && tracks.container != null && tracks.container < stored
@@ -531,7 +558,8 @@ export async function auditMediaIntegrity(
     summary.trackDisagreements +
     summary.durationMismatches +
     summary.unprobeable +
-    summary.timelineGaps;
+    summary.timelineGaps +
+    summary.timelineAmbiguous;
 
   // Without the timeline check, "no problems" would be read as covering content
   // missing mid-file, which it does not look for - say so rather than imply it.
@@ -549,7 +577,8 @@ export async function auditMediaIntegrity(
         `${summary.durationMismatches} with a stale stored duration, ` +
         `${summary.unprobeable} unreadable` +
         (summary.timelineChecked
-          ? `, ${summary.timelineGaps} with content missing mid-file.`
+          ? `, ${summary.timelineGaps} with content missing mid-file, ` +
+            `${summary.timelineAmbiguous} with uncertain timeline timing.`
           : ".")) + scope + incompleteScope;
 
   return {

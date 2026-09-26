@@ -46,7 +46,7 @@ vi.mock('axios', () => ({
 
 vi.mock('puppeteer');
 vi.mock('../../../services/storageService', () => ({
-  setIncompleteDownloadNote: vi.fn(),
+  withIncompleteDownloadNote: (video: any, note: any) => ({ ...video, incompleteDownloadNote: note ?? undefined }),
   saveVideo: vi.fn(),
   updateVideo: vi.fn(),
   updateActiveDownload: vi.fn(),
@@ -603,8 +603,7 @@ describe('MissAVDownloader', () => {
         // A gap is not a truncation: the file is published, and the history
         // row for it will carry the note.
         expect(video.id).toBeTruthy();
-        expect(storageService.setIncompleteDownloadNote).toHaveBeenCalledExactlyOnceWith(
-          video.id,
+        expect(video.incompleteDownloadNote).toEqual(
           { kind: 'incomplete_download', skippedFragments: 1, gaps: [] },
         );
       });
@@ -612,10 +611,7 @@ describe('MissAVDownloader', () => {
       it('clears any note for a clean download', async () => {
         const video = await MissAVDownloader.downloadVideo(url);
 
-        expect(storageService.setIncompleteDownloadNote).toHaveBeenCalledExactlyOnceWith(
-          video.id,
-          null,
-        );
+        expect(video.incompleteDownloadNote).toBeUndefined();
       });
 
       it('uses the playlist body the browser already fetched', async () => {

@@ -1148,7 +1148,6 @@ export class MissAVDownloader extends BaseDownloader {
         thumbnailPathForCleanup = null;
       }
       logger.info("MissAV video saved to database");
-      storageService.setIncompleteDownloadNote(persistedVideoData.id, incompleteNote);
 
       // Add video to author collection if enabled
       const authorOrganization = storageService.organizeVideoByAuthor(
@@ -1172,7 +1171,7 @@ export class MissAVDownloader extends BaseDownloader {
               extractor: "missav",
             },
           });
-          return updatedVideo;
+          return storageService.withIncompleteDownloadNote(updatedVideo, incompleteNote);
         }
       }
 
@@ -1186,7 +1185,7 @@ export class MissAVDownloader extends BaseDownloader {
           extractor: "missav",
         },
       });
-      return persistedVideoData;
+      return storageService.withIncompleteDownloadNote(persistedVideoData, incompleteNote);
     } catch (error: unknown) {
       if (isCancelledError(error)) {
         logger.info("MissAV-family download cancelled:", { downloadId });

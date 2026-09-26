@@ -1,29 +1,21 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../../db", () => ({
-  db: {
-    select: vi.fn(),
-    delete: vi.fn(),
-    insert: vi.fn(),
-    update: vi.fn(),
-  },
+  db: { select: vi.fn(), delete: vi.fn(), insert: vi.fn(), update: vi.fn() },
   sqlite: { prepare: vi.fn() },
 }));
-vi.mock("../../services/storageService/settings", () => ({
-  getSettings: vi.fn(),
-}));
+vi.mock("../../services/storageService/settings", () => ({ getSettings: vi.fn() }));
 vi.mock("../../utils/logger", () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
 }));
 
 import { db } from "../../db";
+import { addDownloadHistoryItem } from "../../services/storageService/downloadHistory";
 import {
-  addDownloadHistoryItem,
-  setIncompleteDownloadNote,
-} from "../../services/storageService/downloadHistory";
-import type {
-  DownloadHistoryItem,
-  IncompleteDownloadNote,
+  withIncompleteDownloadNote,
+  type DownloadHistoryItem,
+  type IncompleteDownloadNote,
+  type Video,
 } from "../../services/storageService/types";
 
 const NOTE: IncompleteDownloadNote = {
@@ -31,8 +23,6 @@ const NOTE: IncompleteDownloadNote = {
   skippedFragments: 1,
   gaps: [{ stream: "video", atSeconds: 1127.92, gapSeconds: 4.03 }],
 };
-// Stored as JSON so the client can word it in the viewer's language.
-const STORED = JSON.stringify(NOTE);
 
 describe("incomplete download notes", () => {
   let written: Array<Record<string, unknown>>;
@@ -55,64 +45,45 @@ describe("incomplete download notes", () => {
         return { onConflictDoUpdate: vi.fn(() => ({ run: vi.fn() })) };
       }),
     });
-    // Notes are module state; start each test without one.
-    setIncompleteDownloadNote("v1", null);
-    setIncompleteDownloadNote("v2", null);
   });
 
-  it("attaches the note to the video's success row and keeps it a success", () => {
-    // Retention, renames and deletion tombstones all key on "success".
-    setIncompleteDownloadNote("v1", NOTE);
+  it("serializes the matching attempt's note on its success row", () => {
+    addDownloadHistoryItem(row({ incompleteDownloadNote: NOTE }));
 
-    addDownloadHistoryItem(row());
-
-    expect(written[0]).toMatchObject({ status: "success", videoId: "v1", error: STORED });
+    expect(written[0]).toMatchObject({
+      status: "success", videoId: "v1", error: JSON.stringify(NOTE),
+    });
+    expect(written[0]).not.toHaveProperty("incompleteDownloadNote");
   });
 
-  it("attaches it once", () => {
-    setIncompleteDownloadNote("v1", NOTE);
+  it("keeps note and error off a clean attempt for the same video", () => {
+    const savedVideo = { id: "v1", title: "A video", sourceUrl: "https://example.com", createdAt: "now" } as Video;
+    const incompleteAttempt = withIncompleteDownloadNote(savedVideo, NOTE);
+    const cleanAttempt = withIncompleteDownloadNote(savedVideo, null);
 
-    addDownloadHistoryItem(row());
-    addDownloadHistoryItem(row({ id: "task-2" }));
-
-    expect(written[1].error).toBeNull();
-  });
-
-  it("leaves other videos' rows alone", () => {
-    setIncompleteDownloadNote("v1", NOTE);
-
-    addDownloadHistoryItem(row({ videoId: "v2" }));
+    addDownloadHistoryItem(row({ id: "clean", incompleteDownloadNote: cleanAttempt.incompleteDownloadNote }));
+    addDownloadHistoryItem(row({ id: "incomplete", incompleteDownloadNote: incompleteAttempt.incompleteDownloadNote }));
 
     expect(written[0].error).toBeNull();
+    expect(written[1].error).toBe(JSON.stringify(NOTE));
+    expect(savedVideo.incompleteDownloadNote).toBeUndefined();
   });
 
-  it("does not attach to a row that is not a success", () => {
-    setIncompleteDownloadNote("v1", NOTE);
+  it("keeps two incomplete attempts for the same video separate", () => {
+    const second = { ...NOTE, skippedFragments: 2 };
 
-    addDownloadHistoryItem(row({ status: "failed", error: "boom" }));
+    addDownloadHistoryItem(row({ id: "second", incompleteDownloadNote: second }));
+    addDownloadHistoryItem(row({ id: "first", incompleteDownloadNote: NOTE }));
+
+    expect(written[0].error).toBe(JSON.stringify(second));
+    expect(written[1].error).toBe(JSON.stringify(NOTE));
+  });
+
+  it("does not serialize a note on a failed row or override its error", () => {
+    addDownloadHistoryItem(row({ status: "failed", error: "boom", incompleteDownloadNote: NOTE }));
+    addDownloadHistoryItem(row({ id: "success", error: "other", incompleteDownloadNote: NOTE }));
 
     expect(written[0].error).toBe("boom");
-  });
-
-  it("is cleared by a later clean save of the same video", () => {
-    // A note from an attempt whose history row was never written must not
-    // attach to the next, complete download.
-    setIncompleteDownloadNote("v1", NOTE);
-    setIncompleteDownloadNote("v1", null);
-
-    addDownloadHistoryItem(row());
-
-    expect(written[0].error).toBeNull();
-  });
-
-  it("stays bounded when notes are never collected", () => {
-    for (let i = 0; i < 250; i += 1) setIncompleteDownloadNote(`orphan-${i}`, NOTE);
-    setIncompleteDownloadNote("v1", NOTE);
-
-    addDownloadHistoryItem(row({ videoId: "orphan-0" }));
-    addDownloadHistoryItem(row());
-
-    expect(written[0].error).toBeNull();
-    expect(written[1].error).toBe(STORED);
+    expect(written[1].error).toBe("other");
   });
 });

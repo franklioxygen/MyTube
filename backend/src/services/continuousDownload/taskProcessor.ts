@@ -643,6 +643,7 @@ export class TaskProcessor {
         videoPath: videoData.videoPath ?? undefined,
         thumbnailPath: videoData.thumbnailPath ?? undefined,
         videoId: videoData.id,
+        incompleteDownloadNote: videoData.incompleteDownloadNote,
         mediaType: videoData.mediaType === "audio" ? "audio" : "video",
         taskId: task.id,
         subscriptionId: task.subscriptionId,

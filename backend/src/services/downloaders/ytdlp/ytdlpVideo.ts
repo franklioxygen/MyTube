@@ -911,7 +911,6 @@ export async function downloadVideo(
 
     if (updatedVideo) {
       logger.info("Video updated in database with new subtitles");
-      storageService.setIncompleteDownloadNote(updatedVideo.id, incompleteNote);
 
       let finalVideoData = updatedVideo;
 
@@ -950,7 +949,7 @@ export async function downloadVideo(
       syncMediaServerArtifactsForRecord(finalVideoData, {
         rawSourceInfo,
       });
-      return finalVideoData;
+      return storageService.withIncompleteDownloadNote(finalVideoData, incompleteNote);
     }
   }
 
@@ -974,7 +973,6 @@ export async function downloadVideo(
   }
 
   logger.info("Video added to database");
-  storageService.setIncompleteDownloadNote(videoData.id, incompleteNote);
 
   // Add video to author collection if enabled
   const authorOrganization = storageService.organizeVideoByAuthor(
@@ -992,14 +990,14 @@ export async function downloadVideo(
       syncMediaServerArtifactsForRecord(updatedVideo, {
         rawSourceInfo,
       });
-      return updatedVideo;
+      return storageService.withIncompleteDownloadNote(updatedVideo, incompleteNote);
     }
   }
 
   syncMediaServerArtifactsForRecord(videoData, {
     rawSourceInfo,
   });
-  return videoData;
+  return storageService.withIncompleteDownloadNote(videoData, incompleteNote);
   } finally {
     releaseOutputReservation?.();
   }

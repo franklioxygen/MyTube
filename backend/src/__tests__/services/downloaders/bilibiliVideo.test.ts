@@ -4,7 +4,6 @@ import { formatVideoFilename } from "../../../utils/helpers";
 import { DownloadCancelledError } from "../../../errors/DownloadErrors";
 
 const mocks = vi.hoisted(() => ({
-  setIncompleteDownloadNote: vi.fn(),
   existsSync: vi.fn(),
   readdirSync: vi.fn(),
   statSync: vi.fn(),
@@ -103,7 +102,7 @@ vi.mock("../../../utils/ytDlpUtils", () => {
 });
 
 vi.mock("../../../services/storageService", () => ({
-  setIncompleteDownloadNote: (...args: any[]) => mocks.setIncompleteDownloadNote(...args),
+  withIncompleteDownloadNote: (video: any, note: any) => ({ ...video, incompleteDownloadNote: note ?? undefined }),
   getSettings: (...args: any[]) => mocks.getSettings(...args),
   getVideos: (...args: any[]) => mocks.getVideos(...args),
   getVideoBySourceUrl: (...args: any[]) => mocks.getVideoBySourceUrl(...args),
@@ -580,8 +579,7 @@ describe("bilibiliVideo.downloadSinglePart", () => {
 
     expect(result.success).toBe(true);
     expect(result.videoData?.id).toBeTruthy();
-    expect(mocks.setIncompleteDownloadNote).toHaveBeenCalledExactlyOnceWith(
-      result.videoData?.id,
+    expect(result.videoData?.incompleteDownloadNote).toEqual(
       { kind: "incomplete_download", skippedFragments: 1, gaps: [] },
     );
   });
@@ -598,10 +596,7 @@ describe("bilibiliVideo.downloadSinglePart", () => {
     );
 
     expect(result.success).toBe(true);
-    expect(mocks.setIncompleteDownloadNote).toHaveBeenCalledExactlyOnceWith(
-      "existing-video",
-      null,
-    );
+    expect(result.videoData?.incompleteDownloadNote).toBeUndefined();
   });
 
   it("passes downloadFilenamePresetId when adding a new video to the author collection", async () => {

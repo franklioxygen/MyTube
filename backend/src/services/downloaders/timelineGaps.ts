@@ -65,6 +65,8 @@ export interface FrameShortfall {
 
 export interface TimelineGapResult {
   gaps: TimelineGap[];
+  /** A long packet can be either a deliberate held frame or a muxer-swollen gap. */
+  possibleGaps?: TimelineGap[];
   /** Streams scanned because of a shortfall or an unavailable frame count. */
   scannedStreams: TimelineStream[];
   /** False when the header probe or any required packet scan could not finish. */
@@ -202,7 +204,10 @@ export async function probeFrameShortfall(filePath: string): Promise<FrameShortf
  * the jump and the duration of the packet it lands on. A dropped segment is
  * followed by the stream's usual frames; a variable-frame-rate stream settling
  * into longer frames is followed by another long one, so it is not a gap.
- * Without a duration, the raw step is used.
+ * Without a duration, the raw step is used. A packet whose own duration covers
+ * the jump is ambiguous: a held frame and an MP4 gap can have identical packet
+ * metadata. Keep it separate so the audit does not recommend a re-download as
+ * though missing content were proven.
  */
 export function createGapFinder(stream: TimelineStream) {
   let previous: number | null = null;
@@ -210,6 +215,7 @@ export function createGapFinder(stream: TimelineStream) {
   let previousStep: number | null = null;
   let timestampCount = 0;
   const gaps: TimelineGap[] = [];
+  const possibleGaps: TimelineGap[] = [];
   return {
     push(line: string): void {
       const [timestampField, durationField] = line.split(",");
@@ -225,8 +231,12 @@ export function createGapFinder(stream: TimelineStream) {
         const expected =
           previousDuration === null ? 0 : Math.max(0, Math.min(previousDuration, rhythm));
         const gap = step - expected;
-        if (gap > CONTIGUOUS_GAP_SECONDS && gaps.length < MAX_REPORTED_GAPS) {
-          gaps.push({
+        if (gap > CONTIGUOUS_GAP_SECONDS) {
+          const packetCoversStep =
+            previousDuration !== null &&
+            previousDuration >= step - Math.max(0.1, step * 0.05);
+          const destination = packetCoversStep ? possibleGaps : gaps;
+          if (destination.length < MAX_REPORTED_GAPS) destination.push({
             stream,
             atSeconds: Math.round((previous + expected) * 100) / 100,
             gapSeconds: Math.round(gap * 100) / 100,
@@ -238,6 +248,7 @@ export function createGapFinder(stream: TimelineStream) {
       previousDuration = duration;
     },
     gaps: (): TimelineGap[] => gaps,
+    possibleGaps: (): TimelineGap[] => possibleGaps,
     hasComparableTimestamps: (): boolean => timestampCount >= 2,
   };
 }
@@ -252,7 +263,7 @@ export function createGapFinder(stream: TimelineStream) {
 async function scanStreamForGaps(
   validatedPath: string,
   stream: TimelineStream
-): Promise<TimelineGap[] | null> {
+): Promise<{ gaps: TimelineGap[]; possibleGaps: TimelineGap[] } | null> {
   const finder = createGapFinder(stream);
   return new Promise((resolve) => {
     // "V" skips attached pictures, matching the stream the header probe measured.
@@ -270,7 +281,7 @@ async function scanStreamForGaps(
     let buffered = "";
     let stderrTail = "";
     let settled = false;
-    const finish = (result: TimelineGap[] | null) => {
+    const finish = (result: { gaps: TimelineGap[]; possibleGaps: TimelineGap[] } | null) => {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
@@ -303,7 +314,9 @@ async function scanStreamForGaps(
       if (code !== 0) {
         logger.warn(`Timeline scan of ${validatedPath} exited with code ${code}:`, stderrTail);
       }
-      finish(code === 0 && finder.hasComparableTimestamps() ? finder.gaps() : null);
+      finish(code === 0 && finder.hasComparableTimestamps()
+        ? { gaps: finder.gaps(), possibleGaps: finder.possibleGaps() }
+        : null);
     });
   });
 }
@@ -367,14 +380,24 @@ export async function findTimelineGaps(filePath: string): Promise<TimelineGapRes
   }
 
   const gaps: TimelineGap[] = [];
+  const possibleGaps: TimelineGap[] = [];
   let complete = true;
   for (const stream of suspicious) {
     const found = await scanStreamForGaps(validatedPath, stream);
-    if (found) gaps.push(...found);
+    if (found) {
+      gaps.push(...found.gaps);
+      possibleGaps.push(...found.possibleGaps);
+    }
     else complete = false;
   }
   gaps.sort((a, b) => a.atSeconds - b.atSeconds);
-  return { gaps, scannedStreams: suspicious, complete };
+  possibleGaps.sort((a, b) => a.atSeconds - b.atSeconds);
+  return {
+    gaps,
+    ...(possibleGaps.length > 0 ? { possibleGaps } : {}),
+    scannedStreams: suspicious,
+    complete,
+  };
 }
 
 /**
@@ -389,7 +412,10 @@ export async function describeSkippedFragments(
   skippedFragments: number
 ): Promise<IncompleteDownloadNote | null> {
   if (skippedFragments <= 0) return null;
-  const { gaps } = await findTimelineGaps(filePath);
+  const result = await findTimelineGaps(filePath);
+  // yt-dlp's skipped-fragment warning supplies the evidence that the audit
+  // cannot infer from an MP4 packet with an extended duration alone.
+  const gaps = [...result.gaps, ...(result.possibleGaps ?? [])];
   logger.warn(
     `Download saved with ${skippedFragments} fragment(s) missing (${filePath})` +
       (gaps.length > 0 ? `: ${summarizeTimelineGaps(gaps)}` : "")

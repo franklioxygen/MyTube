@@ -38,7 +38,7 @@ vi.mock('../../../utils/ytDlpUtils', () => ({
 }));
 
 vi.mock('../../../services/storageService', () => ({
-    setIncompleteDownloadNote: vi.fn(),
+    withIncompleteDownloadNote: (video: any, note: any) => ({ ...video, incompleteDownloadNote: note ?? undefined }),
     updateActiveDownload: vi.fn(),
     saveVideo: vi.fn(),
     persistDownloadedMediaIdentity: vi.fn(({ video }) => video),
@@ -230,8 +230,7 @@ describe('YtDlpDownloader format defaults', () => {
         const video = await YtDlpDownloader.downloadVideo('https://www.youtube.com/watch?v=123456');
 
         expect(storageService.saveVideo).toHaveBeenCalled();
-        expect(storageService.setIncompleteDownloadNote).toHaveBeenCalledWith(
-            video.id,
+        expect(video.incompleteDownloadNote).toEqual(
             { kind: 'incomplete_download', skippedFragments: 2, gaps: [] },
         );
     });
@@ -239,7 +238,7 @@ describe('YtDlpDownloader format defaults', () => {
     it('clears any note for a clean download', async () => {
         const video = await YtDlpDownloader.downloadVideo('https://www.youtube.com/watch?v=123456');
 
-        expect(storageService.setIncompleteDownloadNote).toHaveBeenCalledWith(video.id, null);
+        expect(video.incompleteDownloadNote).toBeUndefined();
     });
 
     it('passes source duration and effective config to the completeness check', async () => {
@@ -467,8 +466,8 @@ describe('YtDlpDownloader format defaults', () => {
             }),
         );
         expect(result.id).toBe(selectedVideo.id);
-        // The note (here: none) is recorded against the row that was replaced.
-        expect(storageService.setIncompleteDownloadNote).toHaveBeenCalledWith(selectedVideo.id, null);
+        // The result carries the note for this replacement attempt (none here).
+        expect(result.incompleteDownloadNote).toBeUndefined();
     });
 
     it.each(['shared', 'unreadable'])('keeps the old video when owners are %s', async (condition) => {
