@@ -55,3 +55,8 @@ export const MISSAV_CLOUDFLARE_CHALLENGE_PATTERN =
 // request collapses it (issue #446). Four parallel fetches hide that latency
 // without hammering the CDN; users who want more can set `-N` themselves.
 export const MISSAV_DEFAULT_CONCURRENT_FRAGMENTS = 4;
+
+// Allow transient CDN errors time to recover before a fragment is skipped.
+// User-configured yt-dlp settings still take precedence.
+export const MISSAV_DEFAULT_FRAGMENT_RETRIES = 20;
+export const MISSAV_DEFAULT_FRAGMENT_RETRY_SLEEP = "fragment:exp=1:20";

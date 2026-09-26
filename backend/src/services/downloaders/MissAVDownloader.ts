@@ -53,6 +53,8 @@ import { Video } from "../storageService";
 import { BaseDownloader, DownloadOptions, VideoInfo } from "./BaseDownloader";
 import {
   MISSAV_DEFAULT_CONCURRENT_FRAGMENTS,
+  MISSAV_DEFAULT_FRAGMENT_RETRIES,
+  MISSAV_DEFAULT_FRAGMENT_RETRY_SLEEP,
   MISSAV_PROGRESS_LOG_INTERVAL_MS,
 } from "./missav/constants";
 import {
@@ -135,6 +137,39 @@ function resolveMissAvConcurrentFragments(
   }
 
   return MISSAV_DEFAULT_CONCURRENT_FRAGMENTS;
+}
+
+/**
+ * Resolve the `--retry-sleep` rules for a MissAV download.
+ *
+ * yt-dlp reads an untyped `--retry-sleep` as an `http:` rule, so the user's
+ * rules only replace the fragment backoff when one of them names the
+ * `fragment` type (alone or in a list such as `http,fragment:`). Otherwise the
+ * default is added beside them.
+ */
+function resolveMissAvRetrySleep(
+  userConfig: Record<string, unknown>,
+): string | string[] {
+  const configured = userConfig.retrySleep;
+  const rules = (Array.isArray(configured) ? configured : [configured]).filter(
+    (rule): rule is string => typeof rule === "string" && !!rule.trim(),
+  );
+  if (rules.length === 0) {
+    return MISSAV_DEFAULT_FRAGMENT_RETRY_SLEEP;
+  }
+
+  const coversFragments = rules.some((rule) =>
+    rule
+      .trim()
+      .match(/^([\w-]+(?:,[\w-]+)*):/)?.[1]
+      .toLowerCase()
+      .split(",")
+      .includes("fragment"),
+  );
+
+  return coversFragments
+    ? rules
+    : [...rules, MISSAV_DEFAULT_FRAGMENT_RETRY_SLEEP];
 }
 
 function isPuppeteerTimeoutError(error: unknown): boolean {
@@ -754,6 +789,9 @@ export class MissAVDownloader extends BaseDownloader {
           // Must come after the network config: fragment concurrency is what
           // keeps a proxied HLS download from serialising on round trips.
           N: resolveMissAvConcurrentFragments(userConfig),
+          fragmentRetries:
+            userConfig.fragmentRetries ?? MISSAV_DEFAULT_FRAGMENT_RETRIES,
+          retrySleep: resolveMissAvRetrySleep(userConfig),
           addHeader: [`Referer:${referer}`],
         };
 

@@ -412,6 +412,21 @@ describe("ytDlpUtils", () => {
       ]);
     });
 
+    it("should repeat --retry-sleep for each rule", () => {
+      expect(
+        flagsToArgs({ retrySleep: ["linear=1::2", "fragment:exp=1:20"] }),
+      ).toEqual([
+        "--retry-sleep",
+        "linear=1::2",
+        "--retry-sleep",
+        "fragment:exp=1:20",
+      ]);
+      expect(flagsToArgs({ retrySleep: "exp=1:20" })).toEqual([
+        "--retry-sleep",
+        "exp=1:20",
+      ]);
+    });
+
     it("should map short options to long options", () => {
       const args = flagsToArgs({ f: "best", S: "res:2160", R: 3, N: 8 });
       expect(args).toEqual([
@@ -474,6 +489,19 @@ describe("ytDlpUtils", () => {
         S: "res:2160",
         R: "5",
         x: true,
+      });
+    });
+
+    it("should keep every repeated --retry-sleep rule", () => {
+      expect(
+        parseYtDlpConfig(
+          "--retry-sleep fragment:linear=1::2\n--retry-sleep http:exp=1:20\n--retry-sleep extractor:5"
+        )
+      ).toEqual({
+        retrySleep: ["fragment:linear=1::2", "http:exp=1:20", "extractor:5"],
+      });
+      expect(parseYtDlpConfig("--retry-sleep exp=1:20")).toEqual({
+        retrySleep: "exp=1:20",
       });
     });
 
