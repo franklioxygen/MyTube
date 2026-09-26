@@ -39,8 +39,9 @@ export function saveVideoWithInsertFlag(
     const inserted = existing.length === 0;
     // Video allows extra keys via its index signature; the cast narrows the
     // serialized row to the table's insert shape.
+    const { incompleteDownloadNote: _incompleteDownloadNote, ...persistedVideo } = videoData;
     const videoToSave = {
-      ...videoData,
+      ...persistedVideo,
       tags: videoData.tags ? JSON.stringify(videoData.tags) : undefined,
       subtitles: videoData.subtitles
         ? JSON.stringify(videoData.subtitles)

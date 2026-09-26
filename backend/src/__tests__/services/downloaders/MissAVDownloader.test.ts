@@ -42,6 +42,7 @@ vi.mock('axios', () => ({
 
 vi.mock('puppeteer');
 vi.mock('../../../services/storageService', () => ({
+  withIncompleteDownloadNote: (video: any, note: any) => ({ ...video, incompleteDownloadNote: note ?? undefined }),
   saveVideo: vi.fn(),
   updateVideo: vi.fn(),
   updateActiveDownload: vi.fn(),
@@ -579,6 +580,34 @@ describe('MissAVDownloader', () => {
         expect(verifyDownloadedMediaComplete).toHaveBeenCalledExactlyOnceWith(videoPath, {
           sourceDurationSeconds: 24.5, userConfig: {},
         });
+      });
+
+      it('keeps a download yt-dlp left a fragment out of, and notes it', async () => {
+        vi.mocked(spawn).mockImplementation(() => {
+          const proc = createAutoClosingSpawnProc(0);
+          proc.stdout.on.mockImplementation((event: string, cb: (data: Buffer) => void) => {
+            if (event === 'data') {
+              cb(Buffer.from('[download] fragment not found; Skipping fragment 281 ...\n'));
+            }
+            return proc.stdout;
+          });
+          return proc;
+        });
+
+        const video = await MissAVDownloader.downloadVideo(url);
+
+        // A gap is not a truncation: the file is published, and the history
+        // row for it will carry the note.
+        expect(video.id).toBeTruthy();
+        expect(video.incompleteDownloadNote).toEqual(
+          { kind: 'incomplete_download', skippedFragments: 1, gaps: [] },
+        );
+      });
+
+      it('clears any note for a clean download', async () => {
+        const video = await MissAVDownloader.downloadVideo(url);
+
+        expect(video.incompleteDownloadNote).toBeUndefined();
       });
 
       it('uses the playlist body the browser already fetched', async () => {

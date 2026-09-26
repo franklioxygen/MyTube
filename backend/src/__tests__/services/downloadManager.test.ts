@@ -272,6 +272,7 @@ describe('DownloadManager', () => {
         video: {
           id: 'video-success',
           title: 'Series Episode 1',
+          incompleteDownloadNote: { kind: 'incomplete_download', skippedFragments: 1, gaps: [] },
           videoPath: '/videos/series-ep1.mp4',
           thumbnailPath: '/images/series-ep1.jpg',
           sourceUrl: 'https://www.bilibili.com/video/BV1zz',
@@ -297,6 +298,7 @@ describe('DownloadManager', () => {
         expect.objectContaining({
           id: 'success-bili',
           status: 'success',
+          incompleteDownloadNote: { kind: 'incomplete_download', skippedFragments: 1, gaps: [] },
           retryMetadata: JSON.stringify({
             shape: 'bilibili_all_parts',
             collectionName: 'Series',

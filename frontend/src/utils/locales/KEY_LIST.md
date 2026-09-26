@@ -11,7 +11,7 @@ UPDATE_KEY_LIST=1 npx vitest run src/utils/locales/__tests__/localeParity.test.t
 
 This list is intentionally unnumbered. When new keys are inserted, only the local section order changes.
 
-Total keys: 1386
+Total keys: 1389
 
 ## Summary
 
@@ -37,7 +37,7 @@ Total keys: 1386
 | Video Card | 9 | `unknownDate` | `weeksAgo` |
 | Upload Modal | 19 | `selectVideoFile` | `thumbnailUploaded` |
 | Bilibili Modal | 22 | `bilibiliCollectionDetected` | `waitingInQueue` |
-| Downloads | 28 | `downloads` | `missingVideos` |
+| Downloads | 31 | `downloads` | `incompleteDownloadFragments` |
 | Snackbar Messages | 22 | `videoDownloading` | `subtitleDeleted` |
 | Batch Download | 6 | `batchDownload` | `addBatchTasks` |
 | Subscriptions | 60 | `subscribeToAuthor` | `clear` |
@@ -928,6 +928,9 @@ Total keys: 1386
 | `retryAttemptProgress` |
 | `missingEpisodes` |
 | `missingVideos` |
+| `incompleteDownloadVideoGap` |
+| `incompleteDownloadAudioGap` |
+| `incompleteDownloadFragments` |
 
 ### Snackbar Messages
 

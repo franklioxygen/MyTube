@@ -105,6 +105,7 @@ function addAggregatePartHistory(
       sourceUrl,
       author: video.author,
       videoId: video.id,
+      incompleteDownloadNote: video.incompleteDownloadNote,
       totalSize,
       mediaType: video.mediaType === "audio" ? "audio" : "video",
       platform: platformFromUrl(sourceUrl),
@@ -729,6 +730,7 @@ class DownloadManager {
             sourceUrl: historySourceUrl,
             author: videoData.author,
             videoId: videoData.id,
+            incompleteDownloadNote: videoData.incompleteDownloadNote,
             totalSize: historyTotalSize,
             // Carried so a later deletion leaves a tombstone that says which of
             // audio/video went away, which the shared source-level tracking row

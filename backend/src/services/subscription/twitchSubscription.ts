@@ -370,6 +370,8 @@ export async function processTwitchSubscriptionVideos(
         videoPath: videoData.videoPath,
         thumbnailPath: videoData.thumbnailPath,
         videoId: videoData.id,
+        mediaType: videoData.mediaType === "audio" ? "audio" : "video",
+        incompleteDownloadNote: videoData.incompleteDownloadNote,
         subscriptionId: sub.id,
         platform: platformFromUrl(video.url),
         sourceKind: "subscription",

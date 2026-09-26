@@ -237,6 +237,7 @@ describe("SubscriptionService Twitch support", () => {
       twitchBroadcasterId: "broadcaster-1",
       twitchBroadcasterLogin: "somechannel",
       lastTwitchVideoId: "archive-1",
+      ytdlpConfig: "--format bestaudio",
     };
 
     const selectBuilder = createMockBuilder([sub]);
@@ -338,6 +339,8 @@ describe("SubscriptionService Twitch support", () => {
           id: "video-1003",
           title: "Middle",
           author: "Some Channel",
+          mediaType: "audio",
+          incompleteDownloadNote: { kind: "incomplete_download", skippedFragments: 1, gaps: [] },
         },
       } as any)
       .mockResolvedValueOnce({
@@ -359,7 +362,7 @@ describe("SubscriptionService Twitch support", () => {
           sourceCollectionName: "Some Channel",
           sourceCollectionType: "channel",
         }),
-        subscriptionYtdlpConfig: undefined,
+        subscriptionYtdlpConfig: "--format bestaudio",
       })
     );
     expect(downloadYouTubeVideo).toHaveBeenNthCalledWith(
@@ -371,10 +374,21 @@ describe("SubscriptionService Twitch support", () => {
           sourceCollectionName: "Some Channel",
           sourceCollectionType: "channel",
         }),
-        subscriptionYtdlpConfig: undefined,
+        subscriptionYtdlpConfig: "--format bestaudio",
       })
     );
     expect(storageService.addDownloadHistoryItem).toHaveBeenCalledTimes(2);
+    expect(storageService.addDownloadHistoryItem).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        videoId: "video-1003", mediaType: "audio",
+        incompleteDownloadNote: { kind: "incomplete_download", skippedFragments: 1, gaps: [] },
+      }),
+    );
+    expect(storageService.addDownloadHistoryItem).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ videoId: "video-1004", mediaType: "video" }),
+    );
     expect(TelegramService.notifyTaskComplete).toHaveBeenNthCalledWith(1, {
       taskTitle: "Middle",
       status: "success",

@@ -882,6 +882,8 @@ export class SubscriptionService {
             videoPath: videoData.videoPath,
             thumbnailPath: videoData.thumbnailPath,
             videoId: videoData.id,
+            incompleteDownloadNote: videoData.incompleteDownloadNote,
+            mediaType: videoData.mediaType === "audio" ? "audio" : "video",
             subscriptionId: sub.id,
             platform:
               typeof sub.platform === "string"
@@ -1082,6 +1084,8 @@ export class SubscriptionService {
               videoPath: videoData.videoPath,
               thumbnailPath: videoData.thumbnailPath,
               videoId: videoData.id,
+              incompleteDownloadNote: videoData.incompleteDownloadNote,
+              mediaType: videoData.mediaType === "audio" ? "audio" : "video",
               subscriptionId: sub.id,
               platform:
                 typeof sub.platform === "string"

@@ -931,6 +931,9 @@ export const zh = {
   retryAttemptProgress: "第 {current} 次重试，共 {total} 次",
   missingEpisodes: "缺少分集",
   missingVideos: "缺少视频",
+  incompleteDownloadVideoGap: "视频缺失 {seconds} 秒，位置：{positions}",
+  incompleteDownloadAudioGap: "音频缺失 {seconds} 秒，位置：{positions}",
+  incompleteDownloadFragments: "有 {count} 个分片未能下载，可再次下载以尝试补全。",
 
 
   // Snackbar Messages

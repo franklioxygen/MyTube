@@ -27,6 +27,21 @@ const mockHistoryItems = [
         sourceUrl: 'http://example.com/1',
     },
     {
+        // Saved to the library, but yt-dlp left part of it out.
+        id: '1b',
+        title: 'Incomplete Save Item',
+        finishedAt: 1678886400000,
+        status: 'success' as const,
+        sourceUrl: 'http://example.com/1b',
+        videoId: 'vid-gap',
+        // What the backend stores: data, worded here in the viewer's language.
+        error: JSON.stringify({
+            kind: 'incomplete_download',
+            skippedFragments: 1,
+            gaps: [{ stream: 'video', atSeconds: 1127.92, gapSeconds: 4.03 }],
+        }),
+    },
+    {
         id: '2',
         title: 'Failed Item',
         finishedAt: 1678886400000,
@@ -119,6 +134,7 @@ describe('HistoryTab Filter', () => {
         fireEvent.click(options[options.length - 1]);
 
         expect(screen.getByText('Success Item')).toBeInTheDocument();
+        expect(screen.queryByText('Incomplete Save Item')).not.toBeInTheDocument();
         expect(screen.queryByText('Failed Item')).not.toBeInTheDocument();
         expect(screen.queryByText('Skipped Item')).not.toBeInTheDocument();
         expect(screen.queryByText('Deleted Item')).not.toBeInTheDocument();
@@ -152,6 +168,7 @@ describe('HistoryTab Filter', () => {
         expect(screen.queryByText('Success Item')).not.toBeInTheDocument();
         expect(screen.queryByText('Failed Item')).not.toBeInTheDocument();
         expect(screen.getByText('Partial Item')).toBeInTheDocument();
+        expect(screen.getByText('Incomplete Save Item')).toBeInTheDocument();
         expect(screen.queryByText('Skipped Item')).not.toBeInTheDocument();
         expect(screen.queryByText('Deleted Item')).not.toBeInTheDocument();
     });
@@ -226,5 +243,125 @@ describe('HistoryTab Filter', () => {
         fireEvent.click(option);
 
         expect(screen.getByText('noDownloadHistory')).toBeInTheDocument();
+    });
+});
+
+describe('HistoryTab incomplete save', () => {
+    const onReDownload = vi.fn();
+    const onRetry = vi.fn();
+    const onViewVideo = vi.fn();
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        // Show the interpolated values so the test can see what reaches t().
+        (useLanguage as Mock).mockReturnValue({
+            language: 'en',
+            t: (key: string, params?: Record<string, string | number>) =>
+                params ? `${key} ${JSON.stringify(params)}` : key,
+        });
+        (useSettings as Mock).mockReturnValue({ data: {} });
+        (useTheme as Mock).mockReturnValue({ breakpoints: { down: vi.fn() } });
+        (useMediaQuery as Mock).mockReturnValue(false);
+    });
+
+    const renderIncompleteSave = () => render(
+        <BrowserRouter>
+            <HistoryTab
+                history={[mockHistoryItems[1]]}
+                onRemove={vi.fn()}
+                onCancelRetry={vi.fn()}
+                onClear={vi.fn()}
+                onRetry={onRetry}
+                onReDownload={onReDownload}
+                onViewVideo={onViewVideo}
+                isDownloadInProgress={() => false}
+            />
+        </BrowserRouter>
+    );
+
+    it('is shown as incomplete, with what is missing, in the viewer\'s language', () => {
+        renderIncompleteSave();
+
+        expect(screen.getByText('partialDownload')).toBeInTheDocument();
+        expect(screen.queryByText('success')).not.toBeInTheDocument();
+        expect(screen.getByText(
+            'incompleteDownloadVideoGap {"seconds":"4.0","positions":"18:47"}',
+        )).toBeInTheDocument();
+        expect(screen.getByText('incompleteDownloadFragments {"count":1}')).toBeInTheDocument();
+        // The stored JSON itself is never shown.
+        expect(screen.queryByText(/incomplete_download/)).not.toBeInTheDocument();
+    });
+
+    it('does not show the stored note as raw JSON after deletion', () => {
+        render(
+            <BrowserRouter>
+                <HistoryTab
+                    history={[{ ...mockHistoryItems[1], status: 'deleted' }]}
+                    onRemove={vi.fn()}
+                    onCancelRetry={vi.fn()}
+                    onClear={vi.fn()}
+                    onRetry={onRetry}
+                    onReDownload={onReDownload}
+                    onViewVideo={onViewVideo}
+                    isDownloadInProgress={() => false}
+                />
+            </BrowserRouter>,
+        );
+
+        expect(screen.getByText('previouslyDeleted')).toBeInTheDocument();
+        expect(screen.queryByText(/incomplete_download/)).not.toBeInTheDocument();
+        expect(screen.queryByText('partialDownload')).not.toBeInTheDocument();
+    });
+
+    it('formats seconds for the viewer\'s locale', () => {
+        (useLanguage as Mock).mockReturnValue({
+            language: 'de',
+            t: (key: string, params?: Record<string, string | number>) =>
+                params ? `${key} ${JSON.stringify(params)}` : key,
+        });
+        renderIncompleteSave();
+
+        expect(screen.getByText(/"seconds":"4,0"/)).toBeInTheDocument();
+    });
+
+    it('can still be watched', () => {
+        renderIncompleteSave();
+
+        fireEvent.click(screen.getByText('viewVideo'));
+
+        expect(onViewVideo).toHaveBeenCalledWith('vid-gap');
+    });
+
+    it('offers a re-download that replaces the copy, not a retry that would be skipped', () => {
+        // A plain retry resubmits the URL, which is skipped because the video
+        // already exists; only a forced re-download replaces it.
+        renderIncompleteSave();
+
+        expect(screen.queryByText('retry')).not.toBeInTheDocument();
+        fireEvent.click(screen.getByText('downloadAgain'));
+
+        expect(onReDownload).toHaveBeenCalledWith('http://example.com/1b', undefined);
+        expect(onRetry).not.toHaveBeenCalled();
+    });
+
+    it('re-downloads an audio item as audio', () => {
+        render(
+            <BrowserRouter>
+                <HistoryTab
+                    history={[{ ...mockHistoryItems[1], mediaType: 'audio' as const }]}
+                    onRemove={vi.fn()}
+                    onCancelRetry={vi.fn()}
+                    onClear={vi.fn()}
+                    onRetry={onRetry}
+                    onReDownload={onReDownload}
+                    onViewVideo={onViewVideo}
+                    isDownloadInProgress={() => false}
+                />
+            </BrowserRouter>,
+        );
+
+        fireEvent.click(screen.getByText('downloadAgain'));
+
+        expect(onReDownload).toHaveBeenCalledWith('http://example.com/1b', 'audio');
     });
 });
