@@ -140,7 +140,9 @@ export async function uploadVideo(
       }
     }
 
-    // Upload Metadata (JSON)
+    // Upload Metadata (JSON). The incomplete-download note belongs to one
+    // attempt's history row, not to the video's persistent metadata.
+    const { incompleteDownloadNote: _incompleteDownloadNote, ...persistedVideo } = videoData;
     const metadata = {
       title: videoData.title,
       description: videoData.description,
@@ -148,7 +150,7 @@ export async function uploadVideo(
       sourceUrl: videoData.sourceUrl,
       tags: videoData.tags,
       createdAt: videoData.createdAt,
-      ...videoData,
+      ...persistedVideo,
     };
 
     // Keep metadata in the same remote directory and basename as the media.
