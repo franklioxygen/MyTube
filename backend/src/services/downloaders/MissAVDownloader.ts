@@ -53,6 +53,8 @@ import { Video } from "../storageService";
 import { BaseDownloader, DownloadOptions, VideoInfo } from "./BaseDownloader";
 import {
   MISSAV_DEFAULT_CONCURRENT_FRAGMENTS,
+  MISSAV_DEFAULT_FRAGMENT_RETRIES,
+  MISSAV_DEFAULT_FRAGMENT_RETRY_SLEEP,
   MISSAV_PROGRESS_LOG_INTERVAL_MS,
 } from "./missav/constants";
 import {
@@ -754,6 +756,9 @@ export class MissAVDownloader extends BaseDownloader {
           // Must come after the network config: fragment concurrency is what
           // keeps a proxied HLS download from serialising on round trips.
           N: resolveMissAvConcurrentFragments(userConfig),
+          fragmentRetries:
+            userConfig.fragmentRetries ?? MISSAV_DEFAULT_FRAGMENT_RETRIES,
+          retrySleep: userConfig.retrySleep ?? MISSAV_DEFAULT_FRAGMENT_RETRY_SLEEP,
           addHeader: [`Referer:${referer}`],
         };
 
