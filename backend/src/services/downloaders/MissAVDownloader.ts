@@ -142,27 +142,34 @@ function resolveMissAvConcurrentFragments(
 /**
  * Resolve the `--retry-sleep` rules for a MissAV download.
  *
- * yt-dlp reads an untyped `--retry-sleep` as an `http:` rule, so a user's own
- * value only replaces the fragment backoff when it names the `fragment` type
- * (alone or in a list such as `http,fragment:`). Otherwise both rules are kept.
+ * yt-dlp reads an untyped `--retry-sleep` as an `http:` rule, so the user's
+ * rules only replace the fragment backoff when one of them names the
+ * `fragment` type (alone or in a list such as `http,fragment:`). Otherwise the
+ * default is added beside them.
  */
 function resolveMissAvRetrySleep(
   userConfig: Record<string, unknown>,
 ): string | string[] {
   const configured = userConfig.retrySleep;
-  if (typeof configured !== "string" || !configured.trim()) {
+  const rules = (Array.isArray(configured) ? configured : [configured]).filter(
+    (rule): rule is string => typeof rule === "string" && !!rule.trim(),
+  );
+  if (rules.length === 0) {
     return MISSAV_DEFAULT_FRAGMENT_RETRY_SLEEP;
   }
 
-  const types = configured.trim().match(/^([\w-]+(?:,[\w-]+)*):/)?.[1];
-  const coversFragments = types
-    ?.toLowerCase()
-    .split(",")
-    .includes("fragment");
+  const coversFragments = rules.some((rule) =>
+    rule
+      .trim()
+      .match(/^([\w-]+(?:,[\w-]+)*):/)?.[1]
+      .toLowerCase()
+      .split(",")
+      .includes("fragment"),
+  );
 
   return coversFragments
-    ? configured
-    : [configured, MISSAV_DEFAULT_FRAGMENT_RETRY_SLEEP];
+    ? rules
+    : [...rules, MISSAV_DEFAULT_FRAGMENT_RETRY_SLEEP];
 }
 
 function isPuppeteerTimeoutError(error: unknown): boolean {

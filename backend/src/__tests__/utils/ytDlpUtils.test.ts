@@ -492,6 +492,19 @@ describe("ytDlpUtils", () => {
       });
     });
 
+    it("should keep every repeated --retry-sleep rule", () => {
+      expect(
+        parseYtDlpConfig(
+          "--retry-sleep fragment:linear=1::2\n--retry-sleep http:exp=1:20\n--retry-sleep extractor:5"
+        )
+      ).toEqual({
+        retrySleep: ["fragment:linear=1::2", "http:exp=1:20", "extractor:5"],
+      });
+      expect(parseYtDlpConfig("--retry-sleep exp=1:20")).toEqual({
+        retrySleep: "exp=1:20",
+      });
+    });
+
     it("should return empty object for empty input", () => {
       expect(parseYtDlpConfig("")).toEqual({});
       expect(parseYtDlpConfig(undefined as unknown as string)).toEqual({});

@@ -73,7 +73,13 @@ export function parseYtDlpConfig(configText: string): Record<string, any> {
       const camelCaseName = optionName.replace(/-([a-z])/g, (_, letter) =>
         letter.toUpperCase()
       );
-      flags[camelCaseName] = optionValue;
+      // yt-dlp takes one --retry-sleep per retry type, so a repeated line adds
+      // a rule rather than replacing the previous one.
+      if (camelCaseName === "retrySleep" && camelCaseName in flags) {
+        flags[camelCaseName] = [flags[camelCaseName], optionValue].flat();
+      } else {
+        flags[camelCaseName] = optionValue;
+      }
     }
   }
 

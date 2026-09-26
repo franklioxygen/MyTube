@@ -1177,9 +1177,21 @@ describe('MissAVDownloader', () => {
       expect(flags.retrySleep).toEqual(['linear=1::2', 'fragment:exp=1:20']);
     });
 
-    it.each(['fragment:linear=1::2', 'HTTP,Fragment:linear=1::2'])(
-      'lets a user retry sleep that covers fragments (%s) replace the default',
-      async (retrySleep) => {
+    it.each([
+      ['fragment:linear=1::2', ['fragment:linear=1::2']],
+      ['HTTP,Fragment:linear=1::2', ['HTTP,Fragment:linear=1::2']],
+      // Repeated --retry-sleep lines reach the resolver as an array.
+      [
+        ['fragment:linear=1::2', 'http:exp=1:20'],
+        ['fragment:linear=1::2', 'http:exp=1:20'],
+      ],
+      [
+        ['http:exp=1:20', 'extractor:5'],
+        ['http:exp=1:20', 'extractor:5', 'fragment:exp=1:20'],
+      ],
+    ])(
+      'keeps user retry sleep %j and adds the fragment default only when missing',
+      async (retrySleep, expected) => {
         (getUserYtDlpConfig as ReturnType<typeof vi.fn>).mockReturnValue({ retrySleep });
         const mockPage = buildPageMock('success');
         const mockBrowser = { newPage: vi.fn().mockResolvedValue(mockPage), close: vi.fn().mockResolvedValue(undefined) };
@@ -1189,7 +1201,7 @@ describe('MissAVDownloader', () => {
 
         const calls = (flagsToArgs as ReturnType<typeof vi.fn>).mock.calls;
         const flags = calls[calls.length - 1]?.[0] ?? {};
-        expect(flags.retrySleep).toBe(retrySleep);
+        expect(flags.retrySleep).toEqual(expected);
       },
     );
 
