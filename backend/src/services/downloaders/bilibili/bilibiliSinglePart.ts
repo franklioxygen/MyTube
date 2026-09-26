@@ -55,6 +55,7 @@ import {
 import { downloadSubtitles } from "./bilibiliSubtitle";
 import { BilibiliVideoInfo, DownloadResult } from "./types";
 import { downloadVideo } from "./bilibiliCoreDownload";
+import { describeSkippedFragments } from "../timelineGaps";
 import {
   BilibiliDownloaderHelper,
   formatLegacyMultipartTitle,
@@ -275,6 +276,12 @@ export async function downloadSinglePart(
     const actualVideoPath = bilibiliInfo.downloadedVideoPath || videoPath;
     const actualVideoExtension =
       bilibiliInfo.downloadedVideoExtension || mergeOutputFormat;
+    // A fragment yt-dlp gave up on leaves a gap, not a truncation: the file is
+    // kept, and the note says what is missing so the history can show it.
+    const incompleteNote = await describeSkippedFragments(
+      actualVideoPath,
+      bilibiliInfo.skippedFragments ?? 0
+    );
 
     // Check if download was cancelled before processing files
     const downloader = new BilibiliDownloaderHelper();
@@ -584,7 +591,10 @@ export async function downloadSinglePart(
           syncMediaServerArtifactsForRecord(finalVideoData, {
             rawSourceInfo: bilibiliInfo,
           });
-          return { success: true, videoData: finalVideoData };
+          return {
+            success: true,
+            videoData: storageService.withIncompleteDownloadNote(finalVideoData, incompleteNote),
+          };
         }
       }
     }
@@ -627,14 +637,20 @@ export async function downloadSinglePart(
         syncMediaServerArtifactsForRecord(updatedVideo, {
           rawSourceInfo: bilibiliInfo,
         });
-        return { success: true, videoData: updatedVideo };
+        return {
+          success: true,
+          videoData: storageService.withIncompleteDownloadNote(updatedVideo, incompleteNote),
+        };
       }
     }
 
     syncMediaServerArtifactsForRecord(videoData, {
       rawSourceInfo: bilibiliInfo,
     });
-    return { success: true, videoData };
+    return {
+      success: true,
+      videoData: storageService.withIncompleteDownloadNote(videoData, incompleteNote),
+    };
   } catch (error: unknown) {
     // A cancelled part must abort the whole download, not be recorded as a
     // failed episode. downloadCollection relies on a thrown DownloadCancelledError

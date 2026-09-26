@@ -256,7 +256,8 @@ describe('SubscriptionService', () => {
         })
       );
       expect(storageService.addDownloadHistoryItem).toHaveBeenCalledWith(expect.objectContaining({
-        status: 'success'
+        status: 'success',
+        mediaType: 'video'
       }));
       expect(TelegramService.notifyTaskComplete).toHaveBeenCalledWith({
         taskTitle: 'New Video',

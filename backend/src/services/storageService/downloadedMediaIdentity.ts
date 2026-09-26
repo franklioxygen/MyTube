@@ -51,8 +51,11 @@ function getDownloadedAtMs(video: Video, explicitDownloadedAtMs?: number): numbe
 }
 
 function serializeVideo(video: Video): typeof videos.$inferInsert {
+  // Download integrity notes belong to individual history attempts, not the
+  // reusable media-library row.
+  const { incompleteDownloadNote: _incompleteDownloadNote, ...persistedVideo } = video;
   return {
-    ...video,
+    ...persistedVideo,
     tags: video.tags ? JSON.stringify(video.tags) : undefined,
     subtitles: video.subtitles ? JSON.stringify(video.subtitles) : undefined,
   } as typeof videos.$inferInsert;

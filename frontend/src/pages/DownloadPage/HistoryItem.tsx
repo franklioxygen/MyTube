@@ -23,6 +23,10 @@ import { Link as RouterLink } from 'react-router';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { getBilibiliRetryGapSummary } from '../../utils/bilibiliRetryMetadata';
 import { formatDisplayDateTime } from '../../utils/formatUtils';
+import {
+    parseIncompleteDownloadNote,
+    summarizeIncompleteDownloadGaps,
+} from '../../utils/incompleteDownloadNote';
 
 export interface DownloadHistoryItem {
     id: string;
@@ -38,6 +42,7 @@ export interface DownloadHistoryItem {
     videoId?: string;
     downloadedAt?: number;
     deletedAt?: number;
+    mediaType?: 'video' | 'audio';
     subscriptionId?: string;
     taskId?: string;
     downloadType?: string;
@@ -53,7 +58,7 @@ interface HistoryItemProps {
     onRemove: (id: string) => void;
     onCancelRetry: (id: string) => void;
     onRetry: (sourceUrl: string) => void;
-    onReDownload: (sourceUrl: string) => void;
+    onReDownload: (sourceUrl: string, mediaType?: 'video' | 'audio') => void;
     onViewVideo: (videoId: string) => void;
     isDownloadInProgress: (sourceUrl: string) => boolean;
     isRemoving?: boolean;
@@ -73,9 +78,20 @@ export function HistoryItem({
     isCancellingRetry = false,
     dontSkipDeletedVideo
 }: HistoryItemProps) {
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     const isPendingRetry = item.status === 'pending_retry';
     const isPartial = item.status === 'partial';
+    // Deleted rows retain the note in error, but must not render its raw JSON.
+    const storedIncompleteNote = parseIncompleteDownloadNote(item.error);
+    // A save with content missing: still a success row, with a note of the gaps.
+    const incompleteNote =
+        item.status === 'success' ? storedIncompleteNote : undefined;
+    const incompleteSave = incompleteNote !== undefined;
+    const formatSeconds = (seconds: number) =>
+        new Intl.NumberFormat(language, {
+            minimumFractionDigits: 1,
+            maximumFractionDigits: 1,
+        }).format(seconds);
     const retryGapSummary =
         item.downloadType === 'bilibili'
             ? getBilibiliRetryGapSummary(item.retryMetadata)
@@ -93,7 +109,15 @@ export function HistoryItem({
             fontSize: '0.9rem',
         },
     } as const;
-    const statusChip = item.status === 'success' ? (
+    const statusChip = incompleteSave ? (
+        <Chip
+            icon={<WarningIcon sx={{ fontSize: '0.9rem' }} />}
+            label={t('partialDownload') || 'Incomplete'}
+            color="warning"
+            size="small"
+            sx={statusChipSx}
+        />
+    ) : item.status === 'success' ? (
         <Chip
             icon={<CheckCircleIcon sx={{ fontSize: '0.9rem' }} />}
             label={t('success') || 'Success'}
@@ -237,7 +261,21 @@ export function HistoryItem({
                                     )}
                                 </Box>
                             )}
-                            {item.error && (
+                            {incompleteNote ? (
+                                <>
+                                    {summarizeIncompleteDownloadGaps(incompleteNote).map((gap) => (
+                                        <Typography key={gap.labelKey} variant="caption" color="warning.main" component="span">
+                                            {t(gap.labelKey, {
+                                                seconds: formatSeconds(gap.seconds),
+                                                positions: gap.positions,
+                                            })}
+                                        </Typography>
+                                    ))}
+                                    <Typography variant="caption" color="warning.main" component="span">
+                                        {t('incompleteDownloadFragments', { count: incompleteNote.skippedFragments })}
+                                    </Typography>
+                                </>
+                            ) : item.error && !storedIncompleteNote && (
                                 <Typography variant="caption" color="error" component="span">
                                     {item.error}
                                 </Typography>
@@ -327,13 +365,13 @@ export function HistoryItem({
                                 {t('viewVideo') || 'View Video'}
                             </Button>
                         )}
-                        {item.status === 'deleted' && item.sourceUrl && (
+                        {(item.status === 'deleted' || incompleteSave) && item.sourceUrl && (
                             <Button
                                 variant="outlined"
                                 color="primary"
                                 size="small"
                                 startIcon={<ReplayIcon />}
-                                onClick={() => onReDownload(item.sourceUrl!)}
+                                onClick={() => onReDownload(item.sourceUrl!, item.mediaType)}
                                 disabled={isDownloadInProgress(item.sourceUrl)}
                                 loading={isDownloadInProgress(item.sourceUrl)}
                                 loadingPosition="start"

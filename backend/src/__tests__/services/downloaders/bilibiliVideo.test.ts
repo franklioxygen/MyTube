@@ -102,6 +102,7 @@ vi.mock("../../../utils/ytDlpUtils", () => {
 });
 
 vi.mock("../../../services/storageService", () => ({
+  withIncompleteDownloadNote: (video: any, note: any) => ({ ...video, incompleteDownloadNote: note ?? undefined }),
   getSettings: (...args: any[]) => mocks.getSettings(...args),
   getVideos: (...args: any[]) => mocks.getVideos(...args),
   getVideoBySourceUrl: (...args: any[]) => mocks.getVideoBySourceUrl(...args),
@@ -116,6 +117,11 @@ vi.mock("../../../services/storageService", () => ({
   isThumbnailReferencedByOtherVideo: (...args: any[]) =>
     mocks.isThumbnailReferencedByOtherVideo(...args),
   getVideoById: (...args: any[]) => mocks.getVideoById(...args),
+}));
+
+vi.mock("../../../services/downloaders/timelineGaps", () => ({
+  describeSkippedFragments: vi.fn(async (_path: string, skipped: number) =>
+    skipped > 0 ? { kind: "incomplete_download", skippedFragments: skipped, gaps: [] } : null),
 }));
 
 vi.mock("../../../services/thumbnailMirrorService", () => ({
@@ -548,6 +554,49 @@ describe("bilibiliVideo.downloadSinglePart", () => {
     expect(mocks.deleteSmallThumbnailMirrorSync).toHaveBeenCalledWith(
       "/mock/images/Collection/old-thumb.jpg",
     );
+  });
+
+  it("keeps a part yt-dlp left a fragment out of, and notes it", async () => {
+    const subprocess: any = Promise.resolve(undefined);
+    subprocess.stdout = { on: vi.fn() };
+    subprocess.stderr = {
+      on: vi.fn((event: string, cb: (data: Buffer) => void) => {
+        if (event === "data") {
+          cb(Buffer.from("[download] fragment not found; Skipping fragment 7 ...\n"));
+        }
+      }),
+    };
+    subprocess.kill = vi.fn();
+    mocks.executeYtDlpSpawn.mockReturnValue(subprocess);
+
+    const result = await downloadSinglePart(
+      "https://www.bilibili.com/video/BV1gap",
+      1,
+      1,
+      "",
+      "download-gap",
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.videoData?.id).toBeTruthy();
+    expect(result.videoData?.incompleteDownloadNote).toEqual(
+      { kind: "incomplete_download", skippedFragments: 1, gaps: [] },
+    );
+  });
+
+  it("clears any note when an existing video is re-downloaded cleanly", async () => {
+    mocks.getVideoBySourceUrl.mockReturnValue(buildExistingVideo());
+
+    const result = await downloadSinglePart(
+      "https://www.bilibili.com/video/BV1clean-update",
+      1,
+      1,
+      "",
+      "download-clean",
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.videoData?.incompleteDownloadNote).toBeUndefined();
   });
 
   it("passes downloadFilenamePresetId when adding a new video to the author collection", async () => {

@@ -1000,6 +1000,9 @@ export const de = {
   retryAttemptProgress: "Wiederholung {current} von {total}",
   missingEpisodes: "Fehlende Folgen",
   missingVideos: "Fehlende Videos",
+  incompleteDownloadVideoGap: "Video: {seconds} s fehlen bei {positions}",
+  incompleteDownloadAudioGap: "Audio: {seconds} s fehlen bei {positions}",
+  incompleteDownloadFragments: "Nicht heruntergeladene Fragmente: {count}. Erneut herunterladen, um sie wiederherzustellen.",
 
 
   // Snackbar Messages
@@ -1459,6 +1462,8 @@ export const de = {
   mediaIntegrityAudit: "Medien-Integritätsprüfung",
   mediaIntegrityAuditDescription:
     "Prüft Videos, die sich bereits in Ihrer Mediathek befinden, auf fehlende, abgeschnittene oder unlesbare Dateien. Es wird nichts verändert; zu jedem Problem gibt es eine empfohlene Maßnahme, über die Sie entscheiden.",
+  mediaIntegrityAuditCheckTimeline:
+    "Auch nach fehlenden Inhalten mitten in der Datei suchen (langsamer; kann bei einer großen Mediathek mehrere Minuten dauern)",
   mediaIntegrityAuditRun: "Prüfung starten",
   mediaIntegrityAuditRunning:
     "Mediathek wird geprüft. Das kann mehrere Minuten dauern; Sie können währenddessen den Tab wechseln.",
@@ -1469,6 +1474,10 @@ export const de = {
     "{checked} Video(s) geprüft; keine Probleme gefunden.",
   mediaIntegrityAuditSummaryProblems:
     "{checked} Video(s) geprüft; {count} erfordern Aufmerksamkeit.",
+  mediaIntegrityAuditTimelineNotChecked:
+    "Fehlende Inhalte mitten in Dateien wurden nicht geprüft. Aktivieren Sie die Option oben, um sie einzubeziehen.",
+  mediaIntegrityAuditTimelineIncomplete:
+    "Die Prüfung auf fehlende Inhalte mitten in der Datei konnte für {count} Datei(en) nicht abgeschlossen werden. Starten Sie die Prüfung erneut, um es noch einmal zu versuchen.",
   mediaIntegrityAuditActionRedownload:
     "Empfohlen: dieses Video erneut herunterladen.",
   mediaIntegrityAuditActionRefreshDuration:

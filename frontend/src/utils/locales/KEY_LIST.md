@@ -11,7 +11,7 @@ UPDATE_KEY_LIST=1 npx vitest run src/utils/locales/__tests__/localeParity.test.t
 
 This list is intentionally unnumbered. When new keys are inserted, only the local section order changes.
 
-Total keys: 1386
+Total keys: 1392
 
 ## Summary
 
@@ -37,7 +37,7 @@ Total keys: 1386
 | Video Card | 9 | `unknownDate` | `weeksAgo` |
 | Upload Modal | 19 | `selectVideoFile` | `thumbnailUploaded` |
 | Bilibili Modal | 22 | `bilibiliCollectionDetected` | `waitingInQueue` |
-| Downloads | 28 | `downloads` | `missingVideos` |
+| Downloads | 31 | `downloads` | `incompleteDownloadFragments` |
 | Snackbar Messages | 22 | `videoDownloading` | `subtitleDeleted` |
 | Batch Download | 6 | `batchDownload` | `addBatchTasks` |
 | Subscriptions | 60 | `subscribeToAuthor` | `clear` |
@@ -55,7 +55,7 @@ Total keys: 1386
 | yt-dlp Configuration | 58 | `ytDlpConfiguration` | `cleanupAuthorCollectionsFailed` |
 | Cloudflare Tunnel | 16 | `cloudflaredTunnel` | `managedInDashboard` |
 | Database Export/Import | 41 | `exportImportDatabase` | `backupDatabasesCleanedUp` |
-| Media Integrity Audit | 11 | `mediaIntegrityAudit` | `mediaIntegrityAuditActionManualReview` |
+| Media Integrity Audit | 14 | `mediaIntegrityAudit` | `mediaIntegrityAuditActionManualReview` |
 | History Filter | 33 | `filterAll` | `browserVideoFormatNotSupported` |
 | RSS Feed Settings | 42 | `rssFeedSettings` | `rssDays` |
 | Role-based settings middleware errors | 5 | `settingsApiKeyForbidden` | `settingsAuthRequired` |
@@ -928,6 +928,9 @@ Total keys: 1386
 | `retryAttemptProgress` |
 | `missingEpisodes` |
 | `missingVideos` |
+| `incompleteDownloadVideoGap` |
+| `incompleteDownloadAudioGap` |
+| `incompleteDownloadFragments` |
 
 ### Snackbar Messages
 
@@ -1355,12 +1358,15 @@ Total keys: 1386
 | --- |
 | `mediaIntegrityAudit` |
 | `mediaIntegrityAuditDescription` |
+| `mediaIntegrityAuditCheckTimeline` |
 | `mediaIntegrityAuditRun` |
 | `mediaIntegrityAuditRunning` |
 | `mediaIntegrityAuditTimeout` |
 | `mediaIntegrityAuditFailed` |
 | `mediaIntegrityAuditSummaryClean` |
 | `mediaIntegrityAuditSummaryProblems` |
+| `mediaIntegrityAuditTimelineNotChecked` |
+| `mediaIntegrityAuditTimelineIncomplete` |
 | `mediaIntegrityAuditActionRedownload` |
 | `mediaIntegrityAuditActionRefreshDuration` |
 | `mediaIntegrityAuditActionManualReview` |

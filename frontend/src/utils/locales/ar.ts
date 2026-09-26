@@ -961,6 +961,9 @@ export const ar = {
   retryAttemptProgress: "إعادة المحاولة {current} من {total}",
   missingEpisodes: "الحلقات المفقودة",
   missingVideos: "مقاطع الفيديو المفقودة",
+  incompleteDownloadVideoGap: "الفيديو: {seconds} ث مفقودة عند {positions}",
+  incompleteDownloadAudioGap: "الصوت: {seconds} ث مفقودة عند {positions}",
+  incompleteDownloadFragments: "أجزاء لم يتم تنزيلها: {count}. أعد التنزيل لمحاولة استعادتها.",
 
 
   // Snackbar Messages
@@ -1409,6 +1412,8 @@ export const ar = {
   mediaIntegrityAudit: "فحص سلامة الوسائط",
   mediaIntegrityAuditDescription:
     "يفحص مقاطع الفيديو الموجودة بالفعل في مكتبتك بحثًا عن ملفات مفقودة أو مقطوعة أو غير قابلة للقراءة. لا يتم تغيير أي شيء؛ ويأتي مع كل مشكلة إجراء موصى به لتقرر بشأنه.",
+  mediaIntegrityAuditCheckTimeline:
+    "البحث أيضًا عن محتوى مفقود في منتصف الملف (أبطأ؛ قد يستغرق عدة دقائق في مكتبة كبيرة)",
   mediaIntegrityAuditRun: "تشغيل الفحص",
   mediaIntegrityAuditRunning:
     "جارٍ فحص مكتبتك. قد يستغرق ذلك عدة دقائق؛ يمكنك التبديل إلى علامة تبويب أخرى أثناء التشغيل.",
@@ -1419,6 +1424,10 @@ export const ar = {
     "تم فحص {checked} فيديو؛ لم يتم العثور على مشاكل.",
   mediaIntegrityAuditSummaryProblems:
     "تم فحص {checked} فيديو؛ {count} منها تحتاج إلى معالجة.",
+  mediaIntegrityAuditTimelineNotChecked:
+    "لم يتم فحص المحتوى المفقود في منتصف الملفات. حدد الخيار أعلاه لتضمينه.",
+  mediaIntegrityAuditTimelineIncomplete:
+    "تعذّر إكمال فحص منتصف الملف لـ {count} ملف. شغّل الفحص مرة أخرى لإعادة المحاولة.",
   mediaIntegrityAuditActionRedownload: "موصى به: أعد تنزيل هذا الفيديو.",
   mediaIntegrityAuditActionRefreshDuration:
     "موصى به: حدّث المدة المخزنة. يبدو الملف نفسه سليمًا.",

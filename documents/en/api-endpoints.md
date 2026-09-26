@@ -310,6 +310,7 @@ While a gesture credential exists, a settings update that disables password logi
 - `GET /api/media-integrity-audit` - Check the library's local media files for damage (admin only)
   - Read-only: reports findings and recommends an action, but never repairs or re-downloads anything
   - Reports rows whose file is missing, whose audio and video tracks disagree in length, whose stored duration no longer matches the file, or that ffprobe cannot read
+  - Query: `timeline=1` also looks for content missing mid-file, such as a fragment the download skipped, reported with reason `timeline_gap` and a `gaps` list of `{ stream, atSeconds, gapSeconds }`. Opt-in because it reads whole files; results are cached for a day per unchanged file
   - `cloud:`, `mount:` and `http(s)` rows are skipped, not reported as missing
   - Response: `{ success, audit: { generatedAt, summary, items, humanSummary } }`
   - Each item: `{ localVideoId, title, mediaType, sourceUrl, videoPath, reasons, detail, storedDurationSeconds, measured, recommendedAction }`, where `mediaType` is `video` or `audio` and `recommendedAction` is `redownload`, `refresh_duration` or `manual_review`

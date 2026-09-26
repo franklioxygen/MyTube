@@ -55,3 +55,12 @@ export const MISSAV_CLOUDFLARE_CHALLENGE_PATTERN =
 // request collapses it (issue #446). Four parallel fetches hide that latency
 // without hammering the CDN; users who want more can set `-N` themselves.
 export const MISSAV_DEFAULT_CONCURRENT_FRAGMENTS = 4;
+
+// yt-dlp retries a failed fragment 10 times back to back, with no pause, and
+// then leaves it out of the file (`skip_unavailable_fragments`); a CDN hiccup of
+// a few seconds is enough to exhaust that. Backing off - 1s, doubling to a 20s
+// cap - spreads 20 attempts over about five and a half minutes, which rides out
+// a transient failure and still gives up on a fragment that is gone for good.
+// A user's own `--fragment-retries` or `--retry-sleep` takes precedence.
+export const MISSAV_DEFAULT_FRAGMENT_RETRIES = 20;
+export const MISSAV_DEFAULT_FRAGMENT_RETRY_SLEEP = "fragment:exp=1:20";

@@ -29,6 +29,7 @@ import { resolveSupersededManagedPath } from "./supersededOutput";
 import { FilenameTemplateSourceOptions } from "../filenameTemplate/types";
 import { findRedownloadTargetBySourceIdentity } from "./redownloadTarget";
 import { verifyDownloadedMediaComplete } from "./downloadIntegrity";
+import { describeSkippedFragments } from "./timelineGaps";
 import {
   flagsToArgs,
   getAxiosProxyConfig,
@@ -53,6 +54,8 @@ import { Video } from "../storageService";
 import { BaseDownloader, DownloadOptions, VideoInfo } from "./BaseDownloader";
 import {
   MISSAV_DEFAULT_CONCURRENT_FRAGMENTS,
+  MISSAV_DEFAULT_FRAGMENT_RETRIES,
+  MISSAV_DEFAULT_FRAGMENT_RETRY_SLEEP,
   MISSAV_PROGRESS_LOG_INTERVAL_MS,
 } from "./missav/constants";
 import {
@@ -715,6 +718,9 @@ export class MissAVDownloader extends BaseDownloader {
           : `MissAV playlist duration: ${sourceDurationSeconds.toFixed(1)}s`,
       );
 
+      // Read back from the tracker, which lives inside the release callback.
+      let skippedFragments = 0;
+
       // The m3u8 host (e.g. surrit.com) sits behind Cloudflare bot management
       // that fingerprints the TLS/JA3 handshake; a default yt-dlp request gets a
       // 403. Route every request through curl_cffi browser impersonation so the
@@ -754,6 +760,9 @@ export class MissAVDownloader extends BaseDownloader {
           // Must come after the network config: fragment concurrency is what
           // keeps a proxied HLS download from serialising on round trips.
           N: resolveMissAvConcurrentFragments(userConfig),
+          fragmentRetries:
+            userConfig.fragmentRetries ?? MISSAV_DEFAULT_FRAGMENT_RETRIES,
+          retrySleep: userConfig.retrySleep ?? MISSAV_DEFAULT_FRAGMENT_RETRY_SLEEP,
           addHeader: [`Referer:${referer}`],
         };
 
@@ -811,7 +820,7 @@ export class MissAVDownloader extends BaseDownloader {
               }
             }
           }
-          progressTracker.parseAndUpdate(output);
+          progressTracker.parseAndUpdate(output, source);
         };
 
         logger.info("Starting yt-dlp process with spawn...");
@@ -840,6 +849,7 @@ export class MissAVDownloader extends BaseDownloader {
             child.on("close", (code, signal) => {
               // Flush any throttled progress and clear the tracker's timer.
               progressTracker.dispose();
+              skippedFragments = progressTracker.skippedFragments;
               if (code === 0) {
                 resolve();
               } else if (
@@ -905,6 +915,11 @@ export class MissAVDownloader extends BaseDownloader {
         sourceDurationSeconds,
         userConfig,
       });
+      // A fragment yt-dlp gave up on leaves a gap, not a truncation: the file is
+      // kept, and the note says what is missing so the history can show it.
+      const incompleteNote = completeness.complete
+        ? await describeSkippedFragments(videoDownloadPath, skippedFragments)
+        : null;
       // Cancellation can remove the file while ffprobe is running. A failed
       // probe is intentionally fail-open, so recheck before publishing anything.
       if (cancellationRequested) throw DownloadCancelledError.create();
@@ -1156,7 +1171,7 @@ export class MissAVDownloader extends BaseDownloader {
               extractor: "missav",
             },
           });
-          return updatedVideo;
+          return storageService.withIncompleteDownloadNote(updatedVideo, incompleteNote);
         }
       }
 
@@ -1170,7 +1185,7 @@ export class MissAVDownloader extends BaseDownloader {
           extractor: "missav",
         },
       });
-      return persistedVideoData;
+      return storageService.withIncompleteDownloadNote(persistedVideoData, incompleteNote);
     } catch (error: unknown) {
       if (isCancelledError(error)) {
         logger.info("MissAV-family download cancelled:", { downloadId });

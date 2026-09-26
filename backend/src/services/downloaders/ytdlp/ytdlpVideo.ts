@@ -24,6 +24,7 @@ import {
   parseSourceDurationSeconds,
   verifyDownloadedMediaComplete,
 } from "../downloadIntegrity";
+import { describeSkippedFragments } from "../timelineGaps";
 import { resolveSupersededManagedPath } from "../supersededOutput";
 import { logger } from "../../../utils/logger";
 import { ProgressTracker } from "../../../utils/progressTracker";
@@ -170,6 +171,8 @@ export async function downloadVideo(
   let newSafeBaseFilename = safeBaseFilename;
   let releaseOutputReservation: (() => void) | null = null;
   let existingLocalVideo: Video | undefined;
+  // Set when yt-dlp left fragments out; recorded against the saved video.
+  let incompleteNote: storageService.IncompleteDownloadNote | null = null;
 
   // Legacy naming under author_folder_only / author_collection_linked places the
   // yt-dlp output in an author subdirectory, so cleanup has to scan the planned
@@ -412,6 +415,9 @@ export async function downloadVideo(
     subprocess.stdout?.on("data", (data: Buffer) => {
       progressTracker.parseAndUpdate(data.toString());
     });
+    subprocess.stderr?.on("data", (data: Buffer) => {
+      progressTracker.parseAndUpdate(data.toString(), "stderr");
+    });
 
     // Wait for download to complete
     try {
@@ -522,6 +528,12 @@ export async function downloadVideo(
           `The file was discarded; try downloading again.`
       );
     }
+    // A fragment yt-dlp gave up on leaves a gap, not a truncation: the file is
+    // kept, and the note says what is missing so the history can show it.
+    incompleteNote = await describeSkippedFragments(
+      newVideoPathWithFormat,
+      progressTracker.skippedFragments
+    );
 
     let subtitleArtifactBaseFilename = newSafeBaseFilename;
     if (ownedVideoReplacement) {
@@ -937,7 +949,7 @@ export async function downloadVideo(
       syncMediaServerArtifactsForRecord(finalVideoData, {
         rawSourceInfo,
       });
-      return finalVideoData;
+      return storageService.withIncompleteDownloadNote(finalVideoData, incompleteNote);
     }
   }
 
@@ -978,14 +990,14 @@ export async function downloadVideo(
       syncMediaServerArtifactsForRecord(updatedVideo, {
         rawSourceInfo,
       });
-      return updatedVideo;
+      return storageService.withIncompleteDownloadNote(updatedVideo, incompleteNote);
     }
   }
 
   syncMediaServerArtifactsForRecord(videoData, {
     rawSourceInfo,
   });
-  return videoData;
+  return storageService.withIncompleteDownloadNote(videoData, incompleteNote);
   } finally {
     releaseOutputReservation?.();
   }

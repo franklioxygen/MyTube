@@ -24,6 +24,10 @@ import * as thumbnailMirror from '../../../services/thumbnailMirrorService';
 vi.mock('../../../services/downloaders/downloadIntegrity', () => ({
   verifyDownloadedMediaComplete: vi.fn().mockResolvedValue({ complete: true }),
 }));
+vi.mock('../../../services/downloaders/timelineGaps', () => ({
+  describeSkippedFragments: vi.fn(async (_path: string, skipped: number) =>
+    skipped > 0 ? { kind: 'incomplete_download', skippedFragments: skipped, gaps: [] } : null),
+}));
 
 // A playlist body the mocked browser reports having fetched itself. The
 // duration lookup reads only these - it issues no requests of its own.
@@ -42,6 +46,7 @@ vi.mock('axios', () => ({
 
 vi.mock('puppeteer');
 vi.mock('../../../services/storageService', () => ({
+  withIncompleteDownloadNote: (video: any, note: any) => ({ ...video, incompleteDownloadNote: note ?? undefined }),
   saveVideo: vi.fn(),
   updateVideo: vi.fn(),
   updateActiveDownload: vi.fn(),
@@ -579,6 +584,34 @@ describe('MissAVDownloader', () => {
         expect(verifyDownloadedMediaComplete).toHaveBeenCalledExactlyOnceWith(videoPath, {
           sourceDurationSeconds: 24.5, userConfig: {},
         });
+      });
+
+      it('keeps a download yt-dlp left a fragment out of, and notes it', async () => {
+        vi.mocked(spawn).mockImplementation(() => {
+          const proc = createAutoClosingSpawnProc(0);
+          proc.stdout.on.mockImplementation((event: string, cb: (data: Buffer) => void) => {
+            if (event === 'data') {
+              cb(Buffer.from('[download] fragment not found; Skipping fragment 281 ...\n'));
+            }
+            return proc.stdout;
+          });
+          return proc;
+        });
+
+        const video = await MissAVDownloader.downloadVideo(url);
+
+        // A gap is not a truncation: the file is published, and the history
+        // row for it will carry the note.
+        expect(video.id).toBeTruthy();
+        expect(video.incompleteDownloadNote).toEqual(
+          { kind: 'incomplete_download', skippedFragments: 1, gaps: [] },
+        );
+      });
+
+      it('clears any note for a clean download', async () => {
+        const video = await MissAVDownloader.downloadVideo(url);
+
+        expect(video.incompleteDownloadNote).toBeUndefined();
       });
 
       it('uses the playlist body the browser already fetched', async () => {
@@ -1144,6 +1177,40 @@ describe('MissAVDownloader', () => {
       // The MissAV flag set is built from the network config, which carries no
       // -N, so the user's own setting used to be dropped here.
       expect(flags.N).toBe(8);
+    });
+
+    it('backs off between fragment retries by default', async () => {
+      const mockPage = buildPageMock('success');
+      const mockBrowser = { newPage: vi.fn().mockResolvedValue(mockPage), close: vi.fn().mockResolvedValue(undefined) };
+      (puppeteer.launch as ReturnType<typeof vi.fn>).mockResolvedValue(mockBrowser);
+
+      await MissAVDownloader.downloadVideo('https://missav.com/test-video').catch(() => {});
+
+      const calls = (flagsToArgs as ReturnType<typeof vi.fn>).mock.calls;
+      const flags = calls[calls.length - 1]?.[0] ?? {};
+
+      // yt-dlp's own default is 10 retries with no pause, which a CDN hiccup of
+      // a few seconds exhausts before the fragment is left out of the file.
+      expect(flags.fragmentRetries).toBe(20);
+      expect(flags.retrySleep).toBe('fragment:exp=1:20');
+    });
+
+    it('honours user-configured fragment retries', async () => {
+      (getUserYtDlpConfig as ReturnType<typeof vi.fn>).mockReturnValue({
+        fragmentRetries: 'infinite',
+        retrySleep: 'linear=1::2',
+      });
+      const mockPage = buildPageMock('success');
+      const mockBrowser = { newPage: vi.fn().mockResolvedValue(mockPage), close: vi.fn().mockResolvedValue(undefined) };
+      (puppeteer.launch as ReturnType<typeof vi.fn>).mockResolvedValue(mockBrowser);
+
+      await MissAVDownloader.downloadVideo('https://missav.com/test-video').catch(() => {});
+
+      const calls = (flagsToArgs as ReturnType<typeof vi.fn>).mock.calls;
+      const flags = calls[calls.length - 1]?.[0] ?? {};
+
+      expect(flags.fragmentRetries).toBe('infinite');
+      expect(flags.retrySleep).toBe('linear=1::2');
     });
 
     it('falls back to the default when the configured fragment count is not a number', async () => {

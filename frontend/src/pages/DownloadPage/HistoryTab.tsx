@@ -13,6 +13,7 @@ import {
 import React, { useMemo, useState } from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { DownloadHistoryItem, HistoryItem } from './HistoryItem';
+import { isIncompleteSave } from './historyStatus';
 
 import { usePaginationSwipeNavigation } from '../../hooks/usePaginationSwipeNavigation';
 import { useSettings } from '../../hooks/useSettings';
@@ -23,7 +24,7 @@ interface HistoryTabProps {
     onCancelRetry: (id: string) => void;
     onClear: () => void;
     onRetry: (sourceUrl: string) => void;
-    onReDownload: (sourceUrl: string) => void;
+    onReDownload: (sourceUrl: string, mediaType?: 'video' | 'audio') => void;
     onViewVideo: (videoId: string) => void;
     isDownloadInProgress: (sourceUrl: string) => boolean;
     removingId?: string | null;
@@ -56,7 +57,10 @@ export function HistoryTab({
     const filteredHistory = useMemo(() => {
         return history.filter((item) => {
             if (filterType === 'all') return true;
-            return item.status === filterType;
+            // Filter by what the row shows: a save with content missing is
+            // listed as incomplete, not as a success.
+            const shownStatus = isIncompleteSave(item) ? 'partial' : item.status;
+            return shownStatus === filterType;
         });
     }, [history, filterType]);
 
