@@ -3,6 +3,8 @@ import {
     Alert,
     Box,
     Button,
+    Checkbox,
+    FormControlLabel,
     LinearProgress,
     Link,
     List,
@@ -11,7 +13,7 @@ import {
 } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 import axios from 'axios';
-import React from 'react';
+import React, { useState } from 'react';
 import { Link as RouterLink } from 'react-router';
 import { useDownload } from '../../contexts/DownloadContext';
 import { useLanguage } from '../../contexts/LanguageContext';
@@ -20,9 +22,8 @@ import { getApiErrorMessage, hasAxiosStatus } from '../../utils/errors';
 import type { TranslationKey } from '../../utils/translations';
 import { useVideoReDownload } from '../ManagePage/hooks/useVideoReDownload';
 
-// The audit probes every local file, which on a large library can take
-// minutes. Match the /api proxy's read timeout in nginx.conf so the browser does
-// not give up first.
+// The mid-file scan reads whole files and can run for minutes. Match the /api
+// proxy's read timeout in nginx.conf so the browser does not give up first.
 const AUDIT_TIMEOUT_MS = 300000;
 
 type RecommendedAction = 'redownload' | 'refresh_duration' | 'manual_review';
@@ -40,6 +41,9 @@ interface MediaIntegrityAuditSummary {
     totalVideos: number;
     /** cloud:, mount: and remote rows, which the audit does not open. */
     skippedExternal: number;
+    /** Absent from backends that cannot run the mid-file check. */
+    timelineChecked?: boolean;
+    timelineIncomplete?: number;
 }
 
 // The response's humanSummary is English prose, so the summary is worded here
@@ -70,6 +74,7 @@ const MediaIntegrityAuditSettings: React.FC = () => {
     // a duplicate that writes the same replacement.
     const isSourceDownloading = (sourceUrl: string) =>
         [...activeDownloads, ...queuedDownloads].some((download) => download.sourceUrl === sourceUrl);
+    const [checkTimeline, setCheckTimeline] = useState(false);
 
     // A query rather than a mutation so a running or finished audit survives
     // switching settings tabs. It runs only when asked, and never retries: a
@@ -77,7 +82,10 @@ const MediaIntegrityAuditSettings: React.FC = () => {
     const { data: audit, error, isFetching, refetch } = useQuery({
         queryKey: ['mediaIntegrityAudit'],
         queryFn: async () => {
-            const response = await api.get('/media-integrity-audit', { timeout: AUDIT_TIMEOUT_MS });
+            const response = await api.get(
+                checkTimeline ? '/media-integrity-audit?timeline=1' : '/media-integrity-audit',
+                { timeout: AUDIT_TIMEOUT_MS }
+            );
             return response.data.audit as MediaIntegrityAudit;
         },
         enabled: false,
@@ -150,13 +158,25 @@ const MediaIntegrityAuditSettings: React.FC = () => {
             return null;
         }
         const checked = audit.summary.totalVideos - audit.summary.skippedExternal;
+        const timelineIncomplete = audit.summary.timelineIncomplete ?? 0;
         return (
             <>
                 <Alert severity={audit.items.length === 0 ? 'success' : 'warning'} sx={{ mt: 2 }}>
                     {audit.items.length === 0
                         ? t('mediaIntegrityAuditSummaryClean', { checked })
                         : t('mediaIntegrityAuditSummaryProblems', { checked, count: audit.items.length })}
+                    {/* A clean result must not read as covering what was never checked. */}
+                    {!audit.summary.timelineChecked && (
+                        <Box component="span" sx={{ display: 'block', mt: 0.5 }}>
+                            {t('mediaIntegrityAuditTimelineNotChecked')}
+                        </Box>
+                    )}
                 </Alert>
+                {timelineIncomplete > 0 && (
+                    <Alert severity="warning" sx={{ mt: 1 }}>
+                        {t('mediaIntegrityAuditTimelineIncomplete', { count: timelineIncomplete })}
+                    </Alert>
+                )}
                 {audit.items.length > 0 && (
                     <List disablePadding sx={{ mt: 1 }}>
                         {audit.items.map(renderItem)}
@@ -169,18 +189,30 @@ const MediaIntegrityAuditSettings: React.FC = () => {
     return (
         <Box id="mediaIntegrityAudit-setting">
             <Typography variant="h6" gutterBottom>{t('mediaIntegrityAudit')}</Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
                 {t('mediaIntegrityAuditDescription')}
             </Typography>
-            <Button
-                variant="outlined"
-                startIcon={<FactCheck />}
-                onClick={() => void refetch()}
-                loading={isFetching}
-                loadingPosition="start"
-            >
-                {t('mediaIntegrityAuditRun')}
-            </Button>
+            <FormControlLabel
+                control={
+                    <Checkbox
+                        checked={checkTimeline}
+                        onChange={(event) => setCheckTimeline(event.target.checked)}
+                        disabled={isFetching}
+                    />
+                }
+                label={t('mediaIntegrityAuditCheckTimeline')}
+            />
+            <Box sx={{ mt: 1 }}>
+                <Button
+                    variant="outlined"
+                    startIcon={<FactCheck />}
+                    onClick={() => void refetch()}
+                    loading={isFetching}
+                    loadingPosition="start"
+                >
+                    {t('mediaIntegrityAuditRun')}
+                </Button>
+            </Box>
             {renderOutcome()}
         </Box>
     );
