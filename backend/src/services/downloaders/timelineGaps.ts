@@ -204,10 +204,11 @@ export async function probeFrameShortfall(filePath: string): Promise<FrameShortf
  * the jump and the duration of the packet it lands on. A dropped segment is
  * followed by the stream's usual frames; a variable-frame-rate stream settling
  * into longer frames is followed by another long one, so it is not a gap.
- * Without a duration, the raw step is used. A packet whose own duration covers
- * the jump is ambiguous: a held frame and an MP4 gap can have identical packet
- * metadata. Keep it separate so the audit does not recommend a re-download as
- * though missing content were proven.
+ * Without a duration, use the preceding timestamp step as the cadence. The
+ * first step has no baseline and cannot establish a gap. A packet whose own
+ * duration covers the jump is ambiguous: a held frame and an MP4 gap can have
+ * identical packet metadata. Keep it separate so the audit does not recommend
+ * a re-download as though missing content were proven.
  */
 export function createGapFinder(stream: TimelineStream) {
   let previous: number | null = null;
@@ -228,8 +229,9 @@ export function createGapFinder(stream: TimelineStream) {
       if (previous !== null) {
         const step = timestamp - previous;
         const rhythm = Math.max(previousStep ?? previousDuration ?? 0, duration ?? 0);
-        const expected =
-          previousDuration === null ? 0 : Math.max(0, Math.min(previousDuration, rhythm));
+        const expected = previousDuration === null
+          ? previousStep ?? step
+          : Math.max(0, Math.min(previousDuration, rhythm));
         const gap = step - expected;
         if (gap > CONTIGUOUS_GAP_SECONDS) {
           const packetCoversStep =

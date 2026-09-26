@@ -113,7 +113,7 @@ describe('createGapFinder', () => {
   it('finds a single dropped segment', () => {
     const gaps = feed([0.021, 0.021, 4.03, 0.021], 1911.95 - 0.042);
 
-    expect(gaps).toEqual([{ stream: 'audio', atSeconds: 1911.95, gapSeconds: 4.03 }]);
+    expect(gaps).toEqual([{ stream: 'audio', atSeconds: 1911.97, gapSeconds: 4.01 }]);
   });
 
   it('ignores the one-and-two-frame steps some sources are packaged with', () => {
@@ -128,18 +128,25 @@ describe('createGapFinder', () => {
     // A run of failed fragments in one bad network window.
     const gaps = feed([0.021, 1.15, 0.021, 2.44, 0.021, 5.56, 0.021]);
 
-    expect(gaps.map((g) => g.gapSeconds)).toEqual([1.15, 2.44, 5.56]);
+    expect(gaps.map((g) => g.gapSeconds)).toEqual([1.13, 2.42, 5.54]);
   });
 
   it('skips lines that are not timestamps', () => {
     const finder = createGapFinder('video');
     for (const line of ['0.0', '', 'N/A', '0.033', '4.066']) finder.push(line);
 
-    expect(finder.gaps()).toEqual([{ stream: 'video', atSeconds: 0.03, gapSeconds: 4.03 }]);
+    expect(finder.gaps()).toEqual([{ stream: 'video', atSeconds: 0.07, gapSeconds: 4 }]);
   });
 
   it('caps how many gaps it keeps', () => {
-    expect(feed(Array.from({ length: 200 }, () => 2))).toHaveLength(50);
+    expect(feed([0.02, ...Array.from({ length: 100 }, () => [2, 0.02]).flat()])).toHaveLength(50);
+  });
+
+  it('does not call durationless low-frame-rate packets missing content', () => {
+    expect(feed([2, 2, 2])).toEqual([]);
+    const finder = createGapFinder('video');
+    for (const line of ['0,N/A', '2,N/A', '4,N/A', '6,N/A']) finder.push(line);
+    expect(finder.gaps()).toEqual([]);
   });
 
   /** Feed `dts,duration` lines, as the packet scan emits them. */
@@ -255,7 +262,7 @@ describe('findTimelineGaps', () => {
     const result = await findTimelineGaps('/videos/a.mp4');
 
     expect(result).toMatchObject({ complete: true, scannedStreams: ['video'] });
-    expect(result.gaps).toEqual([{ stream: 'video', atSeconds: 0.03, gapSeconds: 4.03 }]);
+    expect(result.gaps).toEqual([{ stream: 'video', atSeconds: 0.07, gapSeconds: 4 }]);
     expect(mocks.spawn.mock.calls[0][1]).toContain('V:0');
   });
 
@@ -283,7 +290,7 @@ describe('findTimelineGaps', () => {
     const result = await findTimelineGaps('/videos/a.mp4');
 
     expect(result).toMatchObject({ complete: true, scannedStreams: ['audio'] });
-    expect(result.gaps).toEqual([{ stream: 'audio', atSeconds: 0.02, gapSeconds: 4.02 }]);
+    expect(result.gaps).toEqual([{ stream: 'audio', atSeconds: 0.04, gapSeconds: 4 }]);
     expect(mocks.spawn.mock.calls[0][1]).toContain('a:0');
   });
 
@@ -299,7 +306,7 @@ describe('findTimelineGaps', () => {
     expect(result.complete).toBe(true);
     expect(mocks.spawn).toHaveBeenCalledOnce();
     expect(mocks.spawn.mock.calls[0][1]).toContain('V:0');
-    expect(result.gaps).toEqual([{ stream: 'video', atSeconds: 1127.92, gapSeconds: 4.03 }]);
+    expect(result.gaps).toEqual([{ stream: 'video', atSeconds: 1127.95, gapSeconds: 4 }]);
   });
 
   it('keeps an isolated long frame out of definite gap findings', async () => {
@@ -413,7 +420,7 @@ describe('describeSkippedFragments', () => {
     expect(await describeSkippedFragments('/videos/a.mp4', 1)).toEqual({
       kind: 'incomplete_download',
       skippedFragments: 1,
-      gaps: [{ stream: 'video', atSeconds: 1127.92, gapSeconds: 4.03 }],
+      gaps: [{ stream: 'video', atSeconds: 1127.95, gapSeconds: 4 }],
     });
   });
 

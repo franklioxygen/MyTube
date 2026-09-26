@@ -583,6 +583,48 @@ describe('auditMediaIntegrity', () => {
       expect(mocks.findTimelineGaps).toHaveBeenCalledOnce();
     });
 
+    it('shares a timeline scan between overlapping audits', async () => {
+      mocks.getVideosStrict.mockReturnValue([video()]);
+      const clean = { gaps: [] as unknown[], scannedStreams: [] as string[], complete: true };
+      let finishScan!: (value: typeof clean) => void;
+      mocks.findTimelineGaps.mockImplementationOnce(() => new Promise((resolve) => {
+        finishScan = resolve;
+      }));
+
+      const first = auditMediaIntegrity({ timeline: true });
+      await vi.waitFor(() => expect(mocks.findTimelineGaps).toHaveBeenCalledOnce());
+      const second = auditMediaIntegrity({ timeline: true });
+      await vi.waitFor(() => expect(mocks.statSafeSync).toHaveBeenCalledTimes(4));
+      expect(mocks.findTimelineGaps).toHaveBeenCalledOnce();
+
+      finishScan(clean);
+      await Promise.all([first, second]);
+      await auditMediaIntegrity({ timeline: true });
+      expect(mocks.findTimelineGaps).toHaveBeenCalledOnce();
+    });
+
+    it('does not let an older in-flight scan overwrite a replacement file result', async () => {
+      mocks.getVideosStrict.mockReturnValue([video()]);
+      const clean = { gaps: [] as unknown[], scannedStreams: [] as string[], complete: true };
+      const finishScans: Array<(value: typeof clean) => void> = [];
+      mocks.findTimelineGaps.mockImplementation(() => new Promise((resolve) => {
+        finishScans.push(resolve);
+      }));
+
+      const first = auditMediaIntegrity({ timeline: true });
+      await vi.waitFor(() => expect(mocks.findTimelineGaps).toHaveBeenCalledOnce());
+      mocks.statSafeSync.mockReturnValue({ mtimeMs: 2, size: 200 });
+      const second = auditMediaIntegrity({ timeline: true });
+      await vi.waitFor(() => expect(mocks.findTimelineGaps).toHaveBeenCalledTimes(2));
+
+      finishScans[1](clean);
+      await second;
+      finishScans[0](clean);
+      await first;
+      await auditMediaIntegrity({ timeline: true });
+      expect(mocks.findTimelineGaps).toHaveBeenCalledTimes(2);
+    });
+
     it('retries an incomplete scan on the next audit', async () => {
       mocks.getVideosStrict.mockReturnValue([video()]);
       mocks.findTimelineGaps

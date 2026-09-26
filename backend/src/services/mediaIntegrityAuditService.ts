@@ -131,16 +131,24 @@ interface TimelineCacheEntry {
 }
 
 const timelineCache = new Map<string, TimelineCacheEntry>();
+type TimelineScanResult = { gaps: TimelineGap[]; possibleGaps: TimelineGap[]; complete: boolean };
+interface TimelineInFlightEntry {
+  mtimeMs: number;
+  size: number;
+  promise: Promise<TimelineScanResult>;
+}
+const timelineInFlight = new Map<string, TimelineInFlightEntry>();
 
 /** Exposed for tests; a fresh process starts with an empty cache anyway. */
 export function clearMediaIntegrityProbeCache(): void {
   probeCache.clear();
   timelineCache.clear();
+  timelineInFlight.clear();
 }
 
 async function timelineGapsWithCache(
   absolutePath: string
-): Promise<{ gaps: TimelineGap[]; possibleGaps: TimelineGap[]; complete: boolean }> {
+): Promise<TimelineScanResult> {
   let stat: { mtimeMs: number; size: number } | null = null;
   try {
     stat = statSafeSync(absolutePath, VIDEOS_DIR);
@@ -160,18 +168,40 @@ async function timelineGapsWithCache(
     return { gaps: cached.gaps, possibleGaps: cached.possibleGaps, complete: true };
   }
 
-  const { gaps, possibleGaps = [], complete } = await findTimelineGaps(absolutePath);
-  // A failed scan is unknown; retry it on the next audit.
-  if (stat && complete) {
-    timelineCache.set(absolutePath, {
-      mtimeMs: stat.mtimeMs,
-      size: stat.size,
-      cachedAtMs: now,
-      gaps,
-      possibleGaps,
-    });
+  if (!stat) {
+    const { gaps, possibleGaps = [], complete } = await findTimelineGaps(absolutePath);
+    return { gaps, possibleGaps, complete };
   }
-  return { gaps, possibleGaps, complete };
+
+  const pending = timelineInFlight.get(absolutePath);
+  if (pending && pending.mtimeMs === stat.mtimeMs && pending.size === stat.size) {
+    return pending.promise;
+  }
+
+  const promise = findTimelineGaps(absolutePath).then(
+    ({ gaps, possibleGaps = [], complete }) => ({ gaps, possibleGaps, complete })
+  );
+  const entry: TimelineInFlightEntry = { mtimeMs: stat.mtimeMs, size: stat.size, promise };
+  timelineInFlight.set(absolutePath, entry);
+  try {
+    const result = await promise;
+    // An older scan must not overwrite the cache after a replacement starts a
+    // new scan. Incomplete scans are unknown and should be retried next time.
+    if (timelineInFlight.get(absolutePath) === entry && result.complete) {
+      timelineCache.set(absolutePath, {
+        mtimeMs: stat.mtimeMs,
+        size: stat.size,
+        cachedAtMs: Date.now(),
+        gaps: result.gaps,
+        possibleGaps: result.possibleGaps,
+      });
+    }
+    return result;
+  } finally {
+    if (timelineInFlight.get(absolutePath) === entry) {
+      timelineInFlight.delete(absolutePath);
+    }
+  }
 }
 
 function readString(value: unknown): string | null {
