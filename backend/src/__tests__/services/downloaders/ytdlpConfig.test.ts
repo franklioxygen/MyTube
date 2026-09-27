@@ -141,6 +141,28 @@ describe("prepareDownloadFlags final container preference", () => {
     expect(result.flags.subLangs).toBeUndefined();
   });
 
+  it("drops a user quiet mode so skipped-fragment lines still reach the tracker", () => {
+    for (const quietConfig of [{ quiet: true }, { q: true }]) {
+      const video = prepareDownloadFlags(
+        "https://www.youtube.com/watch?v=abc123",
+        "/tmp/video.mp4",
+        { ...quietConfig, cookies: "/cookies.txt" } as any,
+      );
+      const audio = prepareAudioDownloadFlags(
+        "https://www.youtube.com/watch?v=abc123",
+        "/tmp/track.m4a",
+        "m4a",
+        { ...quietConfig, cookies: "/cookies.txt" } as any,
+      );
+
+      for (const flags of [video.flags, audio.flags]) {
+        expect(flags).toMatchObject({ cookies: "/cookies.txt" });
+        expect(flags).not.toHaveProperty("quiet");
+        expect(flags).not.toHaveProperty("q");
+      }
+    }
+  });
+
   it("switches the default YouTube WebM-first selector to MP4 when forcing MP4", () => {
     mockGetSettings.mockReturnValue({
       preferredVideoContainer: "mp4",
