@@ -29,6 +29,7 @@ import { resolveSupersededManagedPath } from "./supersededOutput";
 import { FilenameTemplateSourceOptions } from "../filenameTemplate/types";
 import { findRedownloadTargetBySourceIdentity } from "./redownloadTarget";
 import { verifyDownloadedMediaComplete } from "./downloadIntegrity";
+import { createSkippedFragmentNote } from "./skippedFragmentNote";
 import {
   flagsToArgs,
   getAxiosProxyConfig,
@@ -750,6 +751,9 @@ export class MissAVDownloader extends BaseDownloader {
           : `MissAV playlist duration: ${sourceDurationSeconds.toFixed(1)}s`,
       );
 
+      // Read back from the tracker, which lives inside the release callback.
+      let skippedFragments = 0;
+
       // The m3u8 host (e.g. surrit.com) sits behind Cloudflare bot management
       // that fingerprints the TLS/JA3 handshake; a default yt-dlp request gets a
       // 403. Route every request through curl_cffi browser impersonation so the
@@ -849,7 +853,7 @@ export class MissAVDownloader extends BaseDownloader {
               }
             }
           }
-          progressTracker.parseAndUpdate(output);
+          progressTracker.parseAndUpdate(output, source);
         };
 
         logger.info("Starting yt-dlp process with spawn...");
@@ -878,6 +882,7 @@ export class MissAVDownloader extends BaseDownloader {
             child.on("close", (code, signal) => {
               // Flush any throttled progress and clear the tracker's timer.
               progressTracker.dispose();
+              skippedFragments = progressTracker.skippedFragments;
               if (code === 0) {
                 resolve();
               } else if (
@@ -943,8 +948,11 @@ export class MissAVDownloader extends BaseDownloader {
         sourceDurationSeconds,
         userConfig,
       });
-      // Cancellation can remove the file while ffprobe is running. A failed
-      // probe is intentionally fail-open, so recheck before publishing anything.
+      // Keep the file and record yt-dlp's skipped-fragment warning in history.
+      const incompleteNote = completeness.complete
+        ? createSkippedFragmentNote(skippedFragments)
+        : null;
+      // Cancellation can remove the file before publishing anything.
       if (cancellationRequested) throw DownloadCancelledError.create();
       downloader.throwIfCancelled(downloadId);
       if (!completeness.complete) {
@@ -1194,7 +1202,7 @@ export class MissAVDownloader extends BaseDownloader {
               extractor: "missav",
             },
           });
-          return updatedVideo;
+          return storageService.withIncompleteDownloadNote(updatedVideo, incompleteNote);
         }
       }
 
@@ -1208,7 +1216,7 @@ export class MissAVDownloader extends BaseDownloader {
           extractor: "missav",
         },
       });
-      return persistedVideoData;
+      return storageService.withIncompleteDownloadNote(persistedVideoData, incompleteNote);
     } catch (error: unknown) {
       if (isCancelledError(error)) {
         logger.info("MissAV-family download cancelled:", { downloadId });

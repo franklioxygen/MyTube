@@ -139,7 +139,7 @@ vi.mock('../DownloadPage/QueueTab', () => ({
 }));
 
 vi.mock('../DownloadPage/HistoryTab', () => ({
-    HistoryTab: (props: { onRemove: (id: string) => void; onCancelRetry: (id: string) => void; onClear: () => void; onRetry: (url: string) => void; onReDownload: (url: string) => void; onViewVideo: (id: string) => void; [key: string]: unknown }) => {
+    HistoryTab: (props: { onRemove: (id: string) => void; onCancelRetry: (id: string) => void; onClear: () => void; onRetry: (url: string) => void; onReDownload: (url: string, mediaType?: 'video' | 'audio') => void; onViewVideo: (id: string) => void; [key: string]: unknown }) => {
         capturedHistoryPropsRef.current = props;
         return (
             <div data-testid="HistoryTab">
@@ -148,6 +148,7 @@ vi.mock('../DownloadPage/HistoryTab', () => ({
                 <button data-testid="clear-history-btn" onClick={() => { props.onClear(); }}>Clear History</button>
                 <button data-testid="retry-btn" onClick={() => { props.onRetry('https://example.com/retry'); }}>Retry</button>
                 <button data-testid="redownload-btn" onClick={() => { props.onReDownload('https://example.com/redownload'); }}>ReDownload</button>
+                <button data-testid="redownload-audio-btn" onClick={() => { props.onReDownload('https://example.com/redownload', 'audio'); }}>ReDownload Audio</button>
                 <button data-testid="view-video-btn" onClick={() => { props.onViewVideo('video-123'); }}>View Video</button>
             </div>
         );
@@ -568,6 +569,25 @@ describe('DownloadPage', () => {
                 expect(mockApi.post).toHaveBeenCalledWith('/download', {
                     youtubeUrl: 'https://example.com/redownload',
                     forceDownload: true,
+                    audioOnly: false,
+                });
+            });
+        });
+
+        it('handleReDownload keeps an audio item in audio mode', async () => {
+            mockApi.post.mockResolvedValue({ data: { downloadId: 'new-dl-1' } });
+            renderPage();
+            fireEvent.click(screen.getByText('downloadHistory'));
+
+            await act(async () => {
+                fireEvent.click(screen.getByTestId('redownload-audio-btn'));
+            });
+
+            await waitFor(() => {
+                expect(mockApi.post).toHaveBeenCalledWith('/download', {
+                    youtubeUrl: 'https://example.com/redownload',
+                    forceDownload: true,
+                    audioOnly: true,
                 });
             });
         });

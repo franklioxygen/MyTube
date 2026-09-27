@@ -81,6 +81,22 @@ describe('cloudStorage videoUploader', () => {
         expect(fs.unlinkSync).toHaveBeenCalledTimes(3); // Metadata + Video + Thumbnail
     });
 
+    it('should keep the per-attempt incomplete-download note out of metadata', async () => {
+        await uploadVideo(
+            {
+                ...mockVideoData,
+                incompleteDownloadNote: { kind: 'incomplete_download', skippedFragments: 1 },
+            },
+            mockConfig,
+        );
+
+        const metadataJson = vi.mocked(fs.writeFileSync).mock.calls
+            .find(([filePath]) => String(filePath).endsWith('test.json'))?.[1];
+        const metadata = JSON.parse(String(metadataJson));
+        expect(metadata).toMatchObject({ id: 'video-123', title: 'Test Video' });
+        expect(metadata).not.toHaveProperty('incompleteDownloadNote');
+    });
+
     it('should handle skipped uploads (already exists)', async () => {
         vi.mocked(fileUploader.uploadFile).mockResolvedValue({ uploaded: false, skipped: true });
         

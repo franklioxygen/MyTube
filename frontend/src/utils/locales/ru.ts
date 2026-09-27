@@ -984,6 +984,9 @@ export const ru = {
   retryAttemptProgress: "Повтор {current} из {total}",
   missingEpisodes: "Отсутствующие эпизоды",
   missingVideos: "Отсутствующие видео",
+  incompleteDownloadVideoGap: "Видео: пропущено {seconds} с на {positions}",
+  incompleteDownloadAudioGap: "Аудио: пропущено {seconds} с на {positions}",
+  incompleteDownloadFragments: "Не загружено фрагментов: {count}. Скачайте снова, чтобы попытаться их восстановить.",
 
 
   // Snackbar Messages

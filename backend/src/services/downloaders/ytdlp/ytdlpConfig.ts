@@ -175,6 +175,10 @@ function extractUserConfigOptions(
     convertSubs: userConvertSubs,
     mergeOutputFormat: userMergeOutputFormat,
     proxy: _proxy,
+    // Quiet mode hides the "Skipping fragment" lines that incomplete-download
+    // detection counts, so a download must never run with it.
+    quiet: _quiet,
+    q: _q,
     ...safeUserConfig
   } = config;
 

@@ -461,6 +461,21 @@ describe('prepareBilibiliDownloadFlags', () => {
     });
   });
 
+  it('drops a user quiet mode so skipped-fragment lines still reach the tracker', () => {
+    for (const quietConfig of [{ quiet: true }, { q: true }]) {
+      for (const audioOnly of [false, true]) {
+        const { flags } = prepareBilibiliDownloadFlags(TEST_URL, TEST_OUTPUT, {
+          audioOnly,
+          userConfig: { ...quietConfig, cookies: '/cookies.txt' },
+        });
+
+        expect(flags).toMatchObject({ cookies: '/cookies.txt' });
+        expect(flags).not.toHaveProperty('quiet');
+        expect(flags).not.toHaveProperty('q');
+      }
+    }
+  });
+
   describe('audio-only mode (issue #345)', () => {
     it('uses the default best-audio selector when the config has no format', () => {
       const result = prepareBilibiliDownloadFlags(TEST_URL, TEST_OUTPUT, {

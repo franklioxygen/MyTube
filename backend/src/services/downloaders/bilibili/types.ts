@@ -13,6 +13,8 @@ export interface BilibiliVideoInfo {
   authorAvatarPath?: string;
   downloadedVideoPath?: string;
   downloadedVideoExtension?: string;
+  /** Fragments yt-dlp gave up on and left out of the downloaded file. */
+  skippedFragments?: number;
   error?: string;
 }
 
@@ -59,7 +61,7 @@ export interface BilibiliAggregateDownloadResult {
   skippedCount: number;
   failedPartNumbers: number[];
   firstVideo?: Video;
-  /** Videos newly saved by an all-parts task, excluding skipped existing rows. */
+  /** Videos newly saved by an all-parts or collection task, excluding skipped existing rows. */
   downloadedVideos?: Video[];
   collectionId?: string;
   videosDownloaded?: number;

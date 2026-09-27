@@ -417,6 +417,8 @@ export function prepareBilibiliDownloadFlags(
       writeAutoSubs: _writeAutoSubs,
       convertSubs: _convertSubs,
       mergeOutputFormat: _mergeOutputFormat,
+      quiet: _quiet,
+      q: _q,
       ...safeUserConfig
     } = userConfig;
     const audioFormat = normalizeAudioFormat(options.audioFormat);
@@ -471,6 +473,10 @@ export function prepareBilibiliDownloadFlags(
     writeAutoSubs: _writeAutoSubs,
     convertSubs: _convertSubs,
     mergeOutputFormat: _mergeOutputFormat,
+    // Quiet mode hides the "Skipping fragment" lines that incomplete-download
+    // detection counts.
+    quiet: _quiet,
+    q: _q,
     ...safeUserConfig
   } = userConfig;
 

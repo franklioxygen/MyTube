@@ -4,7 +4,11 @@ import { db } from "../../db";
 import { downloadHistory, subscriptions, videos } from "../../db/schema";
 import { logger } from "../../utils/logger";
 import { getSettings } from "./settings";
-import { DownloadHistoryItem, MediaType, normalizeMediaType } from "./types";
+import {
+  DownloadHistoryItem,
+  MediaType,
+  normalizeMediaType,
+} from "./types";
 import { PARTIAL_STATUS, PENDING_RETRY_STATUS } from "./downloadHistoryStatus";
 
 function mapDownloadHistoryRow(row: typeof downloadHistory.$inferSelect): DownloadHistoryItem {
@@ -36,6 +40,10 @@ function mapDownloadHistoryRow(row: typeof downloadHistory.$inferSelect): Downlo
 
 export function addDownloadHistoryItem(item: DownloadHistoryItem): void {
   try {
+    // The row stays "success": retention, renames and deletion tombstones all
+    // key on that status, and the video is in the library. The note rides in
+    // `error` as JSON, which the history view renders, localized, as an
+    // incomplete download.
     const values = {
       id: item.id,
       title: item.title,
@@ -43,7 +51,9 @@ export function addDownloadHistoryItem(item: DownloadHistoryItem): void {
       sourceUrl: item.sourceUrl ?? null,
       finishedAt: item.finishedAt,
       status: item.status,
-      error: item.error ?? null,
+      error: item.error ?? (item.status === "success" && item.incompleteDownloadNote
+        ? JSON.stringify(item.incompleteDownloadNote)
+        : null),
       videoPath: item.videoPath ?? null,
       thumbnailPath: item.thumbnailPath ?? null,
       totalSize: item.totalSize ?? null,

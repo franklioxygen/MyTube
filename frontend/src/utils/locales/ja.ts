@@ -982,6 +982,9 @@ export const ja = {
   retryAttemptProgress: "再試行 {current} / {total}",
   missingEpisodes: "不足しているエピソード",
   missingVideos: "不足している動画",
+  incompleteDownloadVideoGap: "動画が {seconds} 秒欠落しています（位置：{positions}）",
+  incompleteDownloadAudioGap: "音声が {seconds} 秒欠落しています（位置：{positions}）",
+  incompleteDownloadFragments: "ダウンロードできなかったフラグメント：{count} 件。再ダウンロードすると復元できる場合があります。",
 
 
   // Snackbar Messages
