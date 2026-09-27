@@ -65,7 +65,7 @@ export interface TimelineGapResult {
   gaps: TimelineGap[];
   /** A long packet can be either a deliberate held frame or a muxer-swollen gap. */
   possibleGaps?: TimelineGap[];
-  /** Streams scanned because of a shortfall or an unavailable frame count. */
+  /** Streams scanned because of a measurable frame-count shortfall. */
   scannedStreams: TimelineStream[];
   /** False when the header probe or any required packet scan could not finish. */
   complete: boolean;
@@ -229,10 +229,10 @@ export function createGapFinder(stream: TimelineStream) {
       timestampCount += 1;
       if (previous !== null) {
         const step = timestamp - previous;
-        if (previousDuration === null) {
+        if (previousDuration === null || duration === null) {
           if (step > CONTIGUOUS_GAP_SECONDS) unmeasurable = true;
         } else {
-          const rhythm = Math.max(previousStep ?? previousDuration, duration ?? 0);
+          const rhythm = Math.max(previousStep ?? previousDuration, duration);
           const expected = Math.max(0, Math.min(previousDuration, rhythm));
           const gap = step - expected;
           if (gap > CONTIGUOUS_GAP_SECONDS) {
@@ -359,7 +359,8 @@ export function summarizeTimelineGaps(gaps: TimelineGap[]): string {
 
 /**
  * Find content missing from the middle of a file. Runs the expensive packet scan
- * only on streams whose frame count says something is missing.
+ * only on streams whose frame count says something is missing. Streams without
+ * measurable frame counts remain inconclusive instead of forcing a full scan.
  *
  * Fails open like the rest of the integrity checks: anything that cannot be
  * measured reports no gaps.
@@ -369,12 +370,17 @@ export async function findTimelineGaps(filePath: string): Promise<TimelineGapRes
   if (!shortfall.presentStreams?.length) {
     return { gaps: [], scannedStreams: [], complete: false };
   }
+  const unmeasurableStreams = shortfall.presentStreams.some(
+    (stream) => shortfall[stream] === null
+  );
   const suspicious = shortfall.presentStreams.filter(
-    (stream) =>
-      shortfall[stream] === null || shortfall[stream] > FRAME_SHORTFALL_PREFILTER_SECONDS
+    (stream) => (shortfall[stream] ?? 0) > FRAME_SHORTFALL_PREFILTER_SECONDS
   );
   if (suspicious.length === 0) {
-    return { gaps: [], scannedStreams: [], complete: true };
+    return {
+      gaps: [], scannedStreams: [], complete: true,
+      ...(unmeasurableStreams ? { unmeasurable: true } : {}),
+    };
   }
 
   let validatedPath: string;
@@ -387,7 +393,7 @@ export async function findTimelineGaps(filePath: string): Promise<TimelineGapRes
   const gaps: TimelineGap[] = [];
   const possibleGaps: TimelineGap[] = [];
   let complete = true;
-  let unmeasurable = false;
+  let unmeasurable = unmeasurableStreams;
   for (const stream of suspicious) {
     const found = await scanStreamForGaps(validatedPath, stream);
     if (found) {

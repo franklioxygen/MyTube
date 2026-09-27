@@ -158,6 +158,15 @@ describe('createGapFinder', () => {
     expect(finder.hasUnmeasurableSteps()).toBe(true);
   });
 
+  it('does not call a VFR cadence change a gap when the destination duration is missing', () => {
+    const finder = createGapFinder('video');
+    for (const line of ['0,0.033', '0.033,0.033', '2.033,N/A', '4.033,2']) finder.push(line);
+
+    expect(finder.gaps()).toEqual([]);
+    expect(finder.possibleGaps()).toEqual([]);
+    expect(finder.hasUnmeasurableSteps()).toBe(true);
+  });
+
   /** Feed `dts,duration` lines, as the packet scan emits them. */
   const feedPackets = (packets: [number, number][]) => {
     const finder = createGapFinder('video');
@@ -263,23 +272,21 @@ describe('findTimelineGaps', () => {
     expect(mocks.spawn).not.toHaveBeenCalled();
   });
 
-  it('scans present video when its frame count is unavailable', async () => {
+  it('does not scan video when its frame count is unavailable', async () => {
     const noCount = { ...video(1800, '30/1', 60), nb_frames: 'N/A' };
     mocks.execFileSafe.mockResolvedValue({ stdout: header([noCount, aac(2813, 60.010667)]) });
-    mocks.spawn.mockImplementation(() => fakeScan(['0,0.033', '0.033,0.033', '4.066,0.033']));
 
     const result = await findTimelineGaps('/videos/a.mp4');
 
-    expect(result).toMatchObject({ complete: true, scannedStreams: ['video'] });
-    expect(result.gaps).toEqual([{ stream: 'video', atSeconds: 0.07, gapSeconds: 4 }]);
-    expect(mocks.spawn.mock.calls[0][1]).toContain('V:0');
+    expect(result).toEqual({ gaps: [], scannedStreams: [], complete: true, unmeasurable: true });
+    expect(mocks.spawn).not.toHaveBeenCalled();
   });
 
   it('scans the real video, not cover art stored ahead of it', async () => {
     const cover = { ...video(1, '90000/1', 60), disposition: { attached_pic: 1 } };
-    const noCount = { ...video(1800, '30/1', 60), nb_frames: 'N/A' };
+    const shortVideo = video(1680, '30/1', 60);
     mocks.execFileSafe.mockResolvedValue({
-      stdout: header([cover, noCount, aac(2813, 60.010667)]),
+      stdout: header([cover, shortVideo, aac(2813, 60.010667)]),
     });
     mocks.spawn.mockImplementation(() => fakeScan(['0,0.033', '0.033,0.033', '4.066,0.033']));
 
@@ -291,16 +298,26 @@ describe('findTimelineGaps', () => {
     expect(mocks.spawn.mock.calls[0][1]).toContain('packet=dts_time,duration_time');
   });
 
-  it('scans present non-AAC audio even though its frame duration is unknown', async () => {
+  it('does not scan non-AAC audio with an unmeasurable frame duration', async () => {
     const opus = { ...aac(100000, 60.010667), codec_name: 'opus' };
     mocks.execFileSafe.mockResolvedValue({ stdout: header([video(1800, '30/1', 60), opus]) });
-    mocks.spawn.mockImplementation(() => fakeScan(['0,0.021', '0.021,0.021', '4.042,0.021']));
 
     const result = await findTimelineGaps('/videos/a.mp4');
 
-    expect(result).toMatchObject({ complete: true, scannedStreams: ['audio'] });
-    expect(result.gaps).toEqual([{ stream: 'audio', atSeconds: 0.04, gapSeconds: 4 }]);
-    expect(mocks.spawn.mock.calls[0][1]).toContain('a:0');
+    expect(result).toEqual({ gaps: [], scannedStreams: [], complete: true, unmeasurable: true });
+    expect(mocks.spawn).not.toHaveBeenCalled();
+  });
+
+  it('scans a measured shortfall while leaving an unmeasured stream inconclusive', async () => {
+    const opus = { ...aac(100000, 60.010667), codec_name: 'opus' };
+    mocks.execFileSafe.mockResolvedValue({ stdout: header([video(1680, '30/1', 60), opus]) });
+    mocks.spawn.mockImplementation(() => fakeScan(['0,0.033', '0.033,0.033', '4.066,0.033']));
+
+    const result = await findTimelineGaps('/videos/a.mp4');
+
+    expect(result).toMatchObject({ complete: true, scannedStreams: ['video'], unmeasurable: true });
+    expect(result.gaps).toEqual([{ stream: 'video', atSeconds: 0.07, gapSeconds: 4 }]);
+    expect(mocks.spawn).toHaveBeenCalledOnce();
   });
 
   it('scans only the stream that falls short, and reports where the gap is', async () => {
@@ -335,8 +352,7 @@ describe('findTimelineGaps', () => {
   });
 
   it('reports missing packet durations as unmeasurable instead of missing content', async () => {
-    const noCount = { ...video(1800, '30/1', 60), nb_frames: 'N/A' };
-    mocks.execFileSafe.mockResolvedValue({ stdout: header([noCount]) });
+    mocks.execFileSafe.mockResolvedValue({ stdout: header([video(1680, '30/1', 60)]) });
     mocks.spawn.mockImplementation(() => fakeScan(['0,N/A', '0.033,N/A', '2.033,N/A', '4.033,N/A']));
 
     const result = await findTimelineGaps('/videos/a.mp4');
