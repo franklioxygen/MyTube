@@ -40,7 +40,9 @@ export type MediaIntegrityAuditReason =
   /** Content missing mid-file: the timestamps jump over it (usually a dropped fragment). */
   | "timeline_gap"
   /** A long packet could be an intentional held frame or missing content. */
-  | "timeline_ambiguous";
+  | "timeline_ambiguous"
+  /** The timeline scan could not finish, or packet timing could not be measured. */
+  | "timeline_inconclusive";
 
 export type MediaIntegrityRecommendedAction =
   | "redownload"
@@ -321,6 +323,11 @@ function describe(
         `packet timing at ${where} could be an intentional held frame or missing content; ` +
         "compare with the source before re-downloading"
       );
+    } else if (reason === "timeline_inconclusive") {
+      parts.push(
+        "the mid-file check could not finish or measure packet timing; " +
+        "inspect the file manually, or retry if the scan was interrupted"
+      );
     } else {
       parts.push("the file exists but ffprobe could not read it");
     }
@@ -354,7 +361,7 @@ function resolveAction(
   if (reasons.includes("unprobeable")) {
     return "manual_review";
   }
-  if (reasons.includes("timeline_ambiguous")) {
+  if (reasons.includes("timeline_ambiguous") || reasons.includes("timeline_inconclusive")) {
     return "manual_review";
   }
   return "refresh_duration";
@@ -537,15 +544,16 @@ export async function auditMediaIntegrity(
       }
 
       if (options.timeline) {
+        let inconclusive = false;
         try {
           const scan = await timelineGapsWithCache(absolutePath);
           gaps = scan.gaps;
           possibleGaps = scan.possibleGaps;
-          if (!scan.complete || scan.unmeasurable) summary.timelineIncomplete += 1;
+          inconclusive = !scan.complete || scan.unmeasurable;
         } catch (error) {
           // findTimelineGaps fails open on its own; reaching here is unexpected.
           logger.warn(`Integrity audit could not scan ${absolutePath}:`, error);
-          summary.timelineIncomplete += 1;
+          inconclusive = true;
         }
         if (gaps.length > 0) {
           reasons.push("timeline_gap");
@@ -554,6 +562,11 @@ export async function auditMediaIntegrity(
         if (possibleGaps.length > 0) {
           reasons.push("timeline_ambiguous");
           summary.timelineAmbiguous += 1;
+        }
+        // Listed rather than only counted, so the files to inspect are named.
+        if (inconclusive) {
+          reasons.push("timeline_inconclusive");
+          summary.timelineIncomplete += 1;
         }
       }
     }

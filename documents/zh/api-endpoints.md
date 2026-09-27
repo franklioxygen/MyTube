@@ -295,7 +295,7 @@
 - `GET /api/media-integrity-audit` - 检查媒体库中本地媒体文件是否损坏 (仅管理员)
   - 只读：只报告问题并给出建议操作，不会修复或重新下载任何内容
   - 报告以下情况：文件缺失、音视频轨道时长不一致、存储的时长与文件不符、ffprobe 无法读取
-  - 查询参数: `timeline=1` 额外检查文件中间缺失的内容，以原因 `timeline_gap` 报告，并附带 `gaps` 列表 `{ stream, atSeconds, gapSeconds }`。较长的分片时长会以 `timeline_ambiguous` 提示人工检查；缺少分片时长时不会据此断定内容缺失。仅扫描可测得帧数缺口的流；帧数无法测量的流会报告为无法判断。需要主动开启，因为扫描会读取整个文件；未改动文件的已完成结果缓存一天
+  - 查询参数: `timeline=1` 额外检查文件中间缺失的内容，以原因 `timeline_gap` 报告，并附带 `gaps` 列表 `{ stream, atSeconds, gapSeconds }`。较长的分片时长会以 `timeline_ambiguous` 提示人工检查；缺少分片时长时不会据此断定内容缺失。仅扫描可测得帧数缺口的流；帧数无法测量的流会报告为无法判断。每个无法判断的文件都会以原因 `timeline_inconclusive` 列出，供人工检查。需要主动开启，因为扫描会读取整个文件；未改动文件的已完成结果缓存一天
   - `cloud:`、`mount:` 和 `http(s)` 记录会被跳过，不会报告为缺失
   - 响应: `{ success, audit: { generatedAt, summary, items, humanSummary } }`
   - 每一项: `{ localVideoId, title, mediaType, sourceUrl, videoPath, reasons, detail, storedDurationSeconds, measured, recommendedAction }`，其中 `mediaType` 为 `video` 或 `audio`，`recommendedAction` 为 `redownload`、`refresh_duration` 或 `manual_review`

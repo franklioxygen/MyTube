@@ -637,12 +637,14 @@ describe('auditMediaIntegrity', () => {
 
       expect(mocks.findTimelineGaps).toHaveBeenCalledTimes(2);
       expect(first.summary.timelineIncomplete).toBe(1);
+      expect(first.items[0].reasons).toEqual(['timeline_inconclusive']);
       expect(first.humanSummary).toContain('inconclusive for 1 file');
       expect(second.summary.timelineIncomplete).toBe(0);
+      expect(second.items).toEqual([]);
       expect(third.summary.timelineIncomplete).toBe(0);
     });
 
-    it('does not recommend a re-download for unmeasurable packet timing', async () => {
+    it('lists unmeasurable packet timing for manual review, not a re-download', async () => {
       mocks.getVideosStrict.mockReturnValue([video()]);
       mocks.findTimelineGaps.mockResolvedValue({
         gaps: [], scannedStreams: ['video'], complete: true, unmeasurable: true,
@@ -651,11 +653,28 @@ describe('auditMediaIntegrity', () => {
       const first = await auditMediaIntegrity({ timeline: true });
       const second = await auditMediaIntegrity({ timeline: true });
 
-      expect(first.items).toEqual([]);
+      expect(first.items).toHaveLength(1);
+      expect(first.items[0].reasons).toEqual(['timeline_inconclusive']);
+      expect(first.items[0].recommendedAction).toBe('manual_review');
+      expect(first.items[0].detail).toContain('inspect the file manually');
       expect(first.summary.timelineIncomplete).toBe(1);
+      expect(first.humanSummary).toContain('no integrity problems found in completed checks');
       expect(first.humanSummary).toContain('inconclusive for 1 file');
       expect(second.summary.timelineIncomplete).toBe(1);
       expect(mocks.findTimelineGaps).toHaveBeenCalledOnce();
+    });
+
+    it('still recommends a re-download when a partial scan found a gap', async () => {
+      mocks.getVideosStrict.mockReturnValue([video()]);
+      mocks.findTimelineGaps.mockResolvedValue({
+        gaps: [gap('video', 1127.92, 4.03)], scannedStreams: ['video', 'audio'], complete: false,
+      });
+
+      const result = await auditMediaIntegrity({ timeline: true });
+
+      expect(result.items[0].reasons).toEqual(['timeline_gap', 'timeline_inconclusive']);
+      expect(result.items[0].recommendedAction).toBe('redownload');
+      expect(result.summary).toMatchObject({ timelineGaps: 1, timelineIncomplete: 1 });
     });
 
     it('keeps timeline results well past the probe cache lifetime', async () => {
