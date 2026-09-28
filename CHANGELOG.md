@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v1.11.12 (2026-09-28)
+
 ### Feature
 
 - Add an opt-in mid-file timeline check to the media integrity audit. It scans packet timestamps only for streams with a frame-count shortfall, shares concurrent scans for the same unchanged file, and caches completed results. Long held frames are reported as uncertain for manual review; streams without enough packet timing are marked inconclusive instead of triggering a re-download recommendation.
