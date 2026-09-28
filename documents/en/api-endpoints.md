@@ -310,6 +310,7 @@ While a gesture credential exists, a settings update that disables password logi
 - `GET /api/media-integrity-audit` - Check the library's local media files for damage (admin only)
   - Read-only: reports findings and recommends an action, but never repairs or re-downloads anything
   - Reports rows whose file is missing, whose audio and video tracks disagree in length, whose stored duration no longer matches the file, or that ffprobe cannot read
+  - Query: `timeline=1` also looks for content missing mid-file, reported with reason `timeline_gap` and a `gaps` list of `{ stream, atSeconds, gapSeconds }`. Long packet durations are reported as `timeline_ambiguous` for manual review; missing packet durations make the check inconclusive rather than proving a gap. Only streams with a measurable frame-count shortfall are scanned; streams without usable frame counts are reported as inconclusive. Each inconclusive file is listed with reason `timeline_inconclusive` for manual review. Opt-in because scans read whole files; completed results are cached for a day per unchanged file
   - `cloud:`, `mount:` and `http(s)` rows are skipped, not reported as missing
   - Response: `{ success, audit: { generatedAt, summary, items, humanSummary } }`
   - Each item: `{ localVideoId, title, mediaType, sourceUrl, videoPath, reasons, detail, storedDurationSeconds, measured, recommendedAction }`, where `mediaType` is `video` or `audio` and `recommendedAction` is `redownload`, `refresh_duration` or `manual_review`
