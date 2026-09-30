@@ -355,6 +355,50 @@ MYTUBE_ADMIN_TRUST_LEVEL=container
 >   https://your-domain/api/live-translation/ws
 > ```
 
+## 🎬 在 Cloudflare 和 Nginx Proxy Manager 后面播放视频
+
+播放器通过 HTTP `Range` 请求读取视频文件，每次只取几 MB。有两个常见的代理默认设置与此相冲突。在 NAS 上的表现是：视频起播慢、播放卡顿，一浏览或播放，CPU 和磁盘占用就飙高。
+
+### Cloudflare：对 `/videos/` 绕过缓存
+
+Cloudflare 会把 `.mp4`、`.mkv`、`.webm` 等媒体扩展名视为可缓存。没有缓存副本时，它会忽略浏览器的 `Range` 头，从你的服务器下载**整个文件**，而且观看者离开后它还会继续下载。下载完它也不会保留：MyTube 返回视频时带 `max-age=0`，且超过 512 MB 的文件超出了 Cloudflare 非企业版套餐的可缓存大小，所以之后再访问时又会重新完整拉取。首页悬停卡片（预览）或打开一个视频，都可能触发一次数 GB 的传输。
+
+所有经过 Cloudflare 代理的域名都受影响：开启橙色云朵的 DNS 记录，以及 Cloudflare Tunnel（包括 MyTube 内置的 Tunnel）。
+
+添加一条缓存规则 (Cache Rule)，让 Cloudflare 直接透传视频请求：
+
+1. Cloudflare 控制台 → 你的域名 → **Caching** → **Cache Rules** → **Create rule**。
+2. 在 **If incoming requests match** 下选择 **Custom filter expression**，点击 **Edit expression**，填入（换成你自己的域名）：
+
+    ```
+    (http.host eq "mytube.example.com" and starts_with(http.request.uri.path, "/videos/"))
+    ```
+
+    有多个实例时可以匹配多个域名：`http.host in {"mytube.example.com" "videos.example.com"}`。
+3. 将 **Cache eligibility** 设为 **Bypass cache**，点击 **Deploy**。
+
+> [!TIP]
+> 用 `curl` 验证。开启登录时状态码是 `401`，这没关系，关键看 `cf-cache-status` 头：`DYNAMIC` 表示规则已生效；`BYPASS`、`MISS`、`EXPIRED` 或 `HIT` 表示 Cloudflare 仍把该路径当作可缓存。
+>
+> ```bash
+> curl -s -o /dev/null -D - https://mytube.example.com/videos/check.mp4 | grep -i cf-cache-status
+> ```
+
+### Nginx Proxy Manager：关闭响应缓冲
+
+Nginx Proxy Manager 默认会缓冲上游响应。客户端读取慢于 MyTube 发送时（播放视频时这很正常），NPM 会把多出来的数据写进磁盘上的临时文件，每个请求最多 1 GB。在 NAS 上，这意味着每播放一个视频都要额外写盘。该主机的 NPM 错误日志里会出现 `an upstream response is buffered to a temporary file`。
+
+编辑该 Proxy Host → 齿轮图标（旧版本是 **Advanced** 标签）→ **Custom Nginx Configuration**，加入：
+
+```nginx
+proxy_buffering off;
+```
+
+然后保存。如果是手写的 Nginx vhost，把同一条指令放进代理 MyTube 的 `location` 中。自带的 `frontend` 容器已经对 `/videos` 关闭了缓冲。
+
+> [!TIP]
+> 想判断问题是否出在代理链上，可以在局域网内用 `http://NAS_IP:5556` 播放同一个视频。如果局域网里流畅、走域名却卡，就去检查代理。
+
 ## 🌐 使用出站 HTTP 代理 (`HTTP_PROXY` / `NO_PROXY`)
 
 本节讲的是 MyTube 通过代理访问**外网**（mihomo、Clash、公司代理），与上一节的反向代理无关。
@@ -488,3 +532,8 @@ docker-compose -f stacks/docker-compose.single-container.yml up -d
 
 - **原因:** MyTube 前面的某层反向代理没有转发 `/api/live-translation/ws` 的 WebSocket 升级。这只影响自己额外加了代理(TLS、自定义域名)的部署;自带的 `frontend` 容器已经处理好了。
 - **修复:** 在你的代理上开启 WebSocket 支持 —— 参见 [部署在反向代理之后 (WebSocket 支持)](#-部署在反向代理之后-websocket-支持)。
+
+### 6. 在 Cloudflare 后面视频起播慢、卡顿，或播放时 NAS CPU 飙高
+
+- **原因:** Cloudflare 为了响应 Range 请求，从你的服务器下载整个视频文件；和/或 Nginx Proxy Manager 把视频响应缓冲到了磁盘。在代理的访问日志里，表现为 `/videos/...` 的 `200` 响应、长度等于整个文件大小，夹杂在播放器正常的 `206` 响应之间。
+- **修复:** 添加一条对 `/videos/` 绕过缓存的 Cloudflare 缓存规则，并在 NPM 中设置 `proxy_buffering off;` —— 参见 [在 Cloudflare 和 Nginx Proxy Manager 后面播放视频](#-在-cloudflare-和-nginx-proxy-manager-后面播放视频)。
