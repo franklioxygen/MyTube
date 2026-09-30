@@ -376,7 +376,7 @@ The player reads video files with HTTP `Range` requests, a few megabytes at a ti
 
 Cloudflare treats `.mp4`, `.mkv`, `.webm` and other media extensions as cacheable. When it has no cached copy, it ignores the browser's `Range` header and downloads the **whole file** from your server, and it keeps downloading after the viewer has moved on. It does not keep the result either: MyTube sends videos with `max-age=0`, and files over 512 MB are above Cloudflare's cacheable size on non-Enterprise plans, so later visits fetch the whole file again. Hovering a card on the home page (the preview) or opening a video can each start a multi-gigabyte transfer.
 
-This applies to every hostname Cloudflare proxies: DNS records with the orange cloud, and Cloudflare Tunnels, including MyTube's built-in tunnel.
+This applies to every hostname on your domain that Cloudflare proxies: DNS records with the orange cloud, and named Cloudflare Tunnels, including MyTube's built-in tunnel when it runs with a tunnel token. Without a token the built-in tunnel starts a Quick Tunnel on a random `trycloudflare.com` address. That is not a domain you manage, so you cannot add the rule below; if you need it, switch to a token-based tunnel on your own domain.
 
 Add a Cache Rule so Cloudflare passes video requests straight through:
 
@@ -391,10 +391,11 @@ Add a Cache Rule so Cloudflare passes video requests straight through:
 3. Set **Cache eligibility** to **Bypass cache** and click **Deploy**.
 
 > [!TIP]
-> Check it with `curl`. With login enabled the status is `401`, which is fine; what matters is the `cf-cache-status` header. `DYNAMIC` means the rule matches. `BYPASS`, `MISS`, `EXPIRED` or `HIT` means Cloudflare still treats the path as cacheable.
+> Check it with `curl`. With login enabled the status is `401`, which is fine; what matters is the `cf-cache-status` header. `DYNAMIC` means the rule matches. `BYPASS`, `MISS`, `EXPIRED` or `HIT` means Cloudflare still treats the path as cacheable. Compare with an image path, which the rule does not cover: it should report something other than `DYNAMIC` (usually `BYPASS`). If both lines say `DYNAMIC`, something else is bypassing the cache for the whole host and the check does not tell you whether this rule works.
 >
 > ```bash
 > curl -s -o /dev/null -D - https://mytube.example.com/videos/check.mp4 | grep -i cf-cache-status
+> curl -s -o /dev/null -D - https://mytube.example.com/images/check.jpg | grep -i cf-cache-status
 > ```
 
 ### Nginx Proxy Manager: turn off response buffering

@@ -363,7 +363,7 @@ MYTUBE_ADMIN_TRUST_LEVEL=container
 
 Cloudflare 会把 `.mp4`、`.mkv`、`.webm` 等媒体扩展名视为可缓存。没有缓存副本时，它会忽略浏览器的 `Range` 头，从你的服务器下载**整个文件**，而且观看者离开后它还会继续下载。下载完它也不会保留：MyTube 返回视频时带 `max-age=0`，且超过 512 MB 的文件超出了 Cloudflare 非企业版套餐的可缓存大小，所以之后再访问时又会重新完整拉取。首页悬停卡片（预览）或打开一个视频，都可能触发一次数 GB 的传输。
 
-所有经过 Cloudflare 代理的域名都受影响：开启橙色云朵的 DNS 记录，以及 Cloudflare Tunnel（包括 MyTube 内置的 Tunnel）。
+你自己域名下所有经过 Cloudflare 代理的主机名都受影响：开启橙色云朵的 DNS 记录，以及命名的 Cloudflare Tunnel（包括配置了 Tunnel Token 的 MyTube 内置 Tunnel）。不填 Token 时，内置 Tunnel 启动的是 Quick Tunnel，地址是随机的 `trycloudflare.com` 域名。那不是你管理的域名，无法添加下面的规则；如果需要这条规则，请改用你自己域名下、带 Token 的 Tunnel。
 
 添加一条缓存规则 (Cache Rule)，让 Cloudflare 直接透传视频请求：
 
@@ -378,10 +378,11 @@ Cloudflare 会把 `.mp4`、`.mkv`、`.webm` 等媒体扩展名视为可缓存。
 3. 将 **Cache eligibility** 设为 **Bypass cache**，点击 **Deploy**。
 
 > [!TIP]
-> 用 `curl` 验证。开启登录时状态码是 `401`，这没关系，关键看 `cf-cache-status` 头：`DYNAMIC` 表示规则已生效；`BYPASS`、`MISS`、`EXPIRED` 或 `HIT` 表示 Cloudflare 仍把该路径当作可缓存。
+> 用 `curl` 验证。开启登录时状态码是 `401`，这没关系，关键看 `cf-cache-status` 头：`DYNAMIC` 表示规则已生效；`BYPASS`、`MISS`、`EXPIRED` 或 `HIT` 表示 Cloudflare 仍把该路径当作可缓存。再用一个不在规则范围内的图片路径对比：它应该返回 `DYNAMIC` 以外的值（通常是 `BYPASS`）。如果两行都是 `DYNAMIC`，说明有别的设置对整个域名绕过了缓存，这个检查就无法说明规则是否生效。
 >
 > ```bash
 > curl -s -o /dev/null -D - https://mytube.example.com/videos/check.mp4 | grep -i cf-cache-status
+> curl -s -o /dev/null -D - https://mytube.example.com/images/check.jpg | grep -i cf-cache-status
 > ```
 
 ### Nginx Proxy Manager：关闭响应缓冲
