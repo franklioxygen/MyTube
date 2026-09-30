@@ -374,9 +374,9 @@ The player reads video files with HTTP `Range` requests, a few megabytes at a ti
 
 ### Cloudflare: bypass the cache for `/videos/`
 
-Cloudflare treats `.mp4`, `.mkv`, `.webm` and other media extensions as cacheable. When it has no cached copy, it ignores the browser's `Range` header and downloads the **whole file** from your server, and it keeps downloading after the viewer has moved on. Files over 512 MB are above Cloudflare's cacheable size on non-Enterprise plans, so it cannot keep them either, and later visits fetch the whole file again. Hovering a card on the home page (the preview) or opening a video can each start a multi-gigabyte transfer.
+Cloudflare treats `.mp4`, `.mkv`, `.webm` and other media extensions as cacheable. The first time it is asked for a video it has not cached, it ignores the browser's `Range` header and downloads the **whole file** from your server, and it keeps downloading after the viewer has moved on. Files over 512 MB are above Cloudflare's cacheable size on non-Enterprise plans, so it cannot keep them either, and later visits fetch the whole file again. Hovering a card on the home page (the preview) or opening a video can each start a multi-gigabyte transfer.
 
-This applies to every hostname on your domain that Cloudflare proxies: DNS records with the orange cloud, and named Cloudflare Tunnels, including MyTube's built-in tunnel when it runs with a tunnel token. Without a token the built-in tunnel starts a Quick Tunnel on a random `trycloudflare.com` address. That is not a domain you manage, so you cannot add the rule below; if you need it, switch to a token-based tunnel on your own domain.
+This applies to every hostname on your domain that Cloudflare proxies: DNS records with the orange cloud, and named Cloudflare Tunnels, including MyTube's built-in tunnel when it runs with a tunnel token. Without a token the built-in tunnel starts a Quick Tunnel on a random `trycloudflare.com` address. That is not a domain you manage, so you cannot add the rule below; if you need it, switch to a token-based tunnel on your own domain. Videos from mounted directories are served from `/api/mount-video/`, which has no media file extension, so Cloudflare already passes them straight through and they need no rule.
 
 Add a Cache Rule so Cloudflare passes video requests straight through:
 
@@ -412,10 +412,10 @@ Edit the Proxy Host → gear icon (the **Advanced** tab in older versions) → *
 proxy_buffering off;
 ```
 
-and save. For a hand-written Nginx vhost, put the same directive in the `location` that proxies MyTube. The built-in `frontend` container already turns buffering off for `/videos`.
+and save. For a hand-written Nginx vhost, put the same directive in the `location` that proxies MyTube. The built-in `frontend` container already turns buffering off for video streams, both `/videos` and mounted-directory videos at `/api/mount-video/`.
 
 > [!TIP]
-> To tell whether the proxy chain is the problem at all, play the same video on your LAN at `http://NAS_IP:5556`. If it is smooth there and slow through your domain, look at the proxies.
+> To tell whether the proxy chain is the problem at all, play the same video on your LAN at `http://NAS_IP:5556` (`5551` in single-container mode). If it is smooth there and slow through your domain, look at the proxies.
 
 ## 🌐 Using an Outbound HTTP Proxy (`HTTP_PROXY` / `NO_PROXY`)
 
