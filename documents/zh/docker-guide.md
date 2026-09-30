@@ -361,7 +361,7 @@ MYTUBE_ADMIN_TRUST_LEVEL=container
 
 ### Cloudflare：对 `/videos/` 绕过缓存
 
-Cloudflare 会把 `.mp4`、`.mkv`、`.webm` 等媒体扩展名视为可缓存。没有缓存副本时，它会忽略浏览器的 `Range` 头，从你的服务器下载**整个文件**，而且观看者离开后它还会继续下载。下载完它也不会保留：MyTube 返回视频时带 `max-age=0`，且超过 512 MB 的文件超出了 Cloudflare 非企业版套餐的可缓存大小，所以之后再访问时又会重新完整拉取。首页悬停卡片（预览）或打开一个视频，都可能触发一次数 GB 的传输。
+Cloudflare 会把 `.mp4`、`.mkv`、`.webm` 等媒体扩展名视为可缓存。没有缓存副本时，它会忽略浏览器的 `Range` 头，从你的服务器下载**整个文件**，而且观看者离开后它还会继续下载。超过 512 MB 的文件超出了 Cloudflare 非企业版套餐的可缓存大小，它也无法保留，所以之后再访问时又会重新完整拉取。首页悬停卡片（预览）或打开一个视频，都可能触发一次数 GB 的传输。
 
 你自己域名下所有经过 Cloudflare 代理的主机名都受影响：开启橙色云朵的 DNS 记录，以及命名的 Cloudflare Tunnel（包括配置了 Tunnel Token 的 MyTube 内置 Tunnel）。不填 Token 时，内置 Tunnel 启动的是 Quick Tunnel，地址是随机的 `trycloudflare.com` 域名。那不是你管理的域名，无法添加下面的规则；如果需要这条规则，请改用你自己域名下、带 Token 的 Tunnel。
 
@@ -374,7 +374,11 @@ Cloudflare 会把 `.mp4`、`.mkv`、`.webm` 等媒体扩展名视为可缓存。
     (http.host eq "mytube.example.com" and starts_with(http.request.uri.path, "/videos/"))
     ```
 
-    有多个实例时可以匹配多个域名：`http.host in {"mytube.example.com" "videos.example.com"}`。
+    有多个实例时，列出所有域名，并保留 `/videos/` 条件，否则规则会对整个网站绕过缓存：
+
+    ```
+    (http.host in {"mytube.example.com" "videos.example.com"} and starts_with(http.request.uri.path, "/videos/"))
+    ```
 3. 将 **Cache eligibility** 设为 **Bypass cache**，点击 **Deploy**。
 
 > [!TIP]
@@ -536,5 +540,7 @@ docker-compose -f stacks/docker-compose.single-container.yml up -d
 
 ### 6. 在 Cloudflare 后面视频起播慢、卡顿，或播放时 NAS CPU 飙高
 
-- **原因:** Cloudflare 为了响应 Range 请求，从你的服务器下载整个视频文件；和/或 Nginx Proxy Manager 把视频响应缓冲到了磁盘。在代理的访问日志里，表现为 `/videos/...` 的 `200` 响应、长度等于整个文件大小，夹杂在播放器正常的 `206` 响应之间。
+- **原因:** 通常是以下一种或两种：
+    - Cloudflare 为了响应 Range 请求，从你的服务器下载整个视频文件。代理的访问日志里会出现 `/videos/...` 的 `200` 响应，长度等于整个文件大小，夹杂在播放器正常的 `206` 响应之间。
+    - Nginx Proxy Manager 把视频响应缓冲到了磁盘（不论状态码是什么）。该主机的错误日志里会出现 `an upstream response is buffered to a temporary file`。
 - **修复:** 添加一条对 `/videos/` 绕过缓存的 Cloudflare 缓存规则，并在 NPM 中设置 `proxy_buffering off;` —— 参见 [在 Cloudflare 和 Nginx Proxy Manager 后面播放视频](#-在-cloudflare-和-nginx-proxy-manager-后面播放视频)。

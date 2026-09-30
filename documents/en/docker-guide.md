@@ -374,7 +374,7 @@ The player reads video files with HTTP `Range` requests, a few megabytes at a ti
 
 ### Cloudflare: bypass the cache for `/videos/`
 
-Cloudflare treats `.mp4`, `.mkv`, `.webm` and other media extensions as cacheable. When it has no cached copy, it ignores the browser's `Range` header and downloads the **whole file** from your server, and it keeps downloading after the viewer has moved on. It does not keep the result either: MyTube sends videos with `max-age=0`, and files over 512 MB are above Cloudflare's cacheable size on non-Enterprise plans, so later visits fetch the whole file again. Hovering a card on the home page (the preview) or opening a video can each start a multi-gigabyte transfer.
+Cloudflare treats `.mp4`, `.mkv`, `.webm` and other media extensions as cacheable. When it has no cached copy, it ignores the browser's `Range` header and downloads the **whole file** from your server, and it keeps downloading after the viewer has moved on. Files over 512 MB are above Cloudflare's cacheable size on non-Enterprise plans, so it cannot keep them either, and later visits fetch the whole file again. Hovering a card on the home page (the preview) or opening a video can each start a multi-gigabyte transfer.
 
 This applies to every hostname on your domain that Cloudflare proxies: DNS records with the orange cloud, and named Cloudflare Tunnels, including MyTube's built-in tunnel when it runs with a tunnel token. Without a token the built-in tunnel starts a Quick Tunnel on a random `trycloudflare.com` address. That is not a domain you manage, so you cannot add the rule below; if you need it, switch to a token-based tunnel on your own domain.
 
@@ -387,7 +387,11 @@ Add a Cache Rule so Cloudflare passes video requests straight through:
     (http.host eq "mytube.example.com" and starts_with(http.request.uri.path, "/videos/"))
     ```
 
-    For more than one instance, match several hostnames: `http.host in {"mytube.example.com" "videos.example.com"}`.
+    For more than one instance, list the hostnames and keep the `/videos/` condition, otherwise the rule bypasses the cache for the whole site:
+
+    ```
+    (http.host in {"mytube.example.com" "videos.example.com"} and starts_with(http.request.uri.path, "/videos/"))
+    ```
 3. Set **Cache eligibility** to **Bypass cache** and click **Deploy**.
 
 > [!TIP]
@@ -558,5 +562,7 @@ docker-compose -f stacks/docker-compose.single-container.yml up -d
 
 ### 6. Videos are slow to start, stutter, or push NAS CPU up behind Cloudflare
 
-- **Cause:** Cloudflare is downloading whole video files from your server to answer range requests, and/or Nginx Proxy Manager is buffering video responses to disk. In the proxy's access log this shows up as `200` responses for `/videos/...` whose length is the size of the entire file, mixed in with the player's normal `206` responses.
+- **Cause:** Usually one or both of these:
+    - Cloudflare is downloading whole video files from your server to answer range requests. The proxy's access log shows `200` responses for `/videos/...` whose length is the size of the entire file, mixed in with the player's normal `206` responses.
+    - Nginx Proxy Manager is buffering video responses to disk, whatever their status. Its error log for the host shows `an upstream response is buffered to a temporary file`.
 - **Fix:** Add a Cloudflare Cache Rule that bypasses the cache for `/videos/`, and set `proxy_buffering off;` in NPM — see [Serving Videos Through Cloudflare or Nginx Proxy Manager](#-serving-videos-through-cloudflare-or-nginx-proxy-manager).
