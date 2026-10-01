@@ -355,6 +355,55 @@ MYTUBE_ADMIN_TRUST_LEVEL=container
 >   https://your-domain/api/live-translation/ws
 > ```
 
+## 🎬 在 Cloudflare 和 Nginx Proxy Manager 后面播放视频
+
+播放器通过 HTTP `Range` 请求读取视频文件，每次只取几 MB。有两个常见的代理默认设置与此相冲突。在 NAS 上的表现是：视频起播慢、播放卡顿，一浏览或播放，CPU 和磁盘占用就飙高。
+
+### Cloudflare：对 `/videos/` 绕过缓存
+
+Cloudflare 会把 `.mp4`、`.mkv`、`.webm` 等媒体扩展名视为可缓存。第一次被请求一个还没缓存的视频时，它会忽略浏览器的 `Range` 头，从你的服务器下载**整个文件**，而且观看者离开后它还会继续下载。超过 512 MB 的文件超出了 Cloudflare 非企业版套餐的可缓存大小，它也无法保留，所以之后再访问时又会重新完整拉取。首页悬停卡片（预览）或打开一个视频，都可能触发一次数 GB 的传输。
+
+你自己域名下所有经过 Cloudflare 代理的主机名都受影响：开启橙色云朵的 DNS 记录，以及命名的 Cloudflare Tunnel（包括配置了 Tunnel Token 的 MyTube 内置 Tunnel）。不填 Token 时，内置 Tunnel 启动的是 Quick Tunnel，地址是随机的 `trycloudflare.com` 域名。那不是你管理的域名，无法添加下面的规则；如果需要这条规则，请改用你自己域名下、带 Token 的 Tunnel。挂载目录里的视频通过 `/api/mount-video/` 播放，这个路径没有媒体文件扩展名，Cloudflare 本来就会直接透传，不需要这条规则。
+
+添加一条缓存规则 (Cache Rule)，让 Cloudflare 直接透传视频请求：
+
+1. Cloudflare 控制台 → 你的域名 → **Caching** → **Cache Rules** → **Create rule**。
+2. 在 **If incoming requests match** 下选择 **Custom filter expression**，点击 **Edit expression**，填入（换成你自己的域名）：
+
+    ```
+    (http.host eq "mytube.example.com" and starts_with(http.request.uri.path, "/videos/"))
+    ```
+
+    有多个实例时，列出所有域名，并保留 `/videos/` 条件，否则规则会对整个网站绕过缓存：
+
+    ```
+    (http.host in {"mytube.example.com" "videos.example.com"} and starts_with(http.request.uri.path, "/videos/"))
+    ```
+3. 将 **Cache eligibility** 设为 **Bypass cache**，点击 **Deploy**。
+
+> [!TIP]
+> 用 `curl` 验证。开启登录时状态码是 `401`，这没关系，关键看 `cf-cache-status` 头：`DYNAMIC` 表示规则已生效；`BYPASS`、`MISS`、`EXPIRED` 或 `HIT` 表示 Cloudflare 仍把该路径当作可缓存。再用一个不在规则范围内的图片路径对比：它应该返回 `DYNAMIC` 以外的值（通常是 `BYPASS`）。如果两行都是 `DYNAMIC`，说明有别的设置对整个域名绕过了缓存，这个检查就无法说明规则是否生效。
+>
+> ```bash
+> curl -s -o /dev/null -D - https://mytube.example.com/videos/check.mp4 | grep -i cf-cache-status
+> curl -s -o /dev/null -D - https://mytube.example.com/images/check.jpg | grep -i cf-cache-status
+> ```
+
+### Nginx Proxy Manager：关闭响应缓冲
+
+Nginx Proxy Manager 默认会缓冲上游响应。客户端读取慢于 MyTube 发送时（播放视频时这很正常），NPM 会把多出来的数据写进磁盘上的临时文件，每个请求最多 1 GB。在 NAS 上，这意味着每播放一个视频都要额外写盘。该主机的 NPM 错误日志里会出现 `an upstream response is buffered to a temporary file`。
+
+编辑该 Proxy Host → 齿轮图标（旧版本是 **Advanced** 标签）→ **Custom Nginx Configuration**，加入：
+
+```nginx
+proxy_buffering off;
+```
+
+然后保存。如果是手写的 Nginx vhost，把同一条指令放进代理 MyTube 的 `location` 中。自带的 `frontend` 容器已经对视频流关闭了缓冲，包括 `/videos` 和挂载目录视频使用的 `/api/mount-video/`。
+
+> [!TIP]
+> 想判断问题是否出在代理链上，可以在局域网内用 `http://NAS_IP:5556`（单容器模式是 `5551`）播放同一个视频。如果局域网里流畅、走域名却卡，就去检查代理。
+
 ## 🌐 使用出站 HTTP 代理 (`HTTP_PROXY` / `NO_PROXY`)
 
 本节讲的是 MyTube 通过代理访问**外网**（mihomo、Clash、公司代理），与上一节的反向代理无关。
@@ -488,3 +537,10 @@ docker-compose -f stacks/docker-compose.single-container.yml up -d
 
 - **原因:** MyTube 前面的某层反向代理没有转发 `/api/live-translation/ws` 的 WebSocket 升级。这只影响自己额外加了代理(TLS、自定义域名)的部署;自带的 `frontend` 容器已经处理好了。
 - **修复:** 在你的代理上开启 WebSocket 支持 —— 参见 [部署在反向代理之后 (WebSocket 支持)](#-部署在反向代理之后-websocket-支持)。
+
+### 6. 在 Cloudflare 后面视频起播慢、卡顿，或播放时 NAS CPU 飙高
+
+- **原因:** 通常是以下一种或两种：
+    - Cloudflare 为了响应 Range 请求，从你的服务器下载整个视频文件。代理的访问日志里会出现 `/videos/...` 的 `200` 响应，长度等于整个文件大小，夹杂在播放器正常的 `206` 响应之间。
+    - Nginx Proxy Manager 把视频响应缓冲到了磁盘（不论状态码是什么）。该主机的错误日志里会出现 `an upstream response is buffered to a temporary file`。
+- **修复:** 添加一条对 `/videos/` 绕过缓存的 Cloudflare 缓存规则，并在 NPM 中设置 `proxy_buffering off;` —— 参见 [在 Cloudflare 和 Nginx Proxy Manager 后面播放视频](#-在-cloudflare-和-nginx-proxy-manager-后面播放视频)。

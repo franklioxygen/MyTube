@@ -368,6 +368,55 @@ Enable WebSocket passthrough on your proxy:
 >   https://your-domain/api/live-translation/ws
 > ```
 
+## 🎬 Serving Videos Through Cloudflare or Nginx Proxy Manager
+
+The player reads video files with HTTP `Range` requests, a few megabytes at a time. Two common proxy defaults work against that. On a NAS they show up as videos that are slow to start, playback that stutters, and CPU and disk usage that spike whenever someone browses or plays.
+
+### Cloudflare: bypass the cache for `/videos/`
+
+Cloudflare treats `.mp4`, `.mkv`, `.webm` and other media extensions as cacheable. The first time it is asked for a video it has not cached, it ignores the browser's `Range` header and downloads the **whole file** from your server, and it keeps downloading after the viewer has moved on. Files over 512 MB are above Cloudflare's cacheable size on non-Enterprise plans, so it cannot keep them either, and later visits fetch the whole file again. Hovering a card on the home page (the preview) or opening a video can each start a multi-gigabyte transfer.
+
+This applies to every hostname on your domain that Cloudflare proxies: DNS records with the orange cloud, and named Cloudflare Tunnels, including MyTube's built-in tunnel when it runs with a tunnel token. Without a token the built-in tunnel starts a Quick Tunnel on a random `trycloudflare.com` address. That is not a domain you manage, so you cannot add the rule below; if you need it, switch to a token-based tunnel on your own domain. Videos from mounted directories are served from `/api/mount-video/`, which has no media file extension, so Cloudflare already passes them straight through and they need no rule.
+
+Add a Cache Rule so Cloudflare passes video requests straight through:
+
+1. Cloudflare dashboard → your domain → **Caching** → **Cache Rules** → **Create rule**.
+2. Under **If incoming requests match**, choose **Custom filter expression**, click **Edit expression** and enter (with your hostname):
+
+    ```
+    (http.host eq "mytube.example.com" and starts_with(http.request.uri.path, "/videos/"))
+    ```
+
+    For more than one instance, list the hostnames and keep the `/videos/` condition, otherwise the rule bypasses the cache for the whole site:
+
+    ```
+    (http.host in {"mytube.example.com" "videos.example.com"} and starts_with(http.request.uri.path, "/videos/"))
+    ```
+3. Set **Cache eligibility** to **Bypass cache** and click **Deploy**.
+
+> [!TIP]
+> Check it with `curl`. With login enabled the status is `401`, which is fine; what matters is the `cf-cache-status` header. `DYNAMIC` means the rule matches. `BYPASS`, `MISS`, `EXPIRED` or `HIT` means Cloudflare still treats the path as cacheable. Compare with an image path, which the rule does not cover: it should report something other than `DYNAMIC` (usually `BYPASS`). If both lines say `DYNAMIC`, something else is bypassing the cache for the whole host and the check does not tell you whether this rule works.
+>
+> ```bash
+> curl -s -o /dev/null -D - https://mytube.example.com/videos/check.mp4 | grep -i cf-cache-status
+> curl -s -o /dev/null -D - https://mytube.example.com/images/check.jpg | grep -i cf-cache-status
+> ```
+
+### Nginx Proxy Manager: turn off response buffering
+
+Nginx Proxy Manager buffers upstream responses by default. When the client reads more slowly than MyTube sends, which is normal during playback, NPM writes the overflow to temporary files on disk, up to 1 GB per request. On a NAS that means extra disk writes for every video played. The host's NPM error log shows `an upstream response is buffered to a temporary file`.
+
+Edit the Proxy Host → gear icon (the **Advanced** tab in older versions) → **Custom Nginx Configuration**, add:
+
+```nginx
+proxy_buffering off;
+```
+
+and save. For a hand-written Nginx vhost, put the same directive in the `location` that proxies MyTube. The built-in `frontend` container already turns buffering off for video streams, both `/videos` and mounted-directory videos at `/api/mount-video/`.
+
+> [!TIP]
+> To tell whether the proxy chain is the problem at all, play the same video on your LAN at `http://NAS_IP:5556` (`5551` in single-container mode). If it is smooth there and slow through your domain, look at the proxies.
+
 ## 🌐 Using an Outbound HTTP Proxy (`HTTP_PROXY` / `NO_PROXY`)
 
 This section is about MyTube reaching the *internet* through a proxy (mihomo, Clash, a corporate proxy). It is unrelated to the reverse proxy section above.
@@ -510,3 +559,10 @@ docker-compose -f stacks/docker-compose.single-container.yml up -d
 
 - **Cause:** A reverse proxy in front of MyTube is not forwarding the WebSocket upgrade for `/api/live-translation/ws`. This only affects deployments that add their own proxy (TLS termination, custom domain); the built-in `frontend` container already handles it.
 - **Fix:** Enable WebSocket support on your proxy — see [Deploying Behind a Reverse Proxy (WebSocket Support)](#-deploying-behind-a-reverse-proxy-websocket-support).
+
+### 6. Videos are slow to start, stutter, or push NAS CPU up behind Cloudflare
+
+- **Cause:** Usually one or both of these:
+    - Cloudflare is downloading whole video files from your server to answer range requests. The proxy's access log shows `200` responses for `/videos/...` whose length is the size of the entire file, mixed in with the player's normal `206` responses.
+    - Nginx Proxy Manager is buffering video responses to disk, whatever their status. Its error log for the host shows `an upstream response is buffered to a temporary file`.
+- **Fix:** Add a Cloudflare Cache Rule that bypasses the cache for `/videos/`, and set `proxy_buffering off;` in NPM — see [Serving Videos Through Cloudflare or Nginx Proxy Manager](#-serving-videos-through-cloudflare-or-nginx-proxy-manager).

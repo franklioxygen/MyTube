@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fix
+
+- Stream videos from mounted directories without Nginx buffering. They play from `/api/mount-video/`, which fell through to the frontend container's generic `/api` block, where buffering is on, so large responses were written to temporary files inside the container. They now get the same streaming settings as `/videos`: no buffering, `Range` forwarded, and 600-second timeouts.
+
 ## v1.11.12 (2026-09-28)
 
 ### Feature
