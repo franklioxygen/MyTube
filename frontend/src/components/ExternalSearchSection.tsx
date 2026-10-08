@@ -9,6 +9,7 @@ import {
     Chip,
     CircularProgress,
     Grid,
+    Tooltip,
     Typography
 } from '@mui/material';
 import React from 'react';
@@ -102,11 +103,22 @@ const ExternalSearchSection: React.FC<ExternalSearchSectionProps> = ({
                                                 sx={{ position: 'absolute', bottom: 8, right: 8, bgcolor: overlay.black80, color: neutral.white }}
                                             />
                                         )}
-                                        <Box sx={{ position: 'absolute', top: 8, right: 8, bgcolor: overlay.black70, borderRadius: '50%', p: 0.5, display: 'flex' }}>
-                                            {result.source === 'bilibili'
-                                                ? <OndemandVideo sx={{ color: platform.bilibili }} />
-                                                : <YouTube sx={{ color: platform.youtube }} />}
-                                        </Box>
+                                        {/* The platform badge opens the original video so it
+                                            can be previewed before downloading. */}
+                                        <Tooltip title={t('originalLink')}>
+                                            <Box
+                                                component="a"
+                                                href={result.sourceUrl}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                aria-label={t('originalLink')}
+                                                sx={{ position: 'absolute', top: 8, right: 8, bgcolor: overlay.black70, borderRadius: '50%', p: 0.5, display: 'flex', '&:hover': { bgcolor: overlay.black90 } }}
+                                            >
+                                                {result.source === 'bilibili'
+                                                    ? <OndemandVideo sx={{ color: platform.bilibili }} />
+                                                    : <YouTube sx={{ color: platform.youtube }} />}
+                                            </Box>
+                                        </Tooltip>
                                     </Box>
                                     <CardContent sx={{ flexGrow: 1, p: 2 }}>
                                         <Typography gutterBottom variant="subtitle1" component="div" sx={{ fontWeight: 600, lineHeight: 1.2, mb: 1, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>

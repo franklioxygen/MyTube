@@ -23,6 +23,17 @@ vi.mock('@mui/material', async () => {
     };
 });
 
+const mockNavigate = vi.fn();
+let mockPathname = '/';
+vi.mock('react-router', async () => {
+    const actual = await vi.importActual<typeof import('react-router')>('react-router');
+    return {
+        ...actual,
+        useNavigate: () => mockNavigate,
+        useLocation: () => ({ pathname: mockPathname }),
+    };
+});
+
 
 describe('SearchInput', () => {
     const defaultProps = {
@@ -41,6 +52,7 @@ describe('SearchInput', () => {
         vi.clearAllMocks();
         mockUserRole = 'admin';
         mockIsMobile = false;
+        mockPathname = '/';
         vi.mocked(mockT).mockImplementation((key) => key);
         document.execCommand = vi.fn();
         Object.defineProperty(window.navigator, 'clipboard', {
@@ -217,6 +229,18 @@ describe('SearchInput', () => {
 
         expect(defaultProps.setVideoUrl).toHaveBeenCalledWith('');
         expect(defaultProps.onResetSearch).not.toHaveBeenCalled();
+        expect(mockNavigate).not.toHaveBeenCalled();
+    });
+
+    it('leaves the results page on clear so its `?q=` does not re-run the search', () => {
+        mockPathname = '/search';
+        render(<SearchInput {...defaultProps} isSearchMode={true} videoUrl="cats" />);
+
+        fireEvent.click(screen.getByRole('button', { name: 'clear' }));
+
+        expect(defaultProps.setVideoUrl).toHaveBeenCalledWith('');
+        expect(defaultProps.onResetSearch).toHaveBeenCalled();
+        expect(mockNavigate).toHaveBeenCalledWith('/');
     });
 
     it('starts an audio-only download from the direct button', async () => {

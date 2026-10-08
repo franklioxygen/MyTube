@@ -71,6 +71,15 @@ describe('ExternalSearchSection', () => {
         expect(screen.queryByText('more')).not.toBeInTheDocument();
     });
 
+    it('links the platform badge to the original video in a new tab', () => {
+        renderSection();
+
+        const link = screen.getByRole('link', { name: 'originalLink' });
+        expect(link).toHaveAttribute('href', 'https://www.bilibili.com/video/BV1');
+        expect(link).toHaveAttribute('target', '_blank');
+        expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+    });
+
     it('hands the whole result back on download so the caller keeps its source URL', () => {
         const props = renderSection();
 
