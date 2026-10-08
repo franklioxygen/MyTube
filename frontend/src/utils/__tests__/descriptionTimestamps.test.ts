@@ -36,6 +36,17 @@ describe('splitDescriptionTimestamps', () => {
         expect(rejoin(description)).toBe(description);
     });
 
+    it('reads minutes past 59 the way long videos often write them', () => {
+        const description = '99:59 Part two\n100:00 Part three\n120:34 Finale\n2024:12 not a time';
+
+        // Three hours long: the first three are in range, the last overshoots.
+        expect(timestamps(description, 3 * 3600)).toEqual([
+            { text: '99:59', seconds: 5999 },
+            { text: '100:00', seconds: 6000 },
+            { text: '120:34', seconds: 7234 },
+        ]);
+    });
+
     it('finds timestamps pasted from a rendered page, e.g. [0:00](#0-00)', () => {
         expect(timestamps('[5:20](#5-20) - Matthias Hofmann')).toEqual([
             { text: '5:20', seconds: 320 },

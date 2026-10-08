@@ -7,11 +7,12 @@ export interface DescriptionTimestamp {
 
 export type DescriptionPart = string | DescriptionTimestamp;
 
-// `1:23`, `12:34` or `1:02:03`, standing on its own. Seconds (and minutes,
-// once there are hours) must be two digits under 60, so a ratio like `16:9`
-// is never read as a time, and the word boundaries keep `v1:23` or `10:30am`
-// as plain text.
-const TIMESTAMP_PATTERN = /\b(?:\d{1,2}:[0-5]\d|\d{1,2}):[0-5]\d\b/g;
+// `1:23`, `12:34`, `120:34` or `1:02:03`, standing on its own. Seconds (and
+// minutes, once there are hours) must be two digits under 60, so a ratio like
+// `16:9` is never read as a time, and the word boundaries keep `v1:23` or
+// `10:30am` as plain text. Minutes on their own may run past 59, as long
+// videos often write them; the duration check drops any that overshoot.
+const TIMESTAMP_PATTERN = /\b(?:\d{1,2}:[0-5]\d|\d+):[0-5]\d\b/g;
 
 /**
  * Split a video description into plain text and the timestamps in it, the
