@@ -11,7 +11,7 @@ import {
     useTheme
 } from '@mui/material';
 import { FormEvent, useRef, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router';
+import { matchPath, useLocation, useNavigate } from 'react-router';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { isMissAVUrl } from '../../utils/missav';
@@ -116,7 +116,7 @@ const SearchInput: React.FC<SearchInputProps> = ({
         }
         // The results page re-runs whatever `?q=` holds, so a reset alone
         // would bring the results straight back; leave it, as the logo does.
-        if (pathname === '/search') {
+        if (matchPath('/search', pathname)) {
             navigate('/');
         }
     };

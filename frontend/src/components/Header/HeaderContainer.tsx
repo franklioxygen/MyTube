@@ -10,7 +10,7 @@ import {
     useTheme
 } from '@mui/material';
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router';
+import { matchPath, useLocation, useNavigate } from 'react-router';
 
 import { useAuth } from '../../contexts/AuthContext';
 import { useHomeViewModeRequestOptional } from '../../contexts/HomeViewModeRequestContext';
@@ -119,7 +119,7 @@ const HeaderContainer: React.FC<HeaderProps> = ({
     // into the box (back/forward, a pasted /search link) and drop it once the
     // user leaves search. Keyed on `q` alone so a sort change on the results
     // page doesn't overwrite a refinement still being typed.
-    const activeSearchQuery = location.pathname === '/search'
+    const activeSearchQuery = matchPath('/search', location.pathname)
         ? new URLSearchParams(location.search).get('q') ?? ''
         : '';
     useEffect(() => {

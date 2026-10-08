@@ -237,7 +237,9 @@ describe('Header', () => {
     });
 
     it('leaves the search page when the retained term is cleared', async () => {
-        window.history.replaceState({}, '', '/search?q=cats');
+        // The router serves `/search/` as the search page too, so the box must
+        // fill (the clear button only shows with text) and clear must leave it.
+        window.history.replaceState({}, '', '/search/?q=cats');
         renderHeader();
 
         fireEvent.click(screen.getByRole('button', { name: 'clear' }));
