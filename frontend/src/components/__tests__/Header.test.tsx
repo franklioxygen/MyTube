@@ -140,6 +140,9 @@ describe('Header', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         mockedAxios.get.mockImplementation(resolveAxiosGet);
+        // BrowserRouter reads the shared jsdom URL, and the search box mirrors
+        // `/search?q=`, so a search in one test must not prefill the next.
+        window.history.replaceState({}, '', '/');
     });
 
     it('renders with logo and title', async () => {
@@ -190,8 +193,47 @@ describe('Header', () => {
 
         await waitFor(() => {
             expect(onSubmit).toHaveBeenCalledWith('https://example.com/maybe-search');
-            expect(input.value).toBe('');
+            expect(window.location.pathname).toBe('/search');
         });
+        expect(input.value).toBe('https://example.com/maybe-search');
+    });
+
+    it('keeps the search term in the box after searching so it can be refined', async () => {
+        const onSubmit = vi.fn();
+        renderHeader({ onSubmit });
+
+        const input = screen.getByPlaceholderText('enterUrlOrSearchTerm') as HTMLInputElement;
+        fireEvent.change(input, { target: { value: 'lofi beats' } });
+        fireEvent.submit(input.closest('form')!);
+
+        await waitFor(() => {
+            expect(window.location.search).toBe('?q=lofi%20beats');
+        });
+        expect(input.value).toBe('lofi beats');
+        // A search is not a download, so the URL handler is never involved.
+        expect(onSubmit).not.toHaveBeenCalled();
+    });
+
+    it('fills the box from the query when the search page is opened directly', () => {
+        window.history.replaceState({}, '', '/search?q=cats&sort=dateDesc');
+        renderHeader();
+
+        expect(screen.getByPlaceholderText('enterUrlOrSearchTerm')).toHaveValue('cats');
+    });
+
+    it('clears the box once the user leaves the search page', async () => {
+        window.history.replaceState({}, '', '/search?q=cats');
+        renderHeader();
+
+        const input = screen.getByPlaceholderText('enterUrlOrSearchTerm');
+        expect(input).toHaveValue('cats');
+
+        fireEvent.click(screen.getByAltText('MyTube Logo'));
+
+        await waitFor(() => {
+            expect(window.location.pathname).toBe('/');
+        });
+        expect(input).toHaveValue('');
     });
 
     it('shows backend error message when URL processing fails', async () => {

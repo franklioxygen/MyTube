@@ -56,8 +56,10 @@ export const useHeaderSubmission = ({
         setIsSubmitting(true);
 
         try {
+            // A search keeps its term in the box so it can be refined rather
+            // than retyped; only a download clears the input.
             if (!inputIsUrl) {
-                resetInputAndCloseMenu();
+                onCloseMobileMenu();
                 navigate(toSearchPath(input));
                 return;
             }
@@ -74,7 +76,7 @@ export const useHeaderSubmission = ({
             }
 
             if (result.isSearchTerm) {
-                resetInputAndCloseMenu();
+                onCloseMobileMenu();
                 navigate(toSearchPath(input));
                 return;
             }
