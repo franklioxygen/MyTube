@@ -11,6 +11,7 @@ import {
     useTheme
 } from '@mui/material';
 import { FormEvent, useRef, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { isMissAVUrl } from '../../utils/missav';
@@ -40,6 +41,8 @@ const SearchInput: React.FC<SearchInputProps> = ({
 }) => {
     const { t } = useLanguage();
     const { userRole } = useAuth();
+    const navigate = useNavigate();
+    const { pathname } = useLocation();
     const isVisitor = userRole === 'visitor';
     const inputRef = useRef<HTMLInputElement | null>(null);
 
@@ -110,6 +113,11 @@ const SearchInput: React.FC<SearchInputProps> = ({
         // input also dismisses stale search results (single unified "clear").
         if (isSearchMode) {
             onResetSearch?.();
+        }
+        // The results page re-runs whatever `?q=` holds, so a reset alone
+        // would bring the results straight back; leave it, as the logo does.
+        if (pathname === '/search') {
+            navigate('/');
         }
     };
 

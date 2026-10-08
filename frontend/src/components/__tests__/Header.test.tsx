@@ -236,6 +236,19 @@ describe('Header', () => {
         expect(input).toHaveValue('');
     });
 
+    it('leaves the search page when the retained term is cleared', async () => {
+        window.history.replaceState({}, '', '/search?q=cats');
+        renderHeader();
+
+        fireEvent.click(screen.getByRole('button', { name: 'clear' }));
+
+        await waitFor(() => {
+            expect(window.location.pathname).toBe('/');
+        });
+        expect(window.location.search).toBe('');
+        expect(screen.getByPlaceholderText('enterUrlOrSearchTerm')).toHaveValue('');
+    });
+
     it('shows backend error message when URL processing fails', async () => {
         const onSubmit = vi.fn().mockResolvedValue({ success: false, error: 'backendFailed' });
         renderHeader({ onSubmit });
