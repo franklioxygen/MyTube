@@ -19,6 +19,7 @@ export interface CapturedVideoControlsProps extends Record<string, unknown> {
     isCinemaMode: boolean;
     autoPlay: boolean;
     startTime: number;
+    onVideoElementReady?: (videoElement: HTMLVideoElement | null) => void;
     seekIntervals: {
         shortSeconds: number;
         mediumSeconds: number;
@@ -40,6 +41,7 @@ export interface CapturedVideoInfoProps extends Record<string, unknown> {
     deleteError: string | null;
     availableTags: string[];
     isSubscribed: boolean;
+    onSeek?: (seconds: number) => void;
 }
 
 export interface CapturedCommentsSectionProps extends Record<string, unknown> {

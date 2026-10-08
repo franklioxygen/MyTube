@@ -1,17 +1,28 @@
 import { ExpandLess, ExpandMore } from '@mui/icons-material';
-import { Box, Button, Typography } from '@mui/material';
-import React, { useEffect, useRef, useState } from 'react';
+import { Box, Button, Link, Typography } from '@mui/material';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useLanguage } from '../../../contexts/LanguageContext';
+import { splitDescriptionTimestamps } from '../../../utils/descriptionTimestamps';
+import { parseDuration } from '../../../utils/formatUtils';
 
 interface VideoDescriptionProps {
     description: string | undefined;
+    /** The video's length; timestamps at or past its end stay plain text. */
+    duration?: string | number;
+    /** Jumps the player to a timestamp. Without it timestamps are plain text. */
+    onSeek?: (seconds: number) => void;
 }
 
-const VideoDescription: React.FC<VideoDescriptionProps> = ({ description }) => {
+const VideoDescription: React.FC<VideoDescriptionProps> = ({ description, duration, onSeek }) => {
     const { t } = useLanguage();
     const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
     const [showDescriptionExpandButton, setShowDescriptionExpandButton] = useState(false);
     const descriptionRef = useRef<HTMLParagraphElement>(null);
+    const canSeek = Boolean(onSeek);
+    const descriptionParts = useMemo(
+        () => (description && canSeek ? splitDescriptionTimestamps(description, parseDuration(duration)) : null),
+        [description, duration, canSeek]
+    );
 
     useEffect(() => {
         const checkDescriptionOverflow = () => {
@@ -30,6 +41,11 @@ const VideoDescription: React.FC<VideoDescriptionProps> = ({ description }) => {
         return null;
     }
 
+    // Focusing a timestamp hidden by the line clamp scrolls the clamped box
+    // to it, leaving the collapsed view showing the wrong lines. Keep them out
+    // of the tab order until the description is expanded.
+    const isClamped = showDescriptionExpandButton && !isDescriptionExpanded;
+
     return (
         <Box sx={{ mt: 2 }}>
             <Typography
@@ -44,7 +60,22 @@ const VideoDescription: React.FC<VideoDescriptionProps> = ({ description }) => {
                     WebkitLineClamp: isDescriptionExpanded ? 'unset' : 3,
                 }}
             >
-                {description}
+                {descriptionParts && onSeek
+                    ? descriptionParts.map((part, index) =>
+                        typeof part === 'string' ? part : (
+                            <Link
+                                key={index}
+                                component="button"
+                                type="button"
+                                underline="hover"
+                                onClick={() => onSeek(part.seconds)}
+                                tabIndex={isClamped ? -1 : undefined}
+                                sx={{ font: 'inherit', verticalAlign: 'baseline' }}
+                            >
+                                {part.text}
+                            </Link>
+                        ))
+                    : description}
             </Typography>
             {showDescriptionExpandButton && (
                 <Button

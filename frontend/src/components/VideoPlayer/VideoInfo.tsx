@@ -33,6 +33,7 @@ interface VideoInfoProps {
     onUnsubscribe?: () => void;
     onToggleVisibility?: () => void;
     onToggleLock?: () => void;
+    onSeek?: (seconds: number) => void;
 }
 
 const VideoInfo: React.FC<VideoInfoProps> = ({
@@ -56,7 +57,8 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
     onSubscribe,
     onUnsubscribe,
     onToggleVisibility,
-    onToggleLock
+    onToggleLock,
+    onSeek
 }) => {
     const { videoRef, videoResolution, needsDetection } = useVideoResolution(video);
     const videoUrl = useCloudStorageUrl(
@@ -149,7 +151,7 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
                 </Alert>
             )}
 
-            <VideoDescription description={video.description} />
+            <VideoDescription description={video.description} duration={video.duration} onSeek={onSeek} />
 
             <Divider sx={{ my: 2 }} />
 
