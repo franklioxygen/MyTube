@@ -925,6 +925,26 @@ describe('VideoPlayer', () => {
             render(<VideoPlayer />);
             expect(capturedVideoInfoProps.isSubscribed).toBe(true);
         });
+
+        it('leaves description timestamps inert until the player reports its element', () => {
+            render(<VideoPlayer />);
+            expect(capturedVideoInfoProps.onSeek).toBeUndefined();
+        });
+
+        it('seeks, plays and scrolls back to the player from a description timestamp', () => {
+            render(<VideoPlayer />);
+            const media = {
+                currentTime: 0,
+                play: vi.fn().mockResolvedValue(undefined),
+            } as unknown as HTMLVideoElement;
+            act(() => { capturedVideoControlsProps.onVideoElementReady?.(media); });
+
+            act(() => { capturedVideoInfoProps.onSeek?.(115); });
+
+            expect(media.currentTime).toBe(115);
+            expect(media.play).toHaveBeenCalled();
+            expect(mockScrollTo).toHaveBeenCalledWith({ top: 0, behavior: 'smooth' });
+        });
     });
 });
 

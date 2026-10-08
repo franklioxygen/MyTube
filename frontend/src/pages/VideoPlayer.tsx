@@ -45,6 +45,16 @@ import { viewportHeight } from '../utils/viewportUnits';
 
 const MAX_BACK_TRAIL_LENGTH = 20;
 
+// Kept outside the component: the element lives in React state, which the
+// compiler treats as immutable, but seeking is plain imperative DOM work.
+// The player's own play/pause/timeupdate listeners keep its controls in sync.
+const playFrom = (media: HTMLMediaElement, seconds: number) => {
+    media.currentTime = seconds;
+    media.play().catch((error) => {
+        console.error('Error playing from description timestamp:', error);
+    });
+};
+
 const VideoPlayer: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
@@ -638,6 +648,17 @@ const VideoPlayer: React.FC = () => {
         }
     };
 
+    // A timestamp in the description jumps there and plays, with the player
+    // brought back into view, the way YouTube chapter links behave. D Mode
+    // runs its own seek pipeline and reports no element, so its description
+    // timestamps stay plain text.
+    const handleDescriptionSeek = videoElement
+        ? (seconds: number) => {
+            playFrom(videoElement, seconds);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+        : undefined;
+
     // Determine start time based on saved progress only.
     // Playback-local time should not be fed back into startTime on unrelated rerenders.
     const startTimeResult = playFromBeginning
@@ -816,6 +837,7 @@ const VideoPlayer: React.FC = () => {
                             onUnsubscribe={handleUnsubscribe}
                             onToggleVisibility={handleToggleVisibility}
                             onToggleLock={handleToggleLock}
+                            onSeek={handleDescriptionSeek}
                         />
 
                         {(video.source === 'youtube' || video.source === 'bilibili') && (
