@@ -365,3 +365,43 @@ describe('HistoryTab incomplete save', () => {
         expect(onReDownload).toHaveBeenCalledWith('http://example.com/1b', 'audio');
     });
 });
+
+describe('HistoryTab failure message', () => {
+    beforeEach(() => {
+        (useLanguage as Mock).mockReturnValue({ t: (key: string) => key });
+        (useSettings as Mock).mockReturnValue({ data: {} });
+        (useTheme as Mock).mockReturnValue({ breakpoints: { down: vi.fn() } });
+        (useMediaQuery as Mock).mockReturnValue(false);
+    });
+
+    const renderFailed = (error: string) => render(
+        <BrowserRouter>
+            <HistoryTab
+                history={[{ ...mockHistoryItems[2], error }]}
+                onRemove={vi.fn()}
+                onCancelRetry={vi.fn()}
+                onClear={vi.fn()}
+                onRetry={vi.fn()}
+                onReDownload={vi.fn()}
+                onViewVideo={vi.fn()}
+                isDownloadInProgress={() => false}
+            />
+        </BrowserRouter>
+    );
+
+    it('shows the expired YouTube cookies failure in the viewer\'s language', () => {
+        // The exact text the backend stores (YOUTUBE_COOKIES_EXPIRED_MESSAGE).
+        renderFailed(
+            'YouTube refused the download (HTTP 403). Your YouTube cookies may have expired; please re-upload them.',
+        );
+
+        expect(screen.getByText('youtubeCookiesMayHaveExpired')).toBeInTheDocument();
+        expect(screen.queryByText(/HTTP 403/)).not.toBeInTheDocument();
+    });
+
+    it('shows other failures as stored', () => {
+        renderFailed('yt-dlp process exited with code 1');
+
+        expect(screen.getByText('yt-dlp process exited with code 1')).toBeInTheDocument();
+    });
+});

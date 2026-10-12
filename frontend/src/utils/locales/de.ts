@@ -584,6 +584,8 @@ export const de = {
     "Sind Sie sicher, dass Sie die Cookie-Datei löschen möchten? Dies beeinträchtigt Ihre Fähigkeit, altersbeschränkte oder nur für Mitglieder zugängliche Videos herunterzuladen.",
   cookiesDeletedSuccess: "Cookies erfolgreich gelöscht",
   cookiesDeleteFailed: "Fehler beim Löschen der Cookies",
+  youtubeCookiesMayHaveExpired:
+    "YouTube hat den Download abgelehnt (HTTP 403). Ihre YouTube-Cookies sind möglicherweise abgelaufen; bitte laden Sie sie erneut hoch.",
 
 
   // Cloud Drive

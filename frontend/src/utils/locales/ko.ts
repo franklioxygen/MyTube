@@ -572,6 +572,8 @@ export const ko = {
     "쿠키 파일을 삭제하시겠습니까? 연령 제한 또는 회원 전용 비디오를 다운로드하는 데 영향을 줄 수 있습니다.",
   cookiesDeletedSuccess: "쿠키가 성공적으로 삭제되었습니다",
   cookiesDeleteFailed: "쿠키 삭제 실패",
+  youtubeCookiesMayHaveExpired:
+    "YouTube가 다운로드를 거부했습니다(HTTP 403). YouTube 쿠키가 만료되었을 수 있습니다. 다시 업로드해 주세요.",
 
 
   // Cloud Drive

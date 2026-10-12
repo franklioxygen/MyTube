@@ -1,7 +1,7 @@
 import { type ChildProcess } from "child_process";
 import path from "path";
 import { PassThrough } from "stream";
-import { isBilibiliUrl } from "../helpers";
+import { isBilibiliUrl, isYouTubeUrl } from "../helpers";
 import {
   moveSafeSync,
   pathExistsSafeSync,
@@ -9,7 +9,11 @@ import {
 } from "../security";
 import { logger } from "../logger";
 import { ensureCookiesFileIsNormalized } from "./cookies";
-import { isMembersOnlyError } from "./errorClassification";
+import {
+  YOUTUBE_COOKIES_EXPIRED_MESSAGE,
+  isHttpForbiddenError,
+  isMembersOnlyError,
+} from "./errorClassification";
 import {
   resolveYouTubeRemoteComponents,
   withDefaultYouTubeExtractorArgs,
@@ -535,11 +539,21 @@ export function executeYtDlpSpawn(
                 } else {
                   logger.error("yt-dlp error output:", stderr);
                 }
+                // A 403 on a YouTube download that sent cookies usually means
+                // the cookie session was invalidated; say so instead of the
+                // bare exit code so the user knows to re-upload cookies.
+                const youtubeCookiesExpired =
+                  !signal &&
+                  cookiesPath !== null &&
+                  isYouTubeUrl(url) &&
+                  isHttpForbiddenError(stderr);
                 reject(
                   new YtDlpExecutionError(
                     signal
                       ? `yt-dlp process exited due to signal ${signal}`
-                      : `yt-dlp process exited with code ${code}`,
+                      : youtubeCookiesExpired
+                        ? YOUTUBE_COOKIES_EXPIRED_MESSAGE
+                        : `yt-dlp process exited with code ${code}`,
                     { stderr, code: signal || code }
                   )
                 );

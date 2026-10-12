@@ -554,6 +554,8 @@ export const en = {
     "Are you sure you want to delete the cookies file? This will affect your ability to download age-restricted or member-only videos.",
   cookiesDeletedSuccess: "Cookies deleted successfully",
   cookiesDeleteFailed: "Failed to delete cookies",
+  youtubeCookiesMayHaveExpired:
+    "YouTube refused the download (HTTP 403). Your YouTube cookies may have expired; please re-upload them.",
 
   // Cloud Drive
   cloudDriveSettings: "Cloud Drive (OpenList)",

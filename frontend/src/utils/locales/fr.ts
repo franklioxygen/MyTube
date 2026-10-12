@@ -583,6 +583,8 @@ export const fr = {
     "Êtes-vous sûr de vouloir supprimer le fichier de cookies ? Cela affectera votre capacité à télécharger des vidéos soumises à une limite d'âge ou réservées aux membres.",
   cookiesDeletedSuccess: "Cookies supprimés avec succès",
   cookiesDeleteFailed: "Échec de la suppression des cookies",
+  youtubeCookiesMayHaveExpired:
+    "YouTube a refusé le téléchargement (HTTP 403). Vos cookies YouTube ont peut-être expiré ; veuillez les téléverser à nouveau.",
 
 
   // Cloud Drive

@@ -56,3 +56,17 @@ export function isMembersOnlyError(error: unknown): boolean {
   if (!haystack) return false;
   return MEMBERS_ONLY_ERROR_NEEDLES.some((needle) => haystack.includes(needle));
 }
+
+/**
+ * Failure message for a YouTube download that got HTTP 403 while cookies were
+ * in use — typically a session YouTube has since invalidated. The frontend
+ * matches this exact text to show a localized hint
+ * (frontend/src/utils/downloadErrorMessage.ts), so keep the two in sync.
+ */
+export const YOUTUBE_COOKIES_EXPIRED_MESSAGE =
+  "YouTube refused the download (HTTP 403). Your YouTube cookies may have expired; please re-upload them.";
+
+/** Detect an HTTP 403 Forbidden reported by yt-dlp. */
+export function isHttpForbiddenError(error: unknown): boolean {
+  return collectErrorText(error).includes("HTTP Error 403");
+}

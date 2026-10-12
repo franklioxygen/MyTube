@@ -581,6 +581,8 @@ export const pt = {
     "Tem certeza de que deseja excluir o arquivo de cookies? Isso afetará sua capacidade de baixar vídeos com restrição de idade ou exclusivos para membros.",
   cookiesDeletedSuccess: "Cookies excluídos com sucesso",
   cookiesDeleteFailed: "Falha ao excluir cookies",
+  youtubeCookiesMayHaveExpired:
+    "O YouTube recusou o download (HTTP 403). Seus cookies do YouTube podem ter expirado; envie-os novamente.",
 
 
   // Cloud Drive
