@@ -27,6 +27,7 @@ import {
   parseYtDlpConfig,
   resetYtDlpAvailabilityCacheForTests,
 } from "../../utils/ytDlpUtils";
+import { YOUTUBE_COOKIES_EXPIRED_MESSAGE } from "../../utils/ytdlp/errorClassification";
 import { installYtDlp } from "../../utils/ytdlp/install";
 import { installManagedRelease } from "../../utils/ytdlp/release";
 import { logger } from "../../utils/logger";
@@ -2084,6 +2085,64 @@ describe("ytDlpUtils", () => {
 
       errorSpy.mockRestore();
       infoSpy.mockRestore();
+    });
+
+    describe("HTTP 403 with cookies", () => {
+      const forbiddenStderr =
+        "ERROR: unable to download video data: HTTP Error 403: Forbidden\n";
+      const youtubeUrl = "https://youtu.be/abc";
+
+      const useCookiesFile = () => {
+        vi.mocked(fs.existsSync).mockImplementation((target: any) =>
+          String(target).endsWith(path.join("data", "cookies.txt"))
+        );
+        vi.mocked(fs.statSync).mockReturnValue({
+          mtimeMs: 1,
+          size: validNetscapeCookies.length,
+        } as any);
+      };
+
+      const failWith403 = async (url: string, proc: MockProcess) => {
+        const promise = Promise.resolve(executeYtDlpSpawn(url));
+        await flushAsyncSpawns();
+        proc.stderr?.emit("data", Buffer.from(forbiddenStderr));
+        proc.emit("close", 1);
+        return promise;
+      };
+
+      it("tells the user the YouTube cookies may have expired", async () => {
+        useCookiesFile();
+        const proc = createMockProcess();
+        mockSpawnWithVersionHelpAndDenoCheck("plural", proc);
+
+        await expect(failWith403(youtubeUrl, proc)).rejects.toMatchObject({
+          message: YOUTUBE_COOKIES_EXPIRED_MESSAGE,
+          code: 1,
+          stderr: forbiddenStderr,
+        });
+        expect(getSpawnArgsForUrl(youtubeUrl)).toContain("--cookies");
+      });
+
+      it("keeps the exit-code message when no cookies were sent", async () => {
+        const proc = createMockProcess();
+        mockSpawnWithVersionHelpAndDenoCheck("plural", proc);
+
+        await expect(failWith403(youtubeUrl, proc)).rejects.toMatchObject({
+          message: "yt-dlp process exited with code 1",
+        });
+      });
+
+      it("keeps the exit-code message for other sites", async () => {
+        useCookiesFile();
+        const proc = createMockProcess();
+        mockSpawnWithVersionCheck(proc);
+
+        await expect(
+          failWith403("https://example.com/video", proc)
+        ).rejects.toMatchObject({
+          message: "yt-dlp process exited with code 1",
+        });
+      });
     });
 
     it("should classify a killed subprocess as cancellation instead of code null", async () => {

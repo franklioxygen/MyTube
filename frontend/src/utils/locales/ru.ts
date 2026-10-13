@@ -579,6 +579,8 @@ export const ru = {
     "Вы уверены, что хотите удалить файл cookie? Это повлияет на возможность скачивания видео с возрастными ограничениями или только для участников.",
   cookiesDeletedSuccess: "Cookie успешно удалены",
   cookiesDeleteFailed: "Не удалось удалить cookie",
+  youtubeCookiesMayHaveExpired:
+    "YouTube отказал в скачивании (HTTP 403). Возможно, срок действия ваших cookie YouTube истёк; загрузите их заново.",
 
 
   // Cloud Drive

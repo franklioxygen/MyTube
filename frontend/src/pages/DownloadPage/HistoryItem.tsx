@@ -22,6 +22,7 @@ import {
 import { Link as RouterLink } from 'react-router';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { getBilibiliRetryGapSummary } from '../../utils/bilibiliRetryMetadata';
+import { getDownloadErrorKey } from '../../utils/downloadErrorMessage';
 import { formatDisplayDateTime } from '../../utils/formatUtils';
 import {
     parseIncompleteDownloadNote,
@@ -87,6 +88,7 @@ export function HistoryItem({
     const incompleteNote =
         item.status === 'success' ? storedIncompleteNote : undefined;
     const incompleteSave = incompleteNote !== undefined;
+    const errorKey = item.error ? getDownloadErrorKey(item.error) : undefined;
     const formatSeconds = (seconds: number) =>
         new Intl.NumberFormat(language, {
             minimumFractionDigits: 1,
@@ -277,7 +279,7 @@ export function HistoryItem({
                                 </>
                             ) : item.error && !storedIncompleteNote && (
                                 <Typography variant="caption" color="error" component="span">
-                                    {item.error}
+                                    {errorKey ? t(errorKey) : item.error}
                                 </Typography>
                             )}
                             {retryGapSummary && (

@@ -584,6 +584,8 @@ export const es = {
     "¿Estás seguro de que deseas eliminar el archivo de cookies? Esto afectará tu capacidad para descargar videos con restricción de edad o solo para miembros.",
   cookiesDeletedSuccess: "Cookies eliminadas con éxito",
   cookiesDeleteFailed: "Error al eliminar cookies",
+  youtubeCookiesMayHaveExpired:
+    "YouTube rechazó la descarga (HTTP 403). Es posible que tus cookies de YouTube hayan caducado; vuelve a subirlas.",
 
 
   // Cloud Drive

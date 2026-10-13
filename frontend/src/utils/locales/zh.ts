@@ -547,6 +547,8 @@ export const zh = {
     "您确定要删除 cookies 文件吗？这将影响您下载有年龄限制或仅限会员视频的能力。",
   cookiesDeletedSuccess: "Cookies 删除成功",
   cookiesDeleteFailed: "删除 Cookies 失败",
+  youtubeCookiesMayHaveExpired:
+    "YouTube 拒绝了下载（HTTP 403）。YouTube Cookie 可能已失效，请重新上传。",
 
 
   // Cloud Drive

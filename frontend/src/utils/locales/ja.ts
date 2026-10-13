@@ -577,6 +577,8 @@ export const ja = {
     "cookiesファイルを削除してもよろしいですか？年齢制限のある動画やメンバー限定動画のダウンロードに影響する可能性があります。",
   cookiesDeletedSuccess: "Cookiesが正常に削除されました",
   cookiesDeleteFailed: "Cookiesの削除に失敗しました",
+  youtubeCookiesMayHaveExpired:
+    "YouTubeにダウンロードを拒否されました（HTTP 403）。YouTubeのCookieが失効している可能性があります。再アップロードしてください。",
 
 
   // Cloud Drive

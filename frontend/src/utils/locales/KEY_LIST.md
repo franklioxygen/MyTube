@@ -11,7 +11,7 @@ UPDATE_KEY_LIST=1 npx vitest run src/utils/locales/__tests__/localeParity.test.t
 
 This list is intentionally unnumbered. When new keys are inserted, only the local section order changes.
 
-Total keys: 1392
+Total keys: 1393
 
 ## Summary
 
@@ -23,7 +23,7 @@ Total keys: 1392
 | Settings Categories | 247 | `interfaceDisplay` | `enterNewTagName` |
 | Database | 38 | `database` | `cleanupTempFilesConfirmMessage` |
 | Task Hooks | 101 | `taskHooks` | `cleanupTempFilesFailed` |
-| Cookie Settings | 12 | `cookieSettings` | `cookiesDeleteFailed` |
+| Cookie Settings | 13 | `cookieSettings` | `youtubeCookiesMayHaveExpired` |
 | Cloud Drive | 38 | `cloudDriveSettings` | `clearThumbnailCacheConfirmMessage` |
 | Manage | 48 | `manageContent` | `confirmBulkDelete` |
 | Video Player | 35 | `playing` | `loadingVideo` |
@@ -539,6 +539,7 @@ Total keys: 1392
 | `confirmDeleteCookies` |
 | `cookiesDeletedSuccess` |
 | `cookiesDeleteFailed` |
+| `youtubeCookiesMayHaveExpired` |
 
 ### Cloud Drive
 
