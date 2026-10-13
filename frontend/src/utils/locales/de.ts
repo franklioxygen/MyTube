@@ -1343,6 +1343,11 @@ export const de = {
   moveThumbnailsToVideoFolderOff: "In isoliertem Bilderordner",
   moveThumbnailsToVideoFolderDescription:
     "Wenn aktiviert, werden Thumbnail-Dateien in voller Größe in denselben Ordner wie die Videodatei verschoben. Wenn deaktiviert, werden sie in den isolierten Bilderordner verschoben. MyTube behält außerdem einen kleinen internen Vorschau-Cache unter `images-small/`, der die Thumbnail-Ordnerstruktur spiegelt; er kann ignoriert oder aus Medienserver-Bibliotheken ausgeschlossen werden.",
+  uploadFilenameMode: "Dateinamen hochgeladener Videos",
+  uploadFilenameModeOriginal: "Ursprünglichen Dateinamen beibehalten",
+  uploadFilenameModeGenerated: "Generierten Dateinamen verwenden",
+  uploadFilenameModeDescription:
+    "Wenn aktiviert, behalten hochgeladene Videos ihren ursprünglichen Dateinamen. Existiert bereits eine Datei mit diesem Namen, wird eine kurze ID angehängt, z. B. \"My Video [3f9a2c1b].mp4\". Gilt nur für neue Uploads; vorhandene Dateien werden nicht umbenannt.",
   saveAuthorFilesToCollection: "Autorendateien in Sammlung speichern",
   saveAuthorFilesToCollectionOn: "Nach Autor organisieren",
   saveAuthorFilesToCollectionOff: "In Stammordnern speichern",

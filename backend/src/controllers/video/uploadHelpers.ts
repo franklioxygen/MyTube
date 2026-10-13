@@ -26,6 +26,7 @@ import {
   getVideoDuration,
   uploadedFileHasVideoStream,
 } from "./mediaProbe";
+import { placeUploadUnderOriginalName } from "./uploadNaming";
 
 // Helper validate paths functions
 export const validateVideoPath = (inputPath: string): string => {
@@ -51,10 +52,7 @@ export const getStoredUploadFilename = (
   return safeFilename;
 };
 
-const cleanupUploadedVideo = (
-  file: Pick<UploadedVideoFile, "filename"> | undefined
-): void => {
-  const storedVideoFilename = file ? getStoredUploadFilename(file) : undefined;
+const cleanupUploadedVideo = (storedVideoFilename: string | undefined): void => {
   if (!storedVideoFilename) {
     return;
   }
@@ -208,7 +206,7 @@ export const getUploadVideoPayload = async (
   const storedVideoFilename = getStoredUploadFilename(file);
 
   if (file.validationError) {
-    cleanupUploadedVideo(file);
+    cleanupUploadedVideo(storedVideoFilename);
     return buildUploadFailureResult(file, file.validationError);
   }
 
@@ -227,33 +225,82 @@ export const getUploadVideoPayload = async (
   const existingVideo = storageService.getVideoById(videoId);
 
   if (existingVideo) {
-    cleanupUploadedVideo(file);
+    cleanupUploadedVideo(storedVideoFilename);
     return buildUploadDuplicateResult(file, existingVideo);
   }
 
-  const videoFilename = storedVideoFilename;
-  const requestedThumbnailFilename = `${path.parse(videoFilename).name}.jpg`;
-  const settings = storageService.getSettings();
-  const thumbnailTarget = resolveManagedThumbnailTarget(
-    {
-      videoPath: `/videos/${videoFilename}`,
-    },
-    requestedThumbnailFilename,
-    settings.moveThumbnailsToVideoFolder || false
-  );
-  const thumbnailFilename = path.basename(thumbnailTarget.relativePath);
-  const validatedThumbnailPath = thumbnailTarget.absolutePath;
-  const thumbnailWebPath = thumbnailTarget.webPath;
-
+  // Checked before naming so an invalid file is never moved to its final name.
   const hasVideoStream = await uploadedFileHasVideoStream(validatedVideoPath);
   if (!hasVideoStream) {
-    cleanupUploadedVideo(file);
-    cleanupGeneratedThumbnail(validatedThumbnailPath);
+    cleanupUploadedVideo(storedVideoFilename);
     return buildUploadFailureResult(
       file,
       "Uploaded file is not a valid supported video"
     );
   }
+
+  const settings = storageService.getSettings();
+  const placement =
+    settings.uploadFilenameMode === "original"
+      ? placeUploadUnderOriginalName({
+          storedFilename: storedVideoFilename,
+          originalname: file.originalname,
+          videoId,
+          moveThumbnailsToVideoFolder:
+            settings.moveThumbnailsToVideoFolder || false,
+          moveSubtitlesToVideoFolder:
+            settings.moveSubtitlesToVideoFolder || false,
+        })
+      : null;
+
+  try {
+    return await saveUploadedVideo({
+      file,
+      title,
+      author,
+      videoId,
+      videoFilename: placement?.videoFilename ?? storedVideoFilename,
+      requestedThumbnailFilename:
+        placement?.thumbnailFilename ??
+        `${path.parse(storedVideoFilename).name}.jpg`,
+      moveThumbnailsToVideoFolder: settings.moveThumbnailsToVideoFolder || false,
+    });
+  } finally {
+    placement?.release();
+  }
+};
+
+interface SaveUploadedVideoInput {
+  file: UploadedVideoFile;
+  title: string;
+  author: string;
+  videoId: string;
+  videoFilename: string;
+  requestedThumbnailFilename: string;
+  moveThumbnailsToVideoFolder: boolean;
+}
+
+const saveUploadedVideo = async ({
+  file,
+  title,
+  author,
+  videoId,
+  videoFilename,
+  requestedThumbnailFilename,
+  moveThumbnailsToVideoFolder,
+}: SaveUploadedVideoInput): Promise<UploadResultItem> => {
+  // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
+  const validatedVideoPath = validateVideoPath(path.join(VIDEOS_DIR, videoFilename));
+  const thumbnailTarget = resolveManagedThumbnailTarget(
+    {
+      videoPath: `/videos/${videoFilename}`,
+    },
+    requestedThumbnailFilename,
+    moveThumbnailsToVideoFolder
+  );
+  const thumbnailFilename = path.basename(thumbnailTarget.relativePath);
+  const validatedThumbnailPath = thumbnailTarget.absolutePath;
+  const thumbnailWebPath = thumbnailTarget.webPath;
 
   try {
     await execFileSafe("ffmpeg", [
@@ -308,7 +355,7 @@ export const getUploadVideoPayload = async (
   try {
     const inserted = storageService.saveVideoIfAbsent(newVideo);
     if (!inserted) {
-      cleanupUploadedVideo(file);
+      cleanupUploadedVideo(videoFilename);
       cleanupGeneratedThumbnail(validatedThumbnailPath);
       const concurrentVideo = storageService.getVideoById(videoId);
       if (concurrentVideo) {
@@ -322,7 +369,7 @@ export const getUploadVideoPayload = async (
 
     return buildUploadSuccessResult(file, newVideo);
   } catch (error) {
-    cleanupUploadedVideo(file);
+    cleanupUploadedVideo(videoFilename);
     cleanupGeneratedThumbnail(validatedThumbnailPath);
     throw error;
   }

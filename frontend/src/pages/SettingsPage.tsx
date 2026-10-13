@@ -191,6 +191,7 @@ const SettingsPage: React.FC = () => {
         moveThumbnailsToVideoFolder: false,
         authorOrganizationMode: 'root',
         saveAuthorFilesToCollection: false,
+        uploadFilenameMode: 'generated',
         hooks: {},
         playSoundOnTaskComplete: '',
         mountDirectories: '',
@@ -518,6 +519,8 @@ const SettingsPage: React.FC = () => {
                     onMoveSubtitlesToVideoFolderChange={(checked) => handleChange('moveSubtitlesToVideoFolder', checked)}
                     moveThumbnailsToVideoFolder={settings.moveThumbnailsToVideoFolder || false}
                     onMoveThumbnailsToVideoFolderChange={(checked) => handleChange('moveThumbnailsToVideoFolder', checked)}
+                    uploadFilenameMode={settings.uploadFilenameMode || 'generated'}
+                    onUploadFilenameModeChange={(mode) => handleChange('uploadFilenameMode', mode)}
                     authorOrganizationMode={settings.authorOrganizationMode || 'root'}
                     onAuthorOrganizationModeChange={(mode) => handleChange('authorOrganizationMode', mode)}
                     downloadFilenameMode={settings.downloadFilenameMode}

@@ -160,6 +160,7 @@ export const WHITELISTED_SETTINGS = [
   "moveThumbnailsToVideoFolder",
   "authorOrganizationMode",
   "saveAuthorFilesToCollection",
+  "uploadFilenameMode",
   "visitorPassword",
   "visitorUserEnabled",
   "infiniteScroll",

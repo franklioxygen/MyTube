@@ -30,6 +30,7 @@ vi.mock("../../services/storageService", () => {
       "cloudflaredToken",
       "moveSubtitlesToVideoFolder",
       "moveThumbnailsToVideoFolder",
+      "uploadFilenameMode",
       "theme",
     ],
     getSettings: vi.fn(),
@@ -261,6 +262,21 @@ describe("settingsController extra coverage", () => {
         }),
       })
     );
+  });
+
+  it("patchSettings saves uploadFilenameMode without moving any files", async () => {
+    const subtitleService = await import("../../services/subtitleService");
+    const thumbnailService = await import("../../services/thumbnailService");
+    req.body = { uploadFilenameMode: "original" };
+
+    await patchSettings(req as Request, res as Response);
+    await flushAsyncImports();
+
+    expect(storageService.saveSettings).toHaveBeenCalledWith(
+      expect.objectContaining({ uploadFilenameMode: "original" })
+    );
+    expect(thumbnailService.moveAllThumbnails).not.toHaveBeenCalled();
+    expect(subtitleService.moveAllSubtitles).not.toHaveBeenCalled();
   });
 
   it("patchSettings response does not expose stored passkeys", async () => {

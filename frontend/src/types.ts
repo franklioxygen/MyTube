@@ -157,6 +157,8 @@ export type AuthorOrganizationMode =
   | 'author_folder_only'
   | 'author_collection_linked';
 
+export type UploadFilenameMode = 'generated' | 'original';
+
 export type AdminTrustLevel = 'application' | 'container' | 'host';
 
 export type LiveTranslationModel = 'gemini-3.5-live-translate-preview';
@@ -227,6 +229,7 @@ export interface Settings {
   moveThumbnailsToVideoFolder?: boolean;
   authorOrganizationMode?: AuthorOrganizationMode;
   saveAuthorFilesToCollection?: boolean;
+  uploadFilenameMode?: UploadFilenameMode;
   visitorPassword?: string;
   visitorUserEnabled?: boolean;
   infiniteScroll?: boolean;

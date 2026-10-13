@@ -16,6 +16,8 @@ describe('FileOrganizationSettings', () => {
         onMoveSubtitlesToVideoFolderChange: vi.fn(),
         moveThumbnailsToVideoFolder: false,
         onMoveThumbnailsToVideoFolderChange: vi.fn(),
+        uploadFilenameMode: 'generated' as const,
+        onUploadFilenameModeChange: vi.fn(),
         authorOrganizationMode: 'root' as const,
         onAuthorOrganizationModeChange: vi.fn(),
         downloadFilenameMode: 'legacy' as const,
@@ -54,6 +56,25 @@ describe('FileOrganizationSettings', () => {
             screen.getByRole('radio', { name: /authorOrganizationModeAuthorFolderOnly/i })
         );
         expect(defaultProps.onAuthorOrganizationModeChange).toHaveBeenCalledWith('author_folder_only');
+    });
+
+    it('should turn on original upload filenames', async () => {
+        const user = userEvent.setup();
+        render(<FileOrganizationSettings {...defaultProps} />);
+
+        expect(screen.getByText('uploadFilenameModeDescription')).toBeInTheDocument();
+        await user.click(screen.getByLabelText(/uploadFilenameModeGenerated/i));
+        expect(defaultProps.onUploadFilenameModeChange).toHaveBeenCalledWith('original');
+    });
+
+    it('should turn original upload filenames back off', async () => {
+        const user = userEvent.setup();
+        render(<FileOrganizationSettings {...defaultProps} uploadFilenameMode="original" />);
+
+        const uploadSwitch = screen.getByLabelText(/uploadFilenameModeOriginal/i);
+        expect(uploadSwitch).toBeChecked();
+        await user.click(uploadSwitch);
+        expect(defaultProps.onUploadFilenameModeChange).toHaveBeenCalledWith('generated');
     });
 
     it('should show template note for template naming mode', () => {

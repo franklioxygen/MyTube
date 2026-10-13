@@ -1287,6 +1287,11 @@ export const en = {
   moveThumbnailsToVideoFolderOff: "In isolated images folder",
   moveThumbnailsToVideoFolderDescription:
     "When enabled, full-size thumbnail files will be moved to the same folder as the video file. When disabled, they will be moved to the isolated images folder. MyTube also keeps a small internal preview cache under `images-small/` that mirrors the thumbnail folder layout; it can be ignored or excluded from media-server libraries.",
+  uploadFilenameMode: "Uploaded File Names",
+  uploadFilenameModeOriginal: "Keep original filename",
+  uploadFilenameModeGenerated: "Use generated filename",
+  uploadFilenameModeDescription:
+    "When enabled, uploaded videos keep their original filename. If a file with that name already exists, a short ID is added, e.g. \"My Video [3f9a2c1b].mp4\". Only affects new uploads; existing files are not renamed.",
   saveAuthorFilesToCollection: "Save Author's Files in Collection",
   saveAuthorFilesToCollectionOn: "Organize by author",
   saveAuthorFilesToCollectionOff: "Save to root folders",

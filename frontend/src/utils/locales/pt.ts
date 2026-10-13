@@ -1330,6 +1330,11 @@ export const pt = {
   moveThumbnailsToVideoFolderOff: "Em pasta de imagens isolada",
   moveThumbnailsToVideoFolderDescription:
     "Quando ativado, os arquivos de miniatura em tamanho completo serão movidos para a mesma pasta do arquivo de vídeo. Quando desativado, eles serão movidos para a pasta de imagens isolada. O MyTube também mantém um pequeno cache interno de pré-visualização em `images-small/` que espelha a estrutura das pastas de miniaturas; ele pode ser ignorado ou excluído das bibliotecas do servidor de mídia.",
+  uploadFilenameMode: "Nomes dos arquivos enviados",
+  uploadFilenameModeOriginal: "Manter o nome de arquivo original",
+  uploadFilenameModeGenerated: "Usar nome de arquivo gerado",
+  uploadFilenameModeDescription:
+    "Quando ativado, os vídeos enviados mantêm o nome de arquivo original. Se já existir um arquivo com esse nome, um ID curto é adicionado, por exemplo \"My Video [3f9a2c1b].mp4\". Afeta apenas novos envios; os arquivos existentes não são renomeados.",
 
   saveAuthorFilesToCollection: "Salvar Arquivos do Autor na Coleção",
   saveAuthorFilesToCollectionOn: "Ativado",

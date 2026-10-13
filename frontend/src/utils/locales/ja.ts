@@ -1322,6 +1322,11 @@ export const ja = {
 
   moveThumbnailsToVideoFolderDescription:
     "有効にすると、フルサイズのサムネイルファイルは動画ファイルと同じフォルダに移動されます。無効にすると、独立した画像フォルダに移動されます。MyTube は `images-small/` に内部プレビュー用の小さなキャッシュも保持し、サムネイルのフォルダ構造を反映します。これは無視するか、メディアサーバーのライブラリから除外できます。",
+  uploadFilenameMode: "アップロードファイル名",
+  uploadFilenameModeOriginal: "元のファイル名を保持",
+  uploadFilenameModeGenerated: "自動生成されたファイル名を使用",
+  uploadFilenameModeDescription:
+    "有効にすると、アップロードした動画は元のファイル名を保持します。同じ名前のファイルが既に存在する場合は、短い ID が付加されます（例: \"My Video [3f9a2c1b].mp4\"）。新しいアップロードにのみ適用され、既存のファイル名は変更されません。",
   saveAuthorFilesToCollection: "著者のファイルをコレクションに保存",
   saveAuthorFilesToCollectionOn: "オン",
   saveAuthorFilesToCollectionOff: "オフ",

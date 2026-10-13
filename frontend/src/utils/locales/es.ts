@@ -1342,6 +1342,11 @@ export const es = {
 
   moveThumbnailsToVideoFolderDescription:
     "Cuando está habilitado, los archivos de miniaturas de tamaño completo se moverán a la misma carpeta que el archivo de video. Cuando está deshabilitado, se moverán a la carpeta de imágenes aislada. MyTube también mantiene una pequeña caché interna de vista previa en `images-small/` que replica la estructura de carpetas de miniaturas; puede ignorarse o excluirse de las bibliotecas del servidor multimedia.",
+  uploadFilenameMode: "Nombres de archivos subidos",
+  uploadFilenameModeOriginal: "Mantener el nombre de archivo original",
+  uploadFilenameModeGenerated: "Usar nombre de archivo generado",
+  uploadFilenameModeDescription:
+    "Si está activado, los videos subidos conservan su nombre de archivo original. Si ya existe un archivo con ese nombre, se añade un ID corto, por ejemplo \"My Video [3f9a2c1b].mp4\". Solo afecta a las nuevas subidas; los archivos existentes no se renombran.",
   saveAuthorFilesToCollection: "Guardar archivos del autor en colección",
   saveAuthorFilesToCollectionOn: "Activado",
   saveAuthorFilesToCollectionOff: "Desactivado",
