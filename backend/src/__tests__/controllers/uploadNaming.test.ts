@@ -13,7 +13,7 @@ const tempRoots: string[] = [];
 const makeTempRoot = () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "mytube-upload-naming-"));
   tempRoots.push(root);
-  for (const dir of ["videos", "images", "subtitles", "data"]) {
+  for (const dir of ["videos", "images", "images-small", "subtitles", "data"]) {
     fs.ensureDirSync(path.join(root, dir));
   }
   return root;
@@ -29,6 +29,7 @@ const loadWithRoot = async (
     DATA_DIR: path.join(root, "data"),
     VIDEOS_DIR: path.join(root, "videos"),
     IMAGES_DIR: path.join(root, "images"),
+    IMAGES_SMALL_DIR: path.join(root, "images-small"),
     SUBTITLES_DIR: path.join(root, "subtitles"),
   }));
   const allocator = await import(
@@ -137,6 +138,7 @@ describe("buildOriginalUploadFilename", () => {
 
 describe("placeUploadUnderOriginalName", () => {
   afterEach(() => {
+    vi.restoreAllMocks();
     vi.resetModules();
     vi.doUnmock("../../config/paths");
     for (const root of tempRoots.splice(0)) {
@@ -144,10 +146,11 @@ describe("placeUploadUnderOriginalName", () => {
     }
   });
 
-  it("moves the upload to its original filename", async () => {
+  it("moves the upload without copying its contents", async () => {
     const root = makeTempRoot();
     const naming = await loadWithRoot(root);
     const stored = writeTempUpload(root);
+    const sourceStat = fs.statSync(path.join(root, "videos", stored));
 
     const placement = naming.placeUploadUnderOriginalName(
       placeInput(stored, "Family Trip.mp4")
@@ -161,7 +164,73 @@ describe("placeUploadUnderOriginalName", () => {
     expect(
       fs.readFileSync(path.join(root, "videos", "Family Trip.mp4"), "utf8")
     ).toBe("uploaded-bytes");
+    expect(fs.statSync(path.join(root, "videos", "Family Trip.mp4")).ino).toBe(
+      sourceStat.ino
+    );
+    expect(fs.existsSync(path.join(root, "videos", ".mytube-staging"))).toBe(false);
     placement!.release();
+  });
+
+  it("preserves a destination created after allocation and keeps the generated upload", async () => {
+    const root = makeTempRoot();
+    const naming = await loadWithRoot(root);
+    const stored = writeTempUpload(root);
+    const realLink = fs.linkSync;
+    vi.spyOn(fs, "linkSync").mockImplementationOnce((source, destination) => {
+      fs.writeFileSync(destination, "late-arrival");
+      realLink(source, destination);
+    });
+
+    expect(
+      naming.placeUploadUnderOriginalName(placeInput(stored, "clip.mp4"))
+    ).toBeNull();
+    expect(fs.readFileSync(path.join(root, "videos", "clip.mp4"), "utf8")).toBe(
+      "late-arrival"
+    );
+    expect(fs.readFileSync(path.join(root, "videos", stored), "utf8")).toBe(
+      "uploaded-bytes"
+    );
+    expect(fs.readdirSync(path.join(root, "data", "output-path-reservations"))).toEqual([]);
+  });
+
+  it("keeps the generated upload when hard links are unsupported", async () => {
+    const root = makeTempRoot();
+    const naming = await loadWithRoot(root);
+    const stored = writeTempUpload(root);
+    vi.spyOn(fs, "linkSync").mockImplementationOnce(() => {
+      throw Object.assign(new Error("Hard links unsupported"), { code: "ENOTSUP" });
+    });
+
+    expect(
+      naming.placeUploadUnderOriginalName(placeInput(stored, "clip.mp4"))
+    ).toBeNull();
+    expect(fs.readdirSync(path.join(root, "videos"))).toEqual([stored]);
+    expect(fs.readFileSync(path.join(root, "videos", stored), "utf8")).toBe(
+      "uploaded-bytes"
+    );
+    const retry = naming.placeUploadUnderOriginalName(placeInput(stored, "clip.mp4"));
+    expect(retry?.videoFilename).toBe("clip.mp4");
+    retry!.release();
+  });
+
+  it("rolls back the new name if removing the generated name fails", async () => {
+    const root = makeTempRoot();
+    const naming = await loadWithRoot(root);
+    const stored = writeTempUpload(root);
+    vi.spyOn(fs, "unlinkSync").mockImplementationOnce(() => {
+      throw Object.assign(new Error("Cannot unlink upload"), { code: "EACCES" });
+    });
+
+    expect(
+      naming.placeUploadUnderOriginalName(placeInput(stored, "clip.mp4"))
+    ).toBeNull();
+    expect(fs.readdirSync(path.join(root, "videos"))).toEqual([stored]);
+    expect(fs.readFileSync(path.join(root, "videos", stored), "utf8")).toBe(
+      "uploaded-bytes"
+    );
+    const retry = naming.placeUploadUnderOriginalName(placeInput(stored, "clip.mp4"));
+    expect(retry?.videoFilename).toBe("clip.mp4");
+    retry!.release();
   });
 
   it("appends the upload ID when the name is taken, leaving the existing file alone", async () => {

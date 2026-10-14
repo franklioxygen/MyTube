@@ -12,6 +12,7 @@ type PathConfig = {
   DATA_DIR: string;
   VIDEOS_DIR: string;
   IMAGES_DIR: string;
+  IMAGES_SMALL_DIR: string;
   SUBTITLES_DIR: string;
 };
 
@@ -20,6 +21,7 @@ function buildPathConfig(root: string): PathConfig {
     DATA_DIR: path.join(root, "data"),
     VIDEOS_DIR: path.join(root, "videos"),
     IMAGES_DIR: path.join(root, "images"),
+    IMAGES_SMALL_DIR: path.join(root, "images-small"),
     SUBTITLES_DIR: path.join(root, "subtitles"),
   };
 }
@@ -53,6 +55,7 @@ function makeTempRoot(): string {
   tempRoots.push(root);
   fs.ensureDirSync(path.join(root, "videos"));
   fs.ensureDirSync(path.join(root, "images"));
+  fs.ensureDirSync(path.join(root, "images-small"));
   fs.ensureDirSync(path.join(root, "subtitles"));
   fs.ensureDirSync(path.join(root, "data"));
   return root;
@@ -490,6 +493,60 @@ describe("outputPathAllocator", () => {
 
     expect(reservation.videoRelativePath).toBe("Episode [abc].mp4");
     expect(reservation.collisionStrategy).toBe("source_id");
+    reservation.release();
+  });
+
+  it.each(["images", "videos"])("reserves a small thumbnail owned by another row in /%s", async (thumbnailRoot) => {
+    const root = makeTempRoot();
+    fs.outputFileSync(path.join(root, "images-small", "Episode.jpg"), "other-small-thumb");
+    const allocator = await loadAllocator(root, [
+      {
+        id: "other",
+        videoPath: "/videos/Other.mp4",
+        thumbnailPath: `/${thumbnailRoot}/Episode.jpg`,
+        subtitles: [],
+      },
+    ]);
+
+    const reservation = allocator.allocateOutputFamilySync({
+      videoRelativePath: "Episode.mp4",
+      thumbnailRelativePath: "Episode.jpg",
+      subtitleBaseRelativePath: "Episode",
+      thumbnailBaseDir: path.join(root, thumbnailRoot === "images" ? "videos" : "images"),
+      identity: { platform: "youtube", sourceVideoId: "abc", mediaType: "video" },
+      thumbnailRequired: true,
+    });
+
+    expect(reservation.videoRelativePath).toBe("Episode [abc].mp4");
+    expect(fs.readFileSync(path.join(root, "images-small", "Episode.jpg"), "utf8")).toBe(
+      "other-small-thumb"
+    );
+    reservation.release();
+  });
+
+  it.each(["images", "videos"])("allows a small thumbnail owned by the current row in /%s", async (thumbnailRoot) => {
+    const root = makeTempRoot();
+    fs.outputFileSync(path.join(root, "images-small", "Episode.jpg"), "owned-small-thumb");
+    const allocator = await loadAllocator(root, [
+      {
+        id: "local-1",
+        videoPath: "/videos/Episode.mp4",
+        thumbnailPath: `/${thumbnailRoot}/Episode.jpg`,
+        subtitles: [],
+      },
+    ]);
+
+    const reservation = allocator.allocateOutputFamilySync({
+      videoRelativePath: "Episode.mp4",
+      thumbnailRelativePath: "Episode.jpg",
+      subtitleBaseRelativePath: "Episode",
+      thumbnailBaseDir: path.join(root, thumbnailRoot === "images" ? "videos" : "images"),
+      identity: { platform: "youtube", sourceVideoId: "abc", mediaType: "video" },
+      existingLocalVideoId: "local-1",
+      thumbnailRequired: true,
+    });
+
+    expect(reservation.videoRelativePath).toBe("Episode.mp4");
     reservation.release();
   });
 

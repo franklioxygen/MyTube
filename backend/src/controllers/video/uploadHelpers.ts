@@ -289,70 +289,71 @@ const saveUploadedVideo = async ({
   requestedThumbnailFilename,
   moveThumbnailsToVideoFolder,
 }: SaveUploadedVideoInput): Promise<UploadResultItem> => {
-  // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
-  const validatedVideoPath = validateVideoPath(path.join(VIDEOS_DIR, videoFilename));
-  const thumbnailTarget = resolveManagedThumbnailTarget(
-    {
-      videoPath: `/videos/${videoFilename}`,
-    },
-    requestedThumbnailFilename,
-    moveThumbnailsToVideoFolder
-  );
-  const thumbnailFilename = path.basename(thumbnailTarget.relativePath);
-  const validatedThumbnailPath = thumbnailTarget.absolutePath;
-  const thumbnailWebPath = thumbnailTarget.webPath;
-
+  let validatedThumbnailPath: string | undefined;
   try {
-    await execFileSafe("ffmpeg", [
-      "-i",
-      validatedVideoPath,
-      "-ss",
-      "00:00:00",
-      "-vframes",
-      "1",
-      validatedThumbnailPath,
+    // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
+    const validatedVideoPath = validateVideoPath(path.join(VIDEOS_DIR, videoFilename));
+    const thumbnailTarget = resolveManagedThumbnailTarget(
+      {
+        videoPath: `/videos/${videoFilename}`,
+      },
+      requestedThumbnailFilename,
+      moveThumbnailsToVideoFolder
+    );
+    const thumbnailFilename = path.basename(thumbnailTarget.relativePath);
+    validatedThumbnailPath = thumbnailTarget.absolutePath;
+    const thumbnailWebPath = thumbnailTarget.webPath;
+
+    try {
+      await execFileSafe("ffmpeg", [
+        "-i",
+        validatedVideoPath,
+        "-ss",
+        "00:00:00",
+        "-vframes",
+        "1",
+        validatedThumbnailPath,
+      ]);
+    } catch (error) {
+      logger.error("Error generating thumbnail:", error);
+    }
+
+    const thumbnailExists = pathExistsSafeSync(validatedThumbnailPath, [
+      IMAGES_DIR,
+      VIDEOS_DIR,
     ]);
-  } catch (error) {
-    logger.error("Error generating thumbnail:", error);
-  }
+    if (thumbnailExists) {
+      await regenerateSmallThumbnailForThumbnailPath(thumbnailWebPath);
+    }
 
-  const thumbnailExists = pathExistsSafeSync(validatedThumbnailPath, [
-    IMAGES_DIR,
-    VIDEOS_DIR,
-  ]);
-  if (thumbnailExists) {
-    await regenerateSmallThumbnailForThumbnailPath(thumbnailWebPath);
-  }
+    const duration = await getVideoDuration(validatedVideoPath);
+    const dimensions = await getVideoDimensions(validatedVideoPath);
 
-  const duration = await getVideoDuration(validatedVideoPath);
-  const dimensions = await getVideoDimensions(validatedVideoPath);
+    const fileSize =
+      typeof file.size === "number" && Number.isFinite(file.size)
+        ? file.size.toString()
+        : undefined;
 
-  const fileSize =
-    typeof file.size === "number" && Number.isFinite(file.size)
-      ? file.size.toString()
-      : undefined;
+    const newVideo = {
+      id: videoId,
+      title: title || getDefaultUploadTitle(file.originalname),
+      author: author || "Admin",
+      source: "local",
+      sourceUrl: "",
+      videoFilename,
+      thumbnailFilename: thumbnailExists ? thumbnailFilename : undefined,
+      videoPath: `/videos/${videoFilename}`,
+      thumbnailPath: thumbnailExists ? thumbnailWebPath : undefined,
+      thumbnailUrl: thumbnailExists ? thumbnailWebPath : undefined,
+      duration: duration ? duration.toString() : undefined,
+      width: dimensions?.width,
+      height: dimensions?.height,
+      fileSize,
+      createdAt: new Date().toISOString(),
+      date: new Date().toISOString().split("T")[0].replace(/-/g, ""),
+      addedAt: new Date().toISOString(),
+    };
 
-  const newVideo = {
-    id: videoId,
-    title: title || getDefaultUploadTitle(file.originalname),
-    author: author || "Admin",
-    source: "local",
-    sourceUrl: "",
-    videoFilename,
-    thumbnailFilename: thumbnailExists ? thumbnailFilename : undefined,
-    videoPath: `/videos/${videoFilename}`,
-    thumbnailPath: thumbnailExists ? thumbnailWebPath : undefined,
-    thumbnailUrl: thumbnailExists ? thumbnailWebPath : undefined,
-    duration: duration ? duration.toString() : undefined,
-    width: dimensions?.width,
-    height: dimensions?.height,
-    fileSize,
-    createdAt: new Date().toISOString(),
-    date: new Date().toISOString().split("T")[0].replace(/-/g, ""),
-    addedAt: new Date().toISOString(),
-  };
-
-  try {
     const inserted = storageService.saveVideoIfAbsent(newVideo);
     if (!inserted) {
       cleanupUploadedVideo(videoFilename);

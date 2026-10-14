@@ -5,16 +5,17 @@ import {
   SUBTITLES_DIR,
   VIDEOS_DIR,
 } from "../../config/paths";
-import {
-  allocateOutputFamilySync,
-  promoteFileNoOverwriteSync,
-} from "../../services/filenameTemplate/outputPathAllocator";
+import { allocateOutputFamilySync } from "../../services/filenameTemplate/outputPathAllocator";
 import {
   replaceSegmentSeparators,
   sanitizeSegment,
 } from "../../services/filenameTemplate/sanitize";
 import { logger } from "../../utils/logger";
-import { resolveSafeChildPath } from "../../utils/security";
+import {
+  linkSafeSync,
+  resolveSafeChildPath,
+  unlinkSafeSync,
+} from "../../utils/security";
 import { SUPPORTED_VIDEO_EXTENSIONS } from "../../utils/videoUpload";
 
 /**
@@ -132,12 +133,21 @@ export const placeUploadUnderOriginalName = ({
   }
 
   try {
-    promoteFileNoOverwriteSync(
-      resolveSafeChildPath(VIDEOS_DIR, storedFilename),
+    const sourcePath = resolveSafeChildPath(VIDEOS_DIR, storedFilename);
+    const destinationPath = resolveSafeChildPath(
       VIDEOS_DIR,
-      resolveSafeChildPath(VIDEOS_DIR, reservation.videoRelativePath),
-      VIDEOS_DIR
+      reservation.videoRelativePath
     );
+    // Both names are in VIDEOS_DIR. A hard link publishes without overwriting
+    // an existing file or copying what may be a very large upload.
+    linkSafeSync(sourcePath, VIDEOS_DIR, destinationPath, VIDEOS_DIR);
+    try {
+      unlinkSafeSync(sourcePath, VIDEOS_DIR);
+    } catch (error) {
+      // Keep the generated-name fallback intact if removing the temp name fails.
+      unlinkSafeSync(destinationPath, VIDEOS_DIR);
+      throw error;
+    }
   } catch (error) {
     reservation.release();
     logger.warn(

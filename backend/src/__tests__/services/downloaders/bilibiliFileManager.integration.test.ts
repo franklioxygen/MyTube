@@ -11,6 +11,7 @@ function makeTempRoot(): string {
   fs.ensureDirSync(path.join(root, "data"));
   fs.ensureDirSync(path.join(root, "videos"));
   fs.ensureDirSync(path.join(root, "images"));
+  fs.ensureDirSync(path.join(root, "images-small"));
   fs.ensureDirSync(path.join(root, "subtitles"));
   return root;
 }
@@ -21,6 +22,7 @@ async function loadFileManager(root: string, videos: any[] = []) {
     DATA_DIR: path.join(root, "data"),
     VIDEOS_DIR: path.join(root, "videos"),
     IMAGES_DIR: path.join(root, "images"),
+    IMAGES_SMALL_DIR: path.join(root, "images-small"),
     SUBTITLES_DIR: path.join(root, "subtitles"),
   }));
   vi.doMock("../../../services/storageService", () => ({

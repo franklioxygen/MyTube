@@ -12,6 +12,7 @@ type Harness = {
   root: string;
   videosDir: string;
   imagesDir: string;
+  imagesSmallDir: string;
   getUploadVideoPayload: typeof import("../../controllers/video/uploadHelpers").getUploadVideoPayload;
   storage: {
     getSettings: ReturnType<typeof vi.fn>;
@@ -20,6 +21,9 @@ type Harness = {
   };
   execFileSafe: ReturnType<typeof vi.fn>;
   uploadedFileHasVideoStream: ReturnType<typeof vi.fn>;
+  getVideoDuration: ReturnType<typeof vi.fn>;
+  getVideoDimensions: ReturnType<typeof vi.fn>;
+  regenerateSmallThumbnailForThumbnailPath: ReturnType<typeof vi.fn>;
 };
 
 const loadHarness = async (settings: Record<string, unknown>): Promise<Harness> => {
@@ -48,6 +52,16 @@ const loadHarness = async (settings: Record<string, unknown>): Promise<Harness> 
     return { stdout: "", stderr: "" };
   });
   const uploadedFileHasVideoStream = vi.fn(async () => true);
+  const getVideoDuration = vi.fn(async () => 12);
+  const getVideoDimensions = vi.fn(async () => ({ width: 640, height: 360 }));
+  const regenerateSmallThumbnailForThumbnailPath = vi.fn(async (webPath: string) => {
+    const mirrorPath = path.join(
+      dirs.IMAGES_SMALL_DIR,
+      webPath.replace(/^\/(?:images|videos)\//, "")
+    );
+    fs.writeFileSync(mirrorPath, "small-thumb");
+    return mirrorPath;
+  });
 
   vi.resetModules();
   vi.doMock("../../config/paths", async (importOriginal) => ({
@@ -58,12 +72,12 @@ const loadHarness = async (settings: Record<string, unknown>): Promise<Harness> 
   vi.doMock("../../controllers/video/mediaProbe", () => ({
     execFileSafe,
     uploadedFileHasVideoStream,
-    getVideoDuration: vi.fn(async () => 12),
-    getVideoDimensions: vi.fn(async () => ({ width: 640, height: 360 })),
+    getVideoDuration,
+    getVideoDimensions,
   }));
   vi.doMock("../../services/thumbnailMirrorService", async (importOriginal) => ({
     ...(await importOriginal<typeof import("../../services/thumbnailMirrorService")>()),
-    regenerateSmallThumbnailForThumbnailPath: vi.fn(async () => undefined),
+    regenerateSmallThumbnailForThumbnailPath,
   }));
 
   const allocator = await import(
@@ -80,26 +94,21 @@ const loadHarness = async (settings: Record<string, unknown>): Promise<Harness> 
     root,
     videosDir: dirs.VIDEOS_DIR,
     imagesDir: dirs.IMAGES_DIR,
+    imagesSmallDir: dirs.IMAGES_SMALL_DIR,
     getUploadVideoPayload,
     storage,
     execFileSafe,
     uploadedFileHasVideoStream,
+    getVideoDuration,
+    getVideoDimensions,
+    regenerateSmallThumbnailForThumbnailPath,
   };
 };
 
 const visibleEntries = (dir: string): string[] =>
   fs.readdirSync(dir).filter((name) => !name.startsWith("."));
 
-// The shared no-overwrite promote keeps a .mytube-staging directory (holding
-// only its media-server ignore markers) in the library root; downloads leave
-// the same one and scans skip dot entries. Nothing may be left staged in it.
-const libraryEntries = (dir: string): string[] => {
-  const stagingDir = path.join(dir, ".mytube-staging");
-  if (fs.existsSync(stagingDir)) {
-    expect(visibleEntries(stagingDir)).toEqual([]);
-  }
-  return visibleEntries(dir);
-};
+const libraryEntries = visibleEntries;
 
 const uploadedFile = (originalname: string) =>
   ({
@@ -209,6 +218,77 @@ describe("getUploadVideoPayload filename modes", () => {
     expect(result.video).toBe(winner);
     expect(libraryEntries(h.videosDir)).toEqual([]);
     expect(libraryEntries(h.imagesDir)).toEqual([]);
+    expect(libraryEntries(h.imagesSmallDir)).toEqual([]);
+  });
+
+  it.each([
+    "regenerateSmallThumbnailForThumbnailPath",
+    "getVideoDuration",
+    "getVideoDimensions",
+  ] as const)("cleans up the renamed video and thumbnails when %s fails", async (operation) => {
+    const h = await loadHarness({ uploadFilenameMode: "original" });
+    const failure = new Error(`${operation} failed`);
+    const originalImplementation = h[operation].getMockImplementation() as (...args: unknown[]) => unknown;
+    h[operation].mockImplementationOnce(async (...args) => {
+      await originalImplementation(...args);
+      throw failure;
+    });
+
+    await expect(
+      h.getUploadVideoPayload(uploadedFile("clip.mp4"), "", "")
+    ).rejects.toThrow(failure);
+
+    expect(h.storage.saveVideoIfAbsent).not.toHaveBeenCalled();
+    expect(libraryEntries(h.videosDir)).toEqual([]);
+    expect(libraryEntries(h.imagesDir)).toEqual([]);
+    expect(libraryEntries(h.imagesSmallDir)).toEqual([]);
+    expect(fs.readdirSync(path.join(h.root, "data", "output-path-reservations"))).toEqual([]);
+  });
+
+  it.each([false, true])("preserves an existing small thumbnail when thumbnails are stored with videos: %s", async (moveThumbnailsToVideoFolder) => {
+    const h = await loadHarness({ uploadFilenameMode: "original", moveThumbnailsToVideoFolder });
+    fs.writeFileSync(path.join(h.imagesSmallDir, "clip.jpg"), "other-small-thumb");
+
+    const result = await h.getUploadVideoPayload(uploadedFile("clip.mp4"), "", "");
+
+    expect(result.video).toMatchObject({
+      videoFilename: "clip [3f9a2c1b].mp4",
+      thumbnailPath: `/${moveThumbnailsToVideoFolder ? "videos" : "images"}/clip [3f9a2c1b].jpg`,
+    });
+    expect(fs.readFileSync(path.join(h.imagesSmallDir, "clip.jpg"), "utf8")).toBe(
+      "other-small-thumb"
+    );
+    expect(fs.readFileSync(path.join(h.imagesSmallDir, "clip [3f9a2c1b].jpg"), "utf8")).toBe(
+      "small-thumb"
+    );
+  });
+
+  it.each(["duplicate", "error"])("preserves an existing small thumbnail during cleanup after a database %s", async (outcome) => {
+    const h = await loadHarness({ uploadFilenameMode: "original" });
+    fs.writeFileSync(path.join(h.imagesSmallDir, "clip.jpg"), "other-small-thumb");
+    if (outcome === "duplicate") {
+      h.storage.saveVideoIfAbsent.mockReturnValue(false);
+      h.storage.getVideoById
+        .mockReturnValueOnce(undefined)
+        .mockReturnValueOnce({ id: VIDEO_ID, title: "winner" });
+      const result = await h.getUploadVideoPayload(uploadedFile("clip.mp4"), "", "");
+      expect(result.status).toBe("duplicate");
+    } else {
+      h.storage.saveVideoIfAbsent.mockImplementationOnce(() => {
+        throw new Error("Database failed");
+      });
+      await expect(
+        h.getUploadVideoPayload(uploadedFile("clip.mp4"), "", "")
+      ).rejects.toThrow("Database failed");
+    }
+
+    expect(libraryEntries(h.videosDir)).toEqual([]);
+    expect(libraryEntries(h.imagesDir)).toEqual([]);
+    expect(libraryEntries(h.imagesSmallDir)).toEqual(["clip.jpg"]);
+    expect(fs.readFileSync(path.join(h.imagesSmallDir, "clip.jpg"), "utf8")).toBe(
+      "other-small-thumb"
+    );
+    expect(fs.readdirSync(path.join(h.root, "data", "output-path-reservations"))).toEqual([]);
   });
 
   it("does not rename a file that has no video stream", async () => {
