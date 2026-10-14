@@ -11,7 +11,7 @@ import {
 } from '@mui/material';
 import React from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
-import type { AuthorOrganizationMode, Settings } from '../../types';
+import type { AuthorOrganizationMode, Settings, UploadFilenameMode } from '../../types';
 
 interface FileOrganizationSettingsProps {
     onCleanupAuthorCollections: () => void;
@@ -20,6 +20,8 @@ interface FileOrganizationSettingsProps {
     onMoveSubtitlesToVideoFolderChange: (checked: boolean) => void;
     moveThumbnailsToVideoFolder: boolean;
     onMoveThumbnailsToVideoFolderChange: (checked: boolean) => void;
+    uploadFilenameMode: UploadFilenameMode;
+    onUploadFilenameModeChange: (mode: UploadFilenameMode) => void;
     authorOrganizationMode: AuthorOrganizationMode;
     onAuthorOrganizationModeChange: (mode: AuthorOrganizationMode) => void;
     downloadFilenameMode?: Settings['downloadFilenameMode'];
@@ -38,6 +40,8 @@ const FileOrganizationSettings: React.FC<FileOrganizationSettingsProps> = ({
     onMoveSubtitlesToVideoFolderChange,
     moveThumbnailsToVideoFolder,
     onMoveThumbnailsToVideoFolderChange,
+    uploadFilenameMode,
+    onUploadFilenameModeChange,
     authorOrganizationMode,
     onAuthorOrganizationModeChange,
     downloadFilenameMode
@@ -77,6 +81,23 @@ const FileOrganizationSettings: React.FC<FileOrganizationSettingsProps> = ({
                 />
                 <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
                     {t('moveThumbnailsToVideoFolderDescription')}
+                </Typography>
+            </Box>
+
+            <Box sx={{ mt: 3 }} id="uploadFilenameMode-setting">
+                <Typography variant="h6" gutterBottom>{t('uploadFilenameMode')}</Typography>
+                <FormControlLabel
+                    control={
+                        <Switch
+                            checked={uploadFilenameMode === 'original'}
+                            onChange={(e) => onUploadFilenameModeChange(e.target.checked ? 'original' : 'generated')}
+                            disabled={isSaving}
+                        />
+                    }
+                    label={uploadFilenameMode === 'original' ? t('uploadFilenameModeOriginal') : t('uploadFilenameModeGenerated')}
+                />
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                    {t('uploadFilenameModeDescription')}
                 </Typography>
             </Box>
 

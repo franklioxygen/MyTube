@@ -11,7 +11,7 @@ UPDATE_KEY_LIST=1 npx vitest run src/utils/locales/__tests__/localeParity.test.t
 
 This list is intentionally unnumbered. When new keys are inserted, only the local section order changes.
 
-Total keys: 1393
+Total keys: 1397
 
 ## Summary
 
@@ -52,7 +52,7 @@ Total keys: 1393
 | Disclaimer | 3 | `disclaimerTitle` | `history` |
 | Existing Video Detection | 16 | `existingVideoDetected` | `changeSettings` |
 | Sorting | 10 | `sort` | `random` |
-| yt-dlp Configuration | 58 | `ytDlpConfiguration` | `cleanupAuthorCollectionsFailed` |
+| yt-dlp Configuration | 62 | `ytDlpConfiguration` | `cleanupAuthorCollectionsFailed` |
 | Cloudflare Tunnel | 16 | `cloudflaredTunnel` | `managedInDashboard` |
 | Database Export/Import | 41 | `exportImportDatabase` | `backupDatabasesCleanedUp` |
 | Media Integrity Audit | 14 | `mediaIntegrityAudit` | `mediaIntegrityAuditActionManualReview` |
@@ -1263,6 +1263,10 @@ Total keys: 1393
 | `moveThumbnailsToVideoFolderOn` |
 | `moveThumbnailsToVideoFolderOff` |
 | `moveThumbnailsToVideoFolderDescription` |
+| `uploadFilenameMode` |
+| `uploadFilenameModeOriginal` |
+| `uploadFilenameModeGenerated` |
+| `uploadFilenameModeDescription` |
 | `saveAuthorFilesToCollection` |
 | `saveAuthorFilesToCollectionOn` |
 | `saveAuthorFilesToCollectionOff` |

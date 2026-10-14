@@ -1303,6 +1303,11 @@ export const ko = {
   moveThumbnailsToVideoFolderOff: "분리된 이미지 폴더",
   moveThumbnailsToVideoFolderDescription:
     "활성화하면 전체 크기 썸네일 파일이 동영상 파일과 같은 폴더로 이동합니다. 비활성화하면 분리된 이미지 폴더로 이동합니다. MyTube는 `images-small/` 아래에 내부 미리보기용 작은 캐시도 유지하며 썸네일 폴더 구조를 그대로 반영합니다. 이 폴더는 무시하거나 미디어 서버 라이브러리에서 제외할 수 있습니다.",
+  uploadFilenameMode: "업로드 파일 이름",
+  uploadFilenameModeOriginal: "원래 파일 이름 유지",
+  uploadFilenameModeGenerated: "자동 생성된 파일 이름 사용",
+  uploadFilenameModeDescription:
+    "활성화하면 업로드한 동영상이 원래 파일 이름을 유지합니다. 같은 이름의 파일이 이미 있으면 \"My Video [3f9a2c1b].mp4\"처럼 짧은 ID가 추가됩니다. 새로 업로드하는 파일에만 적용되며 기존 파일의 이름은 바뀌지 않습니다.",
 
   saveAuthorFilesToCollection: "작성자 파일을 컬렉션에 저장",
   saveAuthorFilesToCollectionOn: "켜짐",

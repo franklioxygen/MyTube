@@ -1295,6 +1295,11 @@ export const ar = {
   moveThumbnailsToVideoFolderOff: "في مجلد صور معزول",
   moveThumbnailsToVideoFolderDescription:
     "عند التفعيل، سيتم نقل ملفات الصور المصغرة بالحجم الكامل إلى نفس المجلد الموجود به ملف الفيديو. عند التعطيل، سيتم نقلها إلى مجلد الصور المعزول. يحتفظ MyTube أيضًا بذاكرة تخزين مؤقت داخلية صغيرة للمعاينة تحت `images-small/` تعكس بنية مجلد الصور المصغرة؛ يمكن تجاهلها أو استبعادها من مكتبات خادم الوسائط.",
+  uploadFilenameMode: "أسماء الملفات المرفوعة",
+  uploadFilenameModeOriginal: "الاحتفاظ باسم الملف الأصلي",
+  uploadFilenameModeGenerated: "استخدام اسم ملف مُنشأ تلقائيًا",
+  uploadFilenameModeDescription:
+    "عند التفعيل، تحتفظ مقاطع الفيديو المرفوعة باسم ملفها الأصلي. إذا كان هناك ملف بالاسم نفسه، يُضاف معرّف قصير، مثل \"My Video [3f9a2c1b].mp4\". ينطبق ذلك على عمليات الرفع الجديدة فقط، ولا تتم إعادة تسمية الملفات الموجودة.",
   saveAuthorFilesToCollection: "حفظ ملفات المؤلف في مجموعة",
   saveAuthorFilesToCollectionOn: "تنتظيم حسب المؤلف",
   saveAuthorFilesToCollectionOff: "حفظ في المجلدات الجذرية",

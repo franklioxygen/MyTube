@@ -5,6 +5,7 @@ import {
   Settings,
   defaultSettings,
   isPreferredVideoContainer,
+  isUploadFilenameMode,
   AUDIO_FORMATS,
   MAX_PLAYER_SEEK_SECONDS,
   MIN_PLAYER_SEEK_SECONDS,
@@ -290,6 +291,16 @@ export function validateSettings(newSettings: Partial<Settings>): void {
     throw new ValidationError(
       `Invalid authorOrganizationMode: "${newSettings.authorOrganizationMode}".`,
       "authorOrganizationMode"
+    );
+  }
+
+  if (
+    newSettings.uploadFilenameMode !== undefined &&
+    !isUploadFilenameMode(newSettings.uploadFilenameMode)
+  ) {
+    throw new ValidationError(
+      `Invalid uploadFilenameMode: "${newSettings.uploadFilenameMode}".`,
+      "uploadFilenameMode"
     );
   }
 

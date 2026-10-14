@@ -276,6 +276,8 @@ describe("videoController extra coverage", () => {
     expect(uploadConfig.limits.fileSize).toBe(100 * 1024 * 1024 * 1024);
     expect(uploadConfig.limits.files).toBe(1);
     expect(batchConfig.limits.files).toBe(100);
+    expect(uploadConfig.defParamCharset).toBe("utf8");
+    expect(batchConfig.defParamCharset).toBe("utf8");
   });
 
   it("uploadSubtitleMiddleware fileFilter accepts subtitle extensions and rejects invalid types", () => {

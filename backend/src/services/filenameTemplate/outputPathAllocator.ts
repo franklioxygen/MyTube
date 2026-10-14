@@ -2,7 +2,13 @@ import crypto from "crypto";
 import { constants as fsConstants } from "fs";
 import os from "os";
 import path from "path";
-import { DATA_DIR, IMAGES_DIR, SUBTITLES_DIR, VIDEOS_DIR } from "../../config/paths";
+import {
+  DATA_DIR,
+  IMAGES_DIR,
+  IMAGES_SMALL_DIR,
+  SUBTITLES_DIR,
+  VIDEOS_DIR,
+} from "../../config/paths";
 import {
   copyFileSafeSync,
   ensureDirSafeSync,
@@ -461,6 +467,25 @@ function candidateConflicts(input: {
     !input.ownedDbPaths.has(thumbnailManagedPath)
   ) {
     return true;
+  }
+
+  if (input.thumbnailRequired) {
+    // Originals in either managed root share the same images-small mirror.
+    const mirrorOwnershipKeys = [
+      managedOwnershipKey(`/images/${input.thumbnailRelativePath}`),
+      managedOwnershipKey(`/videos/${input.thumbnailRelativePath}`),
+    ];
+    const smallThumbnailPath = resolveSafeChildPath(
+      IMAGES_SMALL_DIR,
+      input.thumbnailRelativePath
+    );
+    if (
+      mirrorOwnershipKeys.some((key) => input.otherDbPaths.has(key)) ||
+      (pathExistsSafeSync(smallThumbnailPath, IMAGES_SMALL_DIR) &&
+        !mirrorOwnershipKeys.some((key) => input.ownedDbPaths.has(key)))
+    ) {
+      return true;
+    }
   }
 
   if (input.otherDbPaths.has(videoManagedPath)) {

@@ -212,6 +212,28 @@ describe("settingsValidationService", () => {
       }).toThrow(ValidationError);
     });
 
+    it.each([["generated"], ["original"]])(
+      "accepts uploadFilenameMode %p",
+      (value) => {
+        expect(() => {
+          settingsValidationService.validateSettings({
+            uploadFilenameMode: value as any,
+          });
+        }).not.toThrow();
+      }
+    );
+
+    it.each([["bogus"], [true], [""]])(
+      "rejects uploadFilenameMode %p",
+      (value) => {
+        expect(() => {
+          settingsValidationService.validateSettings({
+            uploadFilenameMode: value as any,
+          });
+        }).toThrow(ValidationError);
+      }
+    );
+
     it.each([["true"], [1], [0], [null]])(
       "rejects a non-boolean autoDeleteEnabled (%p)",
       (value) => {
