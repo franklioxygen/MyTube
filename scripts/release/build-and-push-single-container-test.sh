@@ -44,6 +44,7 @@ build_single_platform_image() {
 
   echo "🏗️ Building and pushing single-container image for $platform as $tag..."
   $DOCKER_PATH buildx build \
+    --pull \
     --platform "$platform" \
     "${ATTESTATION_FLAGS[@]}" \
     --build-arg BUILD_DATE="$BUILD_DATE" \
