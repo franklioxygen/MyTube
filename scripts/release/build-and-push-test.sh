@@ -37,6 +37,7 @@ build_backend() {
   # Run build from root context to allow copying frontend files
   # Use -f backend/Dockerfile to specify the Dockerfile path
   $DOCKER_PATH build \
+    --pull \
     --platform $platform \
     --build-arg BUILD_DATE="$BUILD_DATE" \
     -f backend/Dockerfile \
@@ -74,7 +75,7 @@ build_frontend() {
   
   echo "🏗️ Building frontend for $platform..."
   cd frontend
-  $DOCKER_PATH build --platform $platform \
+  $DOCKER_PATH build --pull --platform $platform \
     --build-arg VITE_API_URL="$VITE_API_URL" \
     --build-arg VITE_BACKEND_URL="$VITE_BACKEND_URL" \
     -t $tag .
