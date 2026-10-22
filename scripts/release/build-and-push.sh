@@ -56,6 +56,7 @@ ATTESTATION_FLAGS="--provenance=false --sbom=false"
 # Build and push backend (multi-arch, single step)
 echo "🏗️ Building and pushing backend..."
 $DOCKER_PATH buildx build \
+  --pull \
   --platform $PLATFORMS \
   $ATTESTATION_FLAGS \
   --build-arg BUILD_DATE="$BUILD_DATE" \
@@ -69,6 +70,7 @@ echo ""
 # Build and push frontend (multi-arch, single step)
 echo "🏗️ Building and pushing frontend..."
 $DOCKER_PATH buildx build \
+  --pull \
   --platform $PLATFORMS \
   $ATTESTATION_FLAGS \
   --build-arg VITE_API_URL="$VITE_API_URL" \

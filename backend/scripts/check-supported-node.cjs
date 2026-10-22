@@ -32,7 +32,28 @@ const isSupported =
   atLeast(current, 22, 22, 0) ||
   (current.major >= 23 && current.major <= 26);
 
+// Oldest releases carrying the October 2026 Node.js security fixes. 23.x and
+// 25.x are end-of-life and receive no security patches.
+const securityPatched = { 22: [22, 23, 4], 24: [24, 22, 1], 26: [26, 12, 1] };
+
+const warnIfUnpatched = () => {
+  const minimum = securityPatched[current.major];
+  if (!minimum) {
+    console.warn(
+      `[install] Warning: Node.js ${current.major}.x is end-of-life and no longer receives security fixes. Use Node.js 22, 24, or 26.`
+    );
+    return;
+  }
+
+  if (!atLeast(current, ...minimum)) {
+    console.warn(
+      `[install] Warning: Node.js ${currentVersion} is missing known security fixes. Upgrade to ${minimum.join(".")} or later.`
+    );
+  }
+};
+
 if (isSupported) {
+  warnIfUnpatched();
   process.exit(0);
 }
 
