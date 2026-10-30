@@ -51,6 +51,6 @@
         "basic-ftp": "^6.2.1",
         "flatted": "^3.4.0",
         "ip-address": "^10.5.1",
-        "undici": "^6.29.0"
+        "undici": "^6.29.1"
     }
 }
