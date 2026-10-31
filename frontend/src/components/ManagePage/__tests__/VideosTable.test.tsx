@@ -15,6 +15,7 @@ let mockCollections = [
 ];
 let mockActiveDownloads: Array<{ sourceUrl: string }> = [];
 let mockQueuedDownloads: Array<{ sourceUrl: string }> = [];
+const mockAvailableTags = ['Music', 'Tutorial'];
 
 const mockDeleteVideo = vi.fn();
 const mockAddToCollection = vi.fn();
@@ -34,6 +35,7 @@ vi.mock('../../../contexts/AuthContext', () => ({
 vi.mock('../../../contexts/VideoContext', () => ({
     useVideo: () => ({
         deleteVideo: mockDeleteVideo,
+        availableTags: mockAvailableTags,
     }),
 }));
 
@@ -286,6 +288,23 @@ describe('VideosTable', () => {
             expect(mockDeleteVideo).toHaveBeenCalledWith('1');
             expect(mockDeleteVideo).toHaveBeenCalledWith('2');
         });
+    });
+
+    it('provides the existing tag catalog and saves a suggested tag in one request', async () => {
+        const user = userEvent.setup();
+        renderTable();
+        await user.click(screen.getByLabelText('select video Video 1'));
+        await user.click(screen.getByRole('button', { name: 'addTags' }));
+        const dialog = await screen.findByRole('dialog');
+        await user.click(within(dialog).getByRole('combobox'));
+        expect(await screen.findByRole('option', { name: 'Tutorial' })).toBeInTheDocument();
+        await user.click(screen.getByRole('option', { name: 'Music' }));
+        expect(api.post).not.toHaveBeenCalled();
+        await user.click(within(dialog).getByRole('button', { name: 'addTags' }));
+        await waitFor(() => expect(api.post).toHaveBeenCalledExactlyOnceWith('/videos/batch/tags', {
+            videoIds: ['1'], tags: ['Music'],
+        }));
+        await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     });
 
     it('adds selected videos in one request to an existing collection', async () => {
