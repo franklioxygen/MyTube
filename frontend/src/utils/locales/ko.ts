@@ -1,4 +1,30 @@
 export const ko = {
+  // Bulk video organization
+  bulkSelectVideos: "동영상 선택",
+  bulkExitSelection: "선택 종료",
+  bulkSelectedCount: "동영상 {count}개 선택됨",
+  bulkSelectPage: "현재 페이지 선택",
+  bulkSelectResults: "결과 선택 ({count})",
+  bulkClearSelection: "선택 해제",
+  bulkSelectionLimit: "Select up to 500 videos. Narrow the filter or select videos individually.",
+  bulkTagsTitle: "Add tags to {count} videos",
+  bulkTagsHint: "Existing tags are preserved. Only the selected tags will be added.",
+  bulkTagsValidation: "Add 1–20 tags, up to 80 characters each. Press Enter to add a tag.",
+  bulkCollectionTitle: "Add {count} videos to a collection",
+  bulkCollectionHint: "Existing collection memberships and video file locations are preserved.",
+  bulkExistingCollection: "기존 컬렉션",
+  bulkNewCollection: "새 컬렉션",
+  bulkCollectionNameHint: "1–200 characters; no filesystem-reserved characters.",
+  bulkAddToCollection: "컬렉션에 추가",
+  bulkSelectVideo: "{title} 선택",
+  bulkSaved: "Updated {changed} videos; {unchanged} needed no changes.",
+  bulkUnchanged: "All selected videos already have these tags or collection membership.",
+  bulkSavedRefreshFailed: "Saved, but the list could not refresh. Refresh the page to see the changes.",
+  bulkMissingVideos: "{count} selected videos no longer exist. This request changed no videos.",
+  bulkRemoveMissing: "Remove unavailable videos",
+  bulkCollectionConflict: "This collection name already exists. Choose the existing collection to continue.",
+  bulkRequestUnknown: "No response was received. The operation may have completed. Retrying these same choices is safe.",
+
   // Header
   myTube: "MyTube",
   // Auto Delete (library-wide age-based cleanup)

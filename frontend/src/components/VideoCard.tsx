@@ -1,10 +1,12 @@
 import {
     Card,
     CardActionArea,
+    Checkbox,
     useMediaQuery,
     useTheme
 } from '@mui/material';
 import React from 'react';
+import { useLanguage } from '../contexts/LanguageContext';
 import { useVideoTags } from '../contexts/VideoContext';
 import { usePlayerSelection } from '../hooks/usePlayerSelection';
 import { useVideoCardActions } from '../hooks/useVideoCardActions';
@@ -19,6 +21,10 @@ import { VideoCardContent } from './VideoCard/VideoCardContent';
 import { VideoCardThumbnail } from './VideoCard/VideoCardThumbnail';
 
 interface VideoCardProps {
+    selectionMode?: boolean;
+    selected?: boolean;
+    selectionDisabled?: boolean;
+    onSelectionToggle?: (id: string) => void;
     video: Video;
     collections?: Collection[];
     onDeleteVideo?: (id: string) => Promise<any>;
@@ -34,6 +40,10 @@ interface VideoCardProps {
 }
 
 const VideoCardBase: React.FC<VideoCardProps> = ({
+    selectionMode = false,
+    selected = false,
+    selectionDisabled = false,
+    onSelectionToggle,
     video,
     collections = [],
     onDeleteVideo,
@@ -47,6 +57,7 @@ const VideoCardBase: React.FC<VideoCardProps> = ({
     showTagsOnThumbnail = false,
     onTagClick
 }) => {
+    const { t } = useLanguage();
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
     const isTouch = useMediaQuery('(hover: none), (pointer: coarse)');
@@ -60,7 +71,7 @@ const VideoCardBase: React.FC<VideoCardProps> = ({
     );
 
     // Hooks for different concerns
-    const hoverPreview = useVideoHoverPreview({ videoPath: video.videoPath });
+    const hoverPreview = useVideoHoverPreview({ videoPath: selectionMode ? undefined : video.videoPath });
     const metadata = useVideoCardMetadata({ video });
     const playerSelection = usePlayerSelection({
         video,
@@ -84,6 +95,7 @@ const VideoCardBase: React.FC<VideoCardProps> = ({
     });
 
     const handleMouseEnter = () => {
+        if (selectionMode) return;
         hoverPreview.handleMouseEnter();
         // Also prefetch on hover as an additional optimization
         prefetchVideo();
@@ -106,6 +118,10 @@ const VideoCardBase: React.FC<VideoCardProps> = ({
                 borderRadius: 2,
                 overflow: 'visible',
                 transition: 'background-color 0.15s ease, color 0.3s, border-color 0.3s',
+                ...(selected && selectionMode && {
+                    outline: `2px solid ${theme.palette.primary.main}`,
+                    bgcolor: 'action.selected',
+                }),
                 ...(!isMobile && {
                     '&:hover': {
                         bgcolor: 'action.hover',
@@ -117,8 +133,19 @@ const VideoCardBase: React.FC<VideoCardProps> = ({
                     : 'none'
             }}
         >
+            {selectionMode && <Checkbox
+                checked={selected}
+                disabled={selectionDisabled}
+                onChange={() => onSelectionToggle?.(video.id)}
+                onClick={(event) => event.stopPropagation()}
+                slotProps={{ input: { 'aria-label': t('bulkSelectVideo', { title: video.title }) } }}
+                sx={{ position: 'absolute', top: 4, right: 4, zIndex: 12, bgcolor: 'background.paper', borderRadius: 1 }}
+            />}
             <CardActionArea
-                onClick={navigation.handleVideoNavigation}
+                onClick={selectionMode ? () => onSelectionToggle?.(video.id) : navigation.handleVideoNavigation}
+                disabled={selectionMode && selectionDisabled}
+                aria-pressed={selectionMode ? selected : undefined}
+                tabIndex={selectionMode ? -1 : undefined}
                 sx={{
                     flexGrow: 1,
                     display: 'flex',
@@ -142,7 +169,7 @@ const VideoCardBase: React.FC<VideoCardProps> = ({
                     thumbnailSrcSet={metadata.thumbnailSrcSet}
                     thumbnailSizes={metadata.thumbnailSizes}
                     videoUrl={metadata.videoUrl}
-                    isHovered={hoverPreview.isHovered}
+                    isHovered={!selectionMode && hoverPreview.isHovered}
                     isVideoPlaying={hoverPreview.isVideoPlaying}
                     setIsVideoPlaying={hoverPreview.setIsVideoPlaying}
                     videoRef={hoverPreview.videoRef}
@@ -150,7 +177,7 @@ const VideoCardBase: React.FC<VideoCardProps> = ({
                     isNew={metadata.isNew}
                     isAboveTheFold={isAboveTheFold}
                     isHeroImage={isHeroImage}
-                    showTagsOnThumbnail={showTagsOnThumbnail}
+                    showTagsOnThumbnail={!selectionMode && showTagsOnThumbnail}
                     availableTags={availableTags}
                     selectedTags={selectedTags}
                     onTagClick={onTagClick ?? handleTagToggle}
@@ -159,12 +186,15 @@ const VideoCardBase: React.FC<VideoCardProps> = ({
                 <VideoCardContent
                     video={video}
                     collectionInfo={collectionInfo}
-                    onAuthorClick={navigation.handleAuthorClick}
-                    isHovered={hoverPreview.isHovered}
+                    onAuthorClick={selectionMode ? (event) => {
+                        event.stopPropagation();
+                        if (!selectionDisabled) onSelectionToggle?.(video.id);
+                    } : navigation.handleAuthorClick}
+                    isHovered={!selectionMode && hoverPreview.isHovered}
                 />
             </CardActionArea>
 
-            <VideoCardActions
+            {!selectionMode && <VideoCardActions
                 video={video}
                 playerMenuAnchor={playerSelection.playerMenuAnchor}
                 setPlayerMenuAnchor={playerSelection.setPlayerMenuAnchor}
@@ -180,7 +210,7 @@ const VideoCardBase: React.FC<VideoCardProps> = ({
                 isMobile={isMobile}
                 isTouch={isTouch}
                 isHovered={hoverPreview.isHovered}
-            />
+            />}
         </Card>
     );
 };
@@ -192,6 +222,10 @@ const VideoCardBase: React.FC<VideoCardProps> = ({
  * comparator guards the array/object props that callers may recreate.
  */
 const VideoCard = React.memo(VideoCardBase, (prevProps, nextProps) => {
+    if (prevProps.selectionMode !== nextProps.selectionMode) return false;
+    if (prevProps.selected !== nextProps.selected) return false;
+    if (prevProps.selectionDisabled !== nextProps.selectionDisabled) return false;
+    if (prevProps.onSelectionToggle !== nextProps.onSelectionToggle) return false;
     if (prevProps.video !== nextProps.video) return false;
     if (prevProps.onDeleteVideo !== nextProps.onDeleteVideo) return false;
     if (prevProps.showDeleteButton !== nextProps.showDeleteButton) return false;
