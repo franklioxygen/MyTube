@@ -38,7 +38,14 @@ function drain(): void {
     for (const id of [...pending].slice(0, CHUNK_SIZE)) {
       pending.delete(id);
       const video = snapshotById.get(id);
-      if (video) syncMediaServerArtifactsForRecord(video, { libraryVideos: snapshot });
+      if (video) {
+        try {
+          syncMediaServerArtifactsForRecord(video, { libraryVideos: snapshot });
+        } catch (error) {
+          // One failed export must not discard unrelated queued videos.
+          logger.error("Bulk media artifact refresh failed for video", error, { videoId: id });
+        }
+      }
     }
   } catch (error) {
     // Derived files can be repaired by the existing export rebuild operation.

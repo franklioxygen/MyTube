@@ -17,7 +17,7 @@ let queue: typeof import("../../services/mediaServerExport/bulkArtifactRefresh")
 beforeEach(async () => {
   vi.resetModules();
   vi.useFakeTimers();
-  vi.clearAllMocks();
+  vi.resetAllMocks();
   mocks.generation = 0; mocks.revision = "r1"; mocks.mode = "nfo";
   mocks.getVideos.mockReturnValue([]);
   mocks.getVideosStrict.mockReturnValue(Array.from({ length: 25 }, (_, i) => ({ id: `v${i}`, title: "latest" })));
@@ -65,11 +65,28 @@ describe("post-commit derived artifact queue", () => {
     expect(mocks.warn).toHaveBeenCalledWith(expect.stringContaining("1 skipped"));
     vi.runAllTimers();
   });
-  it("logs derived export failures without propagating them", () => {
-    mocks.sync.mockImplementationOnce(() => { throw new Error("disk failure"); });
-    queue(["v1"]);
+  it.each([0, 9, 10, 499])("isolates video %i export failure while completing the rest of a 500-video queue", (failedIndex) => {
+    const library = Array.from({ length: 500 }, (_, i) => ({ id: `v${i}`, title: "latest" }));
+    const failedId = library[failedIndex].id;
+    const failure = new Error("sidecar is unwritable");
+    const exportedIds: string[] = [];
+    mocks.getVideosStrict.mockReturnValue(library);
+    mocks.sync.mockImplementation((video: { id: string }) => {
+      if (video.id === failedId) throw failure;
+      exportedIds.push(video.id);
+    });
+    queue(library.map((video) => video.id));
+
+    expect(() => vi.advanceTimersToNextTimer()).not.toThrow();
+    expect(mocks.sync).toHaveBeenCalledTimes(10);
     expect(() => vi.runAllTimers()).not.toThrow();
-    expect(mocks.error).toHaveBeenCalled();
+    expect(mocks.sync).toHaveBeenCalledTimes(500);
+    expect(exportedIds).toEqual(library.filter((video) => video.id !== failedId).map((video) => video.id));
+    expect(mocks.error).toHaveBeenCalledExactlyOnceWith(
+      "Bulk media artifact refresh failed for video", failure, { videoId: failedId },
+    );
+    expect(mocks.getVideosStrict).toHaveBeenCalledOnce();
+    expect(vi.getTimerCount()).toBe(0);
   });
   it("logs a failed library read and recovers on a later batch without a revision change", () => {
     const failure = new Error("library read failure");
