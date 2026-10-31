@@ -23,6 +23,13 @@ const mockUseVideoReturn = {
     deleteVideos: vi.fn(),
 };
 
+vi.mock('../../contexts/AuthContext', () => ({
+    useAuth: () => ({ userRole: 'visitor', loginRequired: true, checkingAuth: false }),
+}));
+vi.mock('../../contexts/SnackbarContext', () => ({
+    useSnackbar: () => ({ showSnackbar: vi.fn() }),
+}));
+
 vi.mock('../../contexts/LanguageContext', () => ({
     useLanguage: () => ({
         t: (key: string, replacements?: Record<string, string | number>) => {

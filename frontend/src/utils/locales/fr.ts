@@ -1,4 +1,30 @@
 export const fr = {
+  // Bulk video organization
+  bulkSelectVideos: "Sélectionner des vidéos",
+  bulkExitSelection: "Quitter la sélection",
+  bulkSelectedCount: "{count} vidéos sélectionnées",
+  bulkSelectPage: "Sélectionner cette page",
+  bulkSelectResults: "Sélectionner les résultats ({count})",
+  bulkClearSelection: "Effacer la sélection",
+  bulkSelectionLimit: "Select up to 500 videos. Narrow the filter or select videos individually.",
+  bulkTagsTitle: "Add tags to {count} videos",
+  bulkTagsHint: "Existing tags are preserved. Only the selected tags will be added.",
+  bulkTagsValidation: "Add 1–20 tags, up to 80 characters each. Press Enter to add a tag.",
+  bulkCollectionTitle: "Add {count} videos to a collection",
+  bulkCollectionHint: "Existing collection memberships and video file locations are preserved.",
+  bulkExistingCollection: "Collection existante",
+  bulkNewCollection: "Nouvelle collection",
+  bulkCollectionNameHint: "1–200 characters; no filesystem-reserved characters.",
+  bulkAddToCollection: "Ajouter à une collection",
+  bulkSelectVideo: "Sélectionner {title}",
+  bulkSaved: "Updated {changed} videos; {unchanged} needed no changes.",
+  bulkUnchanged: "All selected videos already have these tags or collection membership.",
+  bulkSavedRefreshFailed: "Saved, but the list could not refresh. Refresh the page to see the changes.",
+  bulkMissingVideos: "{count} selected videos no longer exist. This request changed no videos.",
+  bulkRemoveMissing: "Remove unavailable videos",
+  bulkCollectionConflict: "This collection name already exists. Choose the existing collection to continue.",
+  bulkRequestUnknown: "No response was received. The operation may have completed. Retrying these same choices is safe.",
+
   // Header
   myTube: "MyTube",
   // Auto Delete (library-wide age-based cleanup)

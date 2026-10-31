@@ -66,6 +66,7 @@ const VirtualizedVideoGrid: React.FC<VirtualizedVideoGridProps> = ({
         <VirtuosoGrid
             useWindowScroll
             data={sortedVideos}
+            computeItemKey={(_, video) => video.id}
             components={{
                 List: VirtuosoList,
                 Item: VirtuosoItem

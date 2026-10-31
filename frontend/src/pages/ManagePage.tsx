@@ -469,6 +469,8 @@ const ManagePage: React.FC = () => {
                 {tabValue === 1 && (
                     <VideosTable
                         displayedVideos={displayedVideos}
+                        allVideos={videos}
+                        orderedVideos={filteredVideos}
                         totalVideosCount={filteredVideos.length}
                         totalSize={totalSize}
                         searchTerm={searchTerm}

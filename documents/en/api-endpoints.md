@@ -36,6 +36,26 @@ All API routes are mounted under `/api` unless noted otherwise.
 
 ## Video Management
 
+### Bulk organization
+
+Both endpoints require admin access when login is enabled and the existing CSRF cookie/header. They also work when login is disabled. API-key callers and visitors cannot use them.
+
+- `POST /api/videos/batch/tags`
+  - Body: `{ videoIds: string[], tags: string[] }`
+  - Appends tags and updates the global tag catalog in one transaction; existing tags are preserved. Matching is case-insensitive. New additions use the catalog spelling; an existing video's spelling is preserved.
+  - Limits: 1–500 raw video IDs, 1–20 raw tags, at most 80 Unicode characters per trimmed tag. IDs are nonempty trimmed strings of at most 200 UTF-16 code units. Duplicate IDs/tags are processed once.
+  - `200`: `{ success: true, data: { requestedCount, changedVideoIds, unchangedVideoIds, catalogChanged, videos: [{ id, tags }] } }`
+- `POST /api/collections/batch-add`
+  - Existing collection: `{ videoIds: string[], collectionId: string }`
+  - Create and add atomically: `{ videoIds: string[], newCollection: { id: string, name: string } }`
+  - Provide exactly one target. The new ID must be UUID v4; retry the same creation draft with the same ID. Names are trimmed, 1–200 Unicode characters, and cannot contain filesystem-reserved/control characters or end in a dot.
+  - Appends missing members in request order, preserving existing order, other memberships and all video file paths. No files are moved.
+  - `200`: `{ success: true, data: { requestedCount, changedVideoIds, unchangedVideoIds, collection: { id, name, created } } }`
+
+Validation errors return `400`; missing videos/collections return `404`; damaged stored tags, new-name collisions and mismatched reused collection IDs return `409`. Expected errors include `{ success: false, error, type, details }`; details may contain `missingVideoIds`, `invalidVideoIds`, or `existingCollectionId`. Database failures return `500`. Every database change within one request rolls back on failure; no partial-success response is used. New-name conflicts require explicitly choosing the existing collection. The older single-video create endpoint keeps its existing name-merge behavior.
+
+Repeated additions are safe while their targets remain unchanged. A network timeout does not prove rollback; a concurrent collection rename/deletion may make a retry return a conflict/not-found response. Tags trigger best-effort media metadata export after commit; export failure or restart does not undo database changes. A successful response whose subsequent list refresh fails should be shown as saved with a refresh warning.
+
 - `POST /api/upload` - Upload one local video file
   - Multipart form-data: `video` (required), `title` (optional), `author` (optional)
   - Notes:

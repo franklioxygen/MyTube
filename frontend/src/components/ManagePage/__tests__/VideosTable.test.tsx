@@ -1,4 +1,5 @@
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
+import { AxiosHeaders } from 'axios';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { BrowserRouter } from 'react-router';
@@ -14,6 +15,7 @@ let mockCollections = [
 ];
 let mockActiveDownloads: Array<{ sourceUrl: string }> = [];
 let mockQueuedDownloads: Array<{ sourceUrl: string }> = [];
+const mockAvailableTags = ['Music', 'Tutorial'];
 
 const mockDeleteVideo = vi.fn();
 const mockAddToCollection = vi.fn();
@@ -33,6 +35,7 @@ vi.mock('../../../contexts/AuthContext', () => ({
 vi.mock('../../../contexts/VideoContext', () => ({
     useVideo: () => ({
         deleteVideo: mockDeleteVideo,
+        availableTags: mockAvailableTags,
     }),
 }));
 
@@ -67,6 +70,7 @@ vi.mock('@tanstack/react-query', async () => {
 });
 
 vi.mock('../../../utils/apiClient', () => ({
+    ensureCsrfToken: vi.fn().mockResolvedValue(undefined),
     api: {
         post: vi.fn(),
         get: vi.fn(),
@@ -206,8 +210,12 @@ describe('VideosTable', () => {
         mockInvalidateQueries.mockReset();
         vi.mocked(useQueryClient).mockReturnValue({
             invalidateQueries: mockInvalidateQueries,
+            cancelQueries: vi.fn().mockResolvedValue(undefined),
         } as any);
         vi.mocked(api.post).mockReset();
+        vi.mocked(api.post).mockResolvedValue({ status: 200, statusText: 'OK', headers: {}, config: { headers: new AxiosHeaders() }, data: { success: true, data: {
+            requestedCount: 2, changedVideoIds: ['1', '2'], unchangedVideoIds: [],
+        } } });
     });
 
     it('renders video rows and thumbnail sources', () => {
@@ -271,7 +279,7 @@ describe('VideosTable', () => {
 
         await user.click(screen.getByLabelText('select all videos'));
 
-        expect(screen.getByText('2 selected')).toBeInTheDocument();
+        expect(screen.getByText('bulkSelectedCount')).toBeInTheDocument();
 
         await user.click(screen.getByRole('button', { name: 'delete' }));
         await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'delete' }));
@@ -282,36 +290,51 @@ describe('VideosTable', () => {
         });
     });
 
-    it('adds selected videos to an existing collection from the bulk modal', async () => {
+    it('provides the existing tag catalog and saves a suggested tag in one request', async () => {
         const user = userEvent.setup();
         renderTable();
-
         await user.click(screen.getByLabelText('select video Video 1'));
-        await user.click(screen.getByRole('button', { name: 'moveCollection' }));
-
-        expect(screen.getByTestId('collection-modal-count')).toHaveTextContent('2');
-
-        await user.click(screen.getByRole('button', { name: 'mock-add-existing' }));
-
-        await waitFor(() => {
-            expect(mockAddToCollection).toHaveBeenCalledWith('collection-1', '1');
-            expect(mockFetchCollections).toHaveBeenCalled();
-        });
+        await user.click(screen.getByRole('button', { name: 'addTags' }));
+        const dialog = await screen.findByRole('dialog');
+        await user.click(within(dialog).getByRole('combobox'));
+        expect(await screen.findByRole('option', { name: 'Tutorial' })).toBeInTheDocument();
+        await user.click(screen.getByRole('option', { name: 'Music' }));
+        expect(api.post).not.toHaveBeenCalled();
+        await user.click(within(dialog).getByRole('button', { name: 'addTags' }));
+        await waitFor(() => expect(api.post).toHaveBeenCalledExactlyOnceWith('/videos/batch/tags', {
+            videoIds: ['1'], tags: ['Music'],
+        }));
+        await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     });
 
-    it('creates a new collection from the selected videos', async () => {
+    it('adds selected videos in one request to an existing collection', async () => {
         const user = userEvent.setup();
         renderTable();
+        await user.click(screen.getByLabelText('select video Video 1'));
+        await user.click(screen.getByRole('button', { name: 'bulkAddToCollection' }));
+        const dialog = await screen.findByRole('dialog');
+        await user.click(within(dialog).getByRole('combobox'));
+        await user.click(await screen.findByRole('option', { name: 'Collection 1' }));
+        await user.click(within(dialog).getByRole('button', { name: 'bulkAddToCollection' }));
+        await waitFor(() => expect(api.post).toHaveBeenCalledWith('/collections/batch-add', {
+            videoIds: ['1'], collectionId: 'collection-1',
+        }));
+        expect(mockAddToCollection).not.toHaveBeenCalled();
+    });
 
+    it('creates a new collection and adds all selected videos in one request', async () => {
+        const user = userEvent.setup();
+        renderTable();
         await user.click(screen.getByLabelText('select all videos'));
-        await user.click(screen.getByRole('button', { name: 'moveCollection' }));
-        await user.click(screen.getByRole('button', { name: 'mock-create-collection' }));
-
-        await waitFor(() => {
-            expect(mockCreateCollection).toHaveBeenCalledWith('Created Collection', '1');
-            expect(mockAddToCollection).toHaveBeenCalledWith('created-collection', '2');
-            expect(mockFetchCollections).toHaveBeenCalled();
-        });
+        await user.click(screen.getByRole('button', { name: 'bulkAddToCollection' }));
+        const dialog = await screen.findByRole('dialog');
+        await user.click(within(dialog).getByRole('radio', { name: 'bulkNewCollection' }));
+        await user.type(within(dialog).getByRole('textbox', { name: 'bulkNewCollection' }), 'Created Collection');
+        await user.click(within(dialog).getByRole('button', { name: 'bulkAddToCollection' }));
+        await waitFor(() => expect(api.post).toHaveBeenCalledWith('/collections/batch-add', {
+            videoIds: ['1', '2'], newCollection: { name: 'Created Collection', id: expect.any(String) },
+        }));
+        expect(mockCreateCollection).not.toHaveBeenCalled();
     });
 
     it('opens the upload thumbnail modal and forwards uploads to the selected video', async () => {

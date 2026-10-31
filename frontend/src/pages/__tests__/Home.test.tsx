@@ -15,6 +15,13 @@ vi.mock('react-router', () => ({
     useNavigate: () => mockNavigate,
 }));
 
+vi.mock('../../contexts/AuthContext', () => ({
+    useAuth: () => ({ userRole: 'visitor', loginRequired: true, checkingAuth: false }),
+}));
+vi.mock('../../contexts/SnackbarContext', () => ({
+    useSnackbar: () => ({ showSnackbar: vi.fn() }),
+}));
+
 vi.mock('../../contexts/LanguageContext', () => ({
     useLanguage: () => ({ t: (key: string) => key }),
 }));

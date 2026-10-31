@@ -6,6 +6,8 @@ import { HomeLoadingSkeleton } from '../components/HomeLoadingSkeleton';
 import { HomeSidebar } from '../components/HomeSidebar';
 import { LCPImagePreloader } from '../components/LCPImagePreloader';
 import { VideoGrid } from '../components/VideoGrid';
+import VideoBatchToolbar from '../components/VideoBatchToolbar';
+import { useVideoSelection } from '../hooks/useVideoSelection';
 import { useCollection } from '../contexts/CollectionContext';
 import { useHomeViewModeRequestOptional } from '../contexts/HomeViewModeRequestContext';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -154,6 +156,14 @@ const Home: React.FC<HomeProps> = ({ initialViewMode }) => {
         selectedTags
     });
 
+    const selection = useVideoSelection({
+        scopeKey: JSON.stringify(['home', location.pathname, viewMode, [...selectedTags].sort()]),
+        modeScopeKey: JSON.stringify(['home', location.pathname, viewMode]),
+        videos: videoArray,
+        enabled: viewMode === 'all-videos' || viewMode === 'history',
+        libraryReady: !loading || videoArray.length > 0,
+    });
+
     const loadingSkeletonCount = Math.min(Math.max(itemsPerPage, 6), 12);
     const priorityVideos = infiniteScroll ? sortedVideos : displayedVideos;
 
@@ -239,25 +249,30 @@ const Home: React.FC<HomeProps> = ({ initialViewMode }) => {
                         collections={collections}
                         availableTags={availableTags}
                         selectedTags={selectedTags}
-                        onTagToggle={handleHomeTagToggle}
+                        onTagToggle={selection.locked ? () => {} : handleHomeTagToggle}
                         videos={videoArray}
                         maxPanelHeight={videoGridHeight}
                     />
 
                     {/* Videos grid */}
                     <Box sx={{ flex: 1, minWidth: 0, alignSelf: 'flex-start' }}>
-                        <HomeHeader
-                            viewMode={viewMode}
-                            onViewModeChange={handleHomeViewModeChange}
-                            onSidebarToggle={handleSidebarToggle}
-                            selectedTagsCount={selectedTags.length}
-                            onDeleteFilteredClick={() => setIsDeleteFilteredOpen(true)}
-                            onClearTagFilter={clearSelectedTags}
-                            sortOption={sortOption}
-                            sortAnchorEl={sortAnchorEl}
-                            onSortClick={handleSortClick}
-                            onSortClose={handleSortClose}
-                        />
+                        <Box component="fieldset" disabled={selection.locked} sx={{ border: 0, p: 0, m: 0, minWidth: 0 }}>
+                            <HomeHeader
+                                viewMode={viewMode}
+                                onViewModeChange={handleHomeViewModeChange}
+                                onSidebarToggle={handleSidebarToggle}
+                                selectedTagsCount={selectedTags.length}
+                                onDeleteFilteredClick={() => setIsDeleteFilteredOpen(true)}
+                                onClearTagFilter={clearSelectedTags}
+                                sortOption={sortOption}
+                                sortAnchorEl={sortAnchorEl}
+                                onSortClick={handleSortClick}
+                                onSortClose={handleSortClose}
+                            />
+                        </Box>
+                        <VideoBatchToolbar selection={selection} pageIds={displayedVideos.map((v) => v.id)}
+                            orderedIds={sortedVideos.map((v) => v.id)} availableTags={availableTags}
+                            infiniteScroll={infiniteScroll} />
                         {viewMode === 'favorite' ? (
                             <FavoritePage
                                 onBrowseCollections={() => handleHomeViewModeChange('collections')}
@@ -274,6 +289,7 @@ const Home: React.FC<HomeProps> = ({ initialViewMode }) => {
                             // touch-only screen can page without the arrow keys.
                             <Box ref={videoGridRef} {...swipeHandlers}>
                                 <VideoGrid
+                                    selection={selection}
                                     videos={videoArray}
                                     sortedVideos={sortedVideos}
                                     displayedVideos={displayedVideos}
@@ -283,7 +299,7 @@ const Home: React.FC<HomeProps> = ({ initialViewMode }) => {
                                     gridProps={gridProps}
                                     onDeleteVideo={deleteVideo}
                                     showTagsOnThumbnail={showTagsOnThumbnail}
-                                    onTagToggle={handleHomeTagToggle}
+                                    onTagToggle={selection.locked ? () => {} : handleHomeTagToggle}
                                 />
                             </Box>
                         )}
@@ -291,6 +307,7 @@ const Home: React.FC<HomeProps> = ({ initialViewMode }) => {
                         {viewMode !== 'favorite' && !infiniteScroll && totalPages > 1 && (
                             <Box sx={{ mt: 4, display: 'flex', justifyContent: 'center', px: { xs: 2, sm: 0 } }}>
                                 <Pagination
+                                    disabled={selection.locked}
                                     count={totalPages}
                                     page={page}
                                     onChange={handlePageChange}
