@@ -2,7 +2,7 @@ import { getDatabaseGeneration } from "../../db";
 import { logger } from "../../utils/logger";
 import { getSettings } from "../storageService/settings";
 import { getVideosListETag } from "../storageService/videoListRevision";
-import { getVideos } from "../storageService/videos";
+import { getVideosStrict } from "../storageService/videos";
 import type { Video } from "../storageService/types";
 import { syncMediaServerArtifactsForRecord } from "./syncService";
 
@@ -31,7 +31,7 @@ function drain(): void {
     }
     const revision = getVideosListETag("all");
     if (snapshotRevision !== revision) {
-      snapshot = getVideos();
+      snapshot = getVideosStrict();
       snapshotById = new Map(snapshot.map((video) => [video.id, video]));
       snapshotRevision = revision;
     }

@@ -135,7 +135,7 @@ const VideosTable: React.FC<VideosTableProps> = ({
 }) => {
     const { t } = useLanguage();
     const { userRole } = useAuth();
-    const { deleteVideo } = useVideo();
+    const { deleteVideo, availableTags } = useVideo();
     const { activeDownloads, queuedDownloads } = useDownload();
     const isVisitor = userRole === 'visitor';
     const isTouch = useMediaQuery('(hover: none), (pointer: coarse)');
@@ -252,7 +252,7 @@ const VideosTable: React.FC<VideosTableProps> = ({
                     onClick={() => setIsBulkDeleteModalOpen(true)}>{t('delete')}</Button>}
             </Box>
             <VideoBatchToolbar selection={selection} pageIds={displayedVideos.map((video) => video.id)}
-                orderedIds={orderedVideos.map((video) => video.id)} alwaysOn />
+                orderedIds={orderedVideos.map((video) => video.id)} availableTags={availableTags} alwaysOn />
 
             {displayedVideos.length > 0 ? (
                 <TableContainer component={Paper} variant="outlined" ref={tableContainerRef} {...swipeHandlers}>
