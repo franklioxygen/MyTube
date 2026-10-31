@@ -59,9 +59,14 @@ export function useBulkVideoActions() {
             );
             return data;
         },
-        onError: (error) => {
+        onError: async (error, operation) => {
             const { status } = bulkErrorDetails(error);
             if (status === 401 || status === 403) void client.invalidateQueries({ queryKey: ['authSettings'] });
+            if (!status) {
+                // A lost response can hide a committed write, including new catalog tags.
+                try { await refresh(operation, operation.kind === 'tags'); }
+                catch { /* Preserve the original write error and the dialog draft. */ }
+            }
         },
     });
 
