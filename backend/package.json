@@ -39,7 +39,7 @@
     "file-type": "file:vendor/file-type",
     "fs-extra": "^11.3.3",
     "jsonwebtoken": "^9.0.3",
-    "multer": "^2.4.0",
+    "multer": "^2.5.0",
     "node-cron": "^4.2.1",
     "proxy-agent": "^8.0.2",
     "puppeteer": "^25.1.0",
@@ -74,7 +74,7 @@
     "basic-ftp": "^6.2.1",
     "esbuild": "0.28.1",
     "qs": "^6.16.0",
-    "undici": "^7.30.0",
+    "undici": "^7.30.1",
     "yauzl": "^3.2.1"
   }
 }
