@@ -189,11 +189,15 @@ describe('bulk organization interaction', () => {
     });
     it('treats cache refresh failure as saved and does not retry the write', async () => {
         const { client, user } = setup();
-        vi.spyOn(client, 'invalidateQueries').mockRejectedValue(new Error('offline'));
+        const original = [{ id: 'a', tags: ['old'] }];
+        const readVideos = observe(client, ['videos'], original, async () => { throw new Error('offline'); });
         const dialog = await selectTags(user);
         await user.click(within(dialog).getByRole('button', { name: en.addTags }));
         await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
         expect(mocks.post).toHaveBeenCalledOnce();
+        expect(readVideos).toHaveBeenCalledOnce();
+        expect(client.getQueryData(['videos'])).toEqual(original);
+        expect(client.getQueryState(['videos'])?.error?.message).toBe('offline');
         expect(mocks.snackbar).toHaveBeenCalledExactlyOnceWith(en.bulkSavedRefreshFailed, 'warning');
     });
     it('blocks duplicate saves while a request is pending', async () => {
