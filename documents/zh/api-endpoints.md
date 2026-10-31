@@ -36,6 +36,26 @@
 
 ## 视频管理
 
+### 批量整理
+
+两个接口沿用 CSRF Cookie/请求头防护。开启登录时要求管理员权限；关闭登录时可用。访客及 API Key 调用者均不可使用。
+
+- `POST /api/videos/batch/tags`
+  - 请求：`{ videoIds: string[], tags: string[] }`
+  - 在一个事务中追加标签并补充全局标签目录，保留每个视频的旧标签。按大小写不敏感匹配；新追加标签使用目录中的拼写，视频原有拼写保持不变。
+  - 上限：原始数组 1–500 个视频 ID、1–20 个标签；标签去除首尾空白后最多 80 个 Unicode 字符。ID 为非空、无首尾空白、最多 200 个 UTF-16 代码单元的字符串。重复 ID/标签只处理一次。
+  - `200`：`{ success: true, data: { requestedCount, changedVideoIds, unchangedVideoIds, catalogChanged, videos: [{ id, tags }] } }`
+- `POST /api/collections/batch-add`
+  - 加入现有合集：`{ videoIds: string[], collectionId: string }`
+  - 原子新建并加入：`{ videoIds: string[], newCollection: { id: string, name: string } }`
+  - 两种目标只能指定一种；新 ID 必须为 UUID v4，同一创建草稿重试必须复用原 ID。名称去除首尾空白后为 1–200 个 Unicode 字符，禁止文件系统保留字符/控制字符及末尾句点。
+  - 仅按请求顺序追加缺失成员，保留现有顺序、其他合集归属和所有视频路径，不移动文件。
+  - `200`：`{ success: true, data: { requestedCount, changedVideoIds, unchangedVideoIds, collection: { id, name, created } } }`
+
+校验失败返回 `400`；任一视频或目标合集不存在返回 `404`；已存标签损坏、新名称冲突或创建 ID 身份不匹配返回 `409`。预期错误包含 `{ success: false, error, type, details }`，details 可包含 `missingVideoIds`、`invalidVideoIds` 或 `existingCollectionId`。数据库异常返回 `500`。一个请求中的数据库修改整体回滚，不返回部分成功。新名称冲突须明确选择已有合集；旧单视频创建接口的同名合并行为保持不变。
+
+在目标未被并发更改时可以安全重复追加；网络超时不表示事务已回滚。两次请求间合集被改名/删除时，重试可能返回冲突或未找到。标签提交后尽力更新媒体元数据文件，导出失败或重启不撤销数据库结果。保存成功而后续列表刷新失败时，应提示已保存并允许刷新。
+
 - `POST /api/upload` - 上传单个本地视频文件
   - 多部分表单数据: `video` (必需), `title` (可选), `author` (可选)
   - 说明:

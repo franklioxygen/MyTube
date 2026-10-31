@@ -2,6 +2,7 @@ import express, { NextFunction, RequestHandler, Router } from "express";
 import * as cleanupController from "../controllers/cleanupController";
 import * as cloudStorageController from "../controllers/cloudStorageController";
 import * as collectionController from "../controllers/collectionController";
+import * as bulkVideoOrganizationController from "../controllers/bulkVideoOrganizationController";
 import * as downloadController from "../controllers/downloadController";
 import * as favoriteController from "../controllers/favoriteController";
 import * as mediaCollisionAuditController from "../controllers/mediaCollisionAuditController";
@@ -29,6 +30,18 @@ export type ApiRouteDefinition = {
 };
 
 const apiRouteDefinitions: ApiRouteDefinition[] = [
+  {
+    method: "post",
+    path: "/videos/batch/tags",
+    allowApiKey: false,
+    handlers: [requireAdmin, asyncHandler(bulkVideoOrganizationController.addTags)],
+  },
+  {
+    method: "post",
+    path: "/collections/batch-add",
+    allowApiKey: false,
+    handlers: [requireAdmin, asyncHandler(bulkVideoOrganizationController.addToCollection)],
+  },
   // Video routes
   {
     method: "get",

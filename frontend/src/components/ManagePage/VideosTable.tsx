@@ -4,7 +4,6 @@ import {
     CloudDownload,
     CloudUpload,
     Delete,
-    DriveFileMove,
     Edit,
     Refresh,
     Replay,
@@ -20,7 +19,6 @@ import {
     InputAdornment,
     Pagination,
     Paper,
-    Stack,
     Table,
     TableBody,
     TableCell,
@@ -36,7 +34,6 @@ import {
 import React, { useCallback, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { useAuth } from '../../contexts/AuthContext';
-import { useCollection } from '../../contexts/CollectionContext';
 import { useDownload } from '../../contexts/DownloadContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useVideo } from '../../contexts/VideoContext';
@@ -45,7 +42,8 @@ import { useThumbnailCandidates } from '../../hooks/useThumbnailCandidates';
 import { Video } from '../../types';
 import type { TranslationKey } from '../../utils/translations';
 import { formatDuration, formatSize } from '../../utils/formatUtils';
-import CollectionModal from '../CollectionModal';
+import VideoBatchToolbar from '../VideoBatchToolbar';
+import { useVideoSelection } from '../../hooks/useVideoSelection';
 import ConfirmationModal from '../ConfirmationModal';
 import UploadThumbnailModal from '../UploadThumbnailModal';
 
@@ -84,6 +82,8 @@ const ThumbnailImage: React.FC<{ video: Video; cacheBust?: number }> = ({ video,
 
 interface VideosTableProps {
     displayedVideos: Video[];
+    allVideos?: Video[];
+    orderedVideos?: Video[];
     totalVideosCount: number;
     totalSize: number;
     searchTerm: string;
@@ -109,6 +109,8 @@ interface VideosTableProps {
 
 const VideosTable: React.FC<VideosTableProps> = ({
     displayedVideos,
+    allVideos = displayedVideos,
+    orderedVideos = displayedVideos,
     totalVideosCount,
     totalSize,
     searchTerm,
@@ -133,7 +135,6 @@ const VideosTable: React.FC<VideosTableProps> = ({
 }) => {
     const { t } = useLanguage();
     const { userRole } = useAuth();
-    const { collections, addToCollection, createCollection, fetchCollections } = useCollection();
     const { deleteVideo } = useVideo();
     const { activeDownloads, queuedDownloads } = useDownload();
     const isVisitor = userRole === 'visitor';
@@ -167,10 +168,13 @@ const VideosTable: React.FC<VideosTableProps> = ({
     const editVideoLabel = getLabel('edit', 'Edit');
 
     // Bulk selection state
-    const [selectedVideoIds, setSelectedVideoIds] = useState<string[]>([]);
+    const selection = useVideoSelection({
+        scopeKey: JSON.stringify(['manage-videos', searchTerm]), videos: allVideos, alwaysOn: true,
+    });
+    const selectedVideoIds = [...selection.selectedIds];
+    const currentPageSelected = displayedVideos.filter((video) => selection.selectedIds.has(video.id)).length;
 
     // Bulk action modals
-    const [isCollectionModalOpen, setIsCollectionModalOpen] = useState(false);
     const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = useState(false);
     const [isBulkDeleting, setIsBulkDeleting] = useState(false);
 
@@ -216,27 +220,14 @@ const VideosTable: React.FC<VideosTableProps> = ({
         }
     };
 
-    const handleSelectAll = (event: React.ChangeEvent<HTMLInputElement>) => {
-        if (event.target.checked) {
-            setSelectedVideoIds(displayedVideos.map((v) => v.id));
-        } else {
-            setSelectedVideoIds([]);
-        }
-    };
-
-    const handleSelectOne = (event: React.ChangeEvent<HTMLInputElement>, id: string) => {
-        if (event.target.checked) {
-            setSelectedVideoIds((prev) => [...prev, id]);
-        } else {
-            setSelectedVideoIds((prev) => prev.filter((vId) => vId !== id));
-        }
-    };
+    const handleSelectAll = () => selection.togglePage(displayedVideos.map((video) => video.id));
+    const handleSelectOne = (_event: React.ChangeEvent<HTMLInputElement>, id: string) => selection.toggle(id);
 
     const handleBulkDelete = async () => {
         setIsBulkDeleting(true);
         try {
             await Promise.all(selectedVideoIds.map((id) => deleteVideo(id)));
-            setSelectedVideoIds([]);
+            selection.clear();
             setIsBulkDeleteModalOpen(false);
         } catch (error) {
             console.error('Failed to delete videos', error);
@@ -246,93 +237,22 @@ const VideosTable: React.FC<VideosTableProps> = ({
         }
     };
 
-    const handleBulkAddToCollection = async (collectionId: string) => {
-        try {
-            await Promise.all(selectedVideoIds.map((id) => addToCollection(collectionId, id)));
-            await fetchCollections(); // Refresh collections to update counts/content if needed
-            setSelectedVideoIds([]);
-        } catch (error) {
-            console.error('Failed to add videos to collection', error);
-            throw error;
-        }
-    };
-
-    const handleBulkCreateCollection = async (name: string) => {
-        try {
-            // Create collection with the first video
-            if (selectedVideoIds.length === 0) return;
-
-            const firstId = selectedVideoIds[0];
-            const newCollection = await createCollection(name, firstId);
-
-            if (newCollection && selectedVideoIds.length > 1) {
-                // Add the rest
-                const remainingIds = selectedVideoIds.slice(1);
-                await Promise.all(remainingIds.map((id) => addToCollection(newCollection.id, id)));
-            }
-
-            await fetchCollections();
-            setSelectedVideoIds([]);
-        } catch (error) {
-            console.error('Failed to create collection', error);
-            throw error;
-        }
-    };
-
     return (
         <Box>
-            {/* Videos List Header */}
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, height: 40 }}>
-                {selectedVideoIds.length > 0 ? (
-                    <Stack direction="row" spacing={2} alignItems="center" sx={{ width: '100%' }}>
-                        <Typography variant="subtitle1" fontWeight="bold" color="primary">
-                            {selectedVideoIds.length} {t('selected') || 'Selected'}
-                        </Typography>
-
-                        <Box sx={{ flexGrow: 1 }} />
-
-                        <Button
-                            variant="outlined"
-                            startIcon={<DriveFileMove />}
-                            onClick={() => setIsCollectionModalOpen(true)}
-                            size="small"
-                        >
-                            {t('moveCollection') || 'Move Collection'}
-                        </Button>
-
-                        <Button
-                            variant="outlined"
-                            color="error"
-                            startIcon={<Delete />}
-                            onClick={() => setIsBulkDeleteModalOpen(true)}
-                            size="small"
-                        >
-                            {t('delete')}
-                        </Button>
-                    </Stack>
-                ) : (
-                    <>
-                        <Typography variant="h5" sx={{ display: 'flex', alignItems: 'center' }}>
-                            <VideoLibrary sx={{ mr: 1, color: 'primary.main' }} />
-                            {t('videos')} ({totalVideosCount}) - {formatSize(totalSize)}
-                        </Typography>
-                        <TextField
-                            placeholder={t('searchVideos') || "Search videos..."}
-                            size="small"
-                            value={searchTerm}
-                            onChange={(e) => onSearchChange(e.target.value)}
-                            InputProps={{
-                                startAdornment: (
-                                    <InputAdornment position="start">
-                                        <Search />
-                                    </InputAdornment>
-                                ),
-                            }}
-                            sx={{ width: 300 }}
-                        />
-                    </>
-                )}
+            <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 2, mb: 2 }}>
+                <Typography variant="h5" sx={{ display: 'flex', alignItems: 'center' }}>
+                    <VideoLibrary sx={{ mr: 1, color: 'primary.main' }} />
+                    {t('videos')} ({totalVideosCount}) - {formatSize(totalSize)}
+                </Typography>
+                <TextField placeholder={t('searchVideos')} size="small" value={searchTerm}
+                    disabled={selection.locked} onChange={(event) => onSearchChange(event.target.value)}
+                    InputProps={{ startAdornment: <InputAdornment position="start"><Search /></InputAdornment> }} />
+                {selection.canWrite && selectedVideoIds.length > 0 && <Button variant="outlined" color="error"
+                    startIcon={<Delete />} disabled={selection.locked || isBulkDeleting}
+                    onClick={() => setIsBulkDeleteModalOpen(true)}>{t('delete')}</Button>}
             </Box>
+            <VideoBatchToolbar selection={selection} pageIds={displayedVideos.map((video) => video.id)}
+                orderedIds={orderedVideos.map((video) => video.id)} alwaysOn />
 
             {displayedVideos.length > 0 ? (
                 <TableContainer component={Paper} variant="outlined" ref={tableContainerRef} {...swipeHandlers}>
@@ -343,8 +263,9 @@ const VideosTable: React.FC<VideosTableProps> = ({
                                     <TableCell padding="checkbox">
                                         <Checkbox
                                             color="primary"
-                                            indeterminate={selectedVideoIds.length > 0 && selectedVideoIds.length < displayedVideos.length}
-                                            checked={displayedVideos.length > 0 && selectedVideoIds.length === displayedVideos.length}
+                                            indeterminate={currentPageSelected > 0 && currentPageSelected < displayedVideos.length}
+                                            checked={displayedVideos.length > 0 && currentPageSelected === displayedVideos.length}
+                                            disabled={selection.locked || isBulkDeleting}
                                             onChange={handleSelectAll}
                                             slotProps={{
                                                 input: {
@@ -357,6 +278,7 @@ const VideosTable: React.FC<VideosTableProps> = ({
                                 <TableCell>{t('thumbnail')}</TableCell>
                                 <TableCell>
                                     <TableSortLabel
+                                        disabled={selection.locked}
                                         active={orderBy === 'title'}
                                         direction={orderBy === 'title' ? order : 'asc'}
                                         onClick={() => onSort('title')}
@@ -366,6 +288,7 @@ const VideosTable: React.FC<VideosTableProps> = ({
                                 </TableCell>
                                 <TableCell>
                                     <TableSortLabel
+                                        disabled={selection.locked}
                                         active={orderBy === 'author'}
                                         direction={orderBy === 'author' ? order : 'asc'}
                                         onClick={() => onSort('author')}
@@ -390,6 +313,7 @@ const VideosTable: React.FC<VideosTableProps> = ({
                                             </Tooltip>
                                         )}
                                         <TableSortLabel
+                                        disabled={selection.locked}
                                             active={orderBy === 'fileSize'}
                                             direction={orderBy === 'fileSize' ? order : 'asc'}
                                             onClick={() => onSort('fileSize')}
@@ -409,6 +333,7 @@ const VideosTable: React.FC<VideosTableProps> = ({
                                             <Checkbox
                                                 color="primary"
                                                 checked={selectedVideoIds.includes(video.id)}
+                                                disabled={selection.locked || isBulkDeleting}
                                                 onChange={(event) => handleSelectOne(event, video.id)}
                                                 slotProps={{
                                                     input: {
@@ -607,20 +532,13 @@ const VideosTable: React.FC<VideosTableProps> = ({
                         count={totalPages}
                         page={page}
                         onChange={onPageChange}
+                        disabled={selection.locked || isBulkDeleting}
                         color="primary"
                         showFirstButton
                         showLastButton
                     />
                 </Box>
             )}
-
-            <CollectionModal
-                open={isCollectionModalOpen}
-                onClose={() => setIsCollectionModalOpen(false)}
-                collections={collections}
-                onAddToCollection={handleBulkAddToCollection}
-                onCreateCollection={handleBulkCreateCollection}
-            />
 
             <ConfirmationModal
                 isOpen={isBulkDeleteModalOpen}
