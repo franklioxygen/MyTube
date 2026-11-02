@@ -644,9 +644,47 @@ describe('SettingsPage', () => {
 
     expect(screen.getByRole('button', { name: label })).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByTestId(contentId)).toBeVisible();
-    expect(screen.getByRole('button', { name: 'securityAccess' })).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('button', { name: 'securityAccess' })).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByTestId('security-settings')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'integrationsAdvanced' })).toHaveAttribute('aria-expanded', 'false');
     expect(screen.queryByTestId('rss-feed-settings')).not.toBeInTheDocument();
+  });
+
+  it('preserves mobile-expanded sections without mounting tabs visited only on desktop', () => {
+    mockRealCollapsibleSections = true;
+    vi.useFakeTimers();
+    const page = (
+      <MemoryRouter initialEntries={['/settings']}>
+        <SettingsPageWithNavigation />
+      </MemoryRouter>
+    );
+    const { rerender } = render(page);
+    fireEvent.click(screen.getByRole('button', { name: 'videoPlayback' }));
+
+    mockIsDesktop = true;
+    rerender(
+      <MemoryRouter initialEntries={['/settings']}>
+        <SettingsPageWithNavigation />
+      </MemoryRouter>
+    );
+    fireEvent.click(screen.getByRole('tab', { name: 'libraryStorage' }));
+    expect(screen.getByTestId('database-settings')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('go-security-hash'));
+    fireEvent.click(screen.getByRole('tab', { name: 'downloadsFiles' }));
+
+    mockIsDesktop = false;
+    rerender(page);
+
+    for (const label of ['interfaceDisplay', 'videoPlayback', 'downloadsFiles']) {
+      expect(screen.getByRole('button', { name: label })).toHaveAttribute('aria-expanded', 'true');
+    }
+    for (const label of ['libraryStorage', 'securityAccess', 'integrationsAdvanced']) {
+      expect(screen.getByRole('button', { name: label })).toHaveAttribute('aria-expanded', 'false');
+    }
+    expect(screen.getByTestId('video-default-settings')).toBeVisible();
+    expect(screen.getByTestId('download-settings')).toBeVisible();
+    expect(screen.queryByTestId('database-settings')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('security-settings')).not.toBeInTheDocument();
   });
 
   it('switches desktop tabs and renders each tab content', () => {

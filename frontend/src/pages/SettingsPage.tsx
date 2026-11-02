@@ -699,14 +699,18 @@ const SettingsPage: React.FC = () => {
         : DEFAULT_SETTINGS_TAB;
     const [mobileSections, setMobileSections] = useState(() => ({
         urlKey: settingsTabUrlKey,
-        expanded: new Set<SettingsTabKey>([currentTab]),
+        isDesktop,
+        expanded: new Set<SettingsTabKey>(isDesktop ? [] : [currentTab]),
     }));
-    // URL navigation must open deferred content before the hash scroll runs.
-    // Keep other sections mounted so their unsaved drafts survive navigation.
-    if (mobileSections.urlKey !== settingsTabUrlKey) {
+    // Open the active section on mobile URL navigation or a desktop-to-mobile
+    // transition, without retaining a history of desktop-only tab visits.
+    if (mobileSections.urlKey !== settingsTabUrlKey || mobileSections.isDesktop !== isDesktop) {
         setMobileSections({
             urlKey: settingsTabUrlKey,
-            expanded: new Set([...mobileSections.expanded, currentTab]),
+            isDesktop,
+            expanded: !isDesktop
+                ? new Set([...mobileSections.expanded, currentTab])
+                : mobileSections.expanded,
         });
     }
 
@@ -740,10 +744,6 @@ const SettingsPage: React.FC = () => {
         // that survives the tab switch, while preserving ordering errors.
         setSeekIntervalsValid(arePersistedSeekIntervalsValid(settings));
         setAutoDeleteValid(isAutoDeleteSettingValid(settings));
-        setMobileSections((previous) => ({
-            ...previous,
-            expanded: new Set([...previous.expanded, newValue]),
-        }));
         setCurrentTabState({
             urlKey: settingsTabUrlKey,
             tab: newValue,
