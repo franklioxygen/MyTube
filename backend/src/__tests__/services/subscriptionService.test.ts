@@ -95,6 +95,7 @@ describe('SubscriptionService', () => {
       set: vi.fn().mockReturnThis(),
       returning: vi.fn().mockReturnThis(),
       all: vi.fn(() => result),
+      run: vi.fn(),
       then: (resolve: any) => Promise.resolve(result).then(resolve)
     };
     // Circular references for chaining
@@ -131,6 +132,33 @@ describe('SubscriptionService', () => {
   });
 
   describe('subscribe', () => {
+    it('normalizes Bilibili profiles and rejects legacy aliases by UID', async () => {
+      const result = await subscriptionService.subscribe('http://space.bilibili.com/00123/video?from=search', 60, 'Same name');
+      expect(result.authorUrl).toBe('https://space.bilibili.com/123');
+      mockBuilder.all.mockReturnValue([{ authorUrl: 'http://space.bilibili.com/123/', subscriptionType: 'author' }]);
+      await expect(subscriptionService.subscribe('https://space.bilibili.com/123', 60, 'Renamed author')).rejects.toBeInstanceOf(DuplicateError);
+    });
+
+    it('keeps same-name Bilibili UIDs separate and does not count playlist subscriptions as authors', async () => {
+      mockBuilder.all.mockReturnValue([
+        { author: 'Same name', authorUrl: 'https://space.bilibili.com/456', subscriptionType: 'author' },
+        { author: 'Same name', authorUrl: 'https://space.bilibili.com/123', subscriptionType: 'playlist' },
+      ]);
+      expect((await subscriptionService.subscribe('https://space.bilibili.com/123', 60, 'Same name')).authorUrl).toBe('https://space.bilibili.com/123');
+    });
+
+    it('prevents concurrent Bilibili author creates from both passing the duplicate check', async () => {
+      const saved: any[] = [];
+      mockBuilder.all.mockImplementation(() => saved);
+      mockBuilder.run.mockImplementation(() => { saved.push(mockBuilder.values.mock.lastCall[0]); });
+      const results = await Promise.allSettled([
+        subscriptionService.subscribe('https://space.bilibili.com/123/', 60, 'Author'),
+        subscriptionService.subscribe('https://space.bilibili.com/123', 60, 'Author'),
+      ]);
+      expect(saved).toHaveLength(1);
+      expect(results.map((result) => result.status)).toEqual(['fulfilled', 'rejected']);
+    });
+
     it('should subscribe to a YouTube channel', async () => {
       const url = 'https://www.youtube.com/@testuser';
       // Mock empty result for "where" check (no existing sub)

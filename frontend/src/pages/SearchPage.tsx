@@ -7,6 +7,7 @@ import {
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import ExternalSearchSection from '../components/ExternalSearchSection';
+import AuthorSearchSection from '../components/AuthorSearchSection';
 import SortControl from '../components/SortControl';
 import VideoCard from '../components/VideoCard';
 import { useCollection } from '../contexts/CollectionContext';
@@ -194,6 +195,7 @@ const SearchPage: React.FC = () => {
                         onDownload={handleResultDownload}
                         downloadingIds={downloadingIds}
                     />
+                    {query?.trim() && <AuthorSearchSection key={query.trim()} query={query.trim()} />}
                 </Box>
             )}
         </Container>
