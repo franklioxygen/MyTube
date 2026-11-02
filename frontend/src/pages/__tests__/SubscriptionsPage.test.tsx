@@ -2,6 +2,7 @@ import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import SubscriptionsPage from '../SubscriptionsPage';
+import { MemoryRouter, useLocation, useNavigate } from 'react-router';
 
 // ── Mutable mock data (overridden per test) ──────────────────────────────────
 
@@ -63,11 +64,24 @@ vi.mock('../../contexts/SnackbarContext', () => ({
 
 const theme = createTheme();
 
-const renderPage = () =>
+const NavigationControls = () => {
+    const location = useLocation();
+    const navigate = useNavigate();
+    return <>
+        <output data-testid="location">{location.pathname}{location.search}</output>
+        <button onClick={() => navigate(-1)}>Back</button>
+        <button onClick={() => navigate(1)}>Forward</button>
+    </>;
+};
+
+const renderPage = (url = '/subscriptions') =>
     render(
+        <MemoryRouter initialEntries={[url]}>
         <ThemeProvider theme={theme}>
             <SubscriptionsPage />
-        </ThemeProvider>,
+            <NavigationControls />
+        </ThemeProvider>
+        </MemoryRouter>
     );
 
 const mockViewport = (isMobile: boolean) => {
@@ -136,9 +150,91 @@ describe('SubscriptionsPage', () => {
 
     // ── 2. Empty subscriptions ───────────────────────────────────────────
 
-    it('shows "noVideos" message when subscriptions list is empty', () => {
+    it('shows a subscription-specific message when subscriptions list is empty', () => {
         renderPage();
-        expect(screen.getByText('noVideos')).toBeInTheDocument();
+        expect(screen.getByText('noSubscriptions')).toBeInTheDocument();
+    });
+
+    it('filters authors and playlists from direct links, retaining unknown types in the overview', () => {
+        mockSubscriptions = [
+            makeSub({ id: 'legacy', author: 'Legacy Author' }),
+            makeSub({ id: 'author', author: 'Explicit Author', subscriptionType: 'author' }),
+            makeSub({ id: 'playlist', author: 'Single Playlist', subscriptionType: 'playlist' }),
+            makeSub({ id: 'watcher', author: 'Playlist Watcher', subscriptionType: 'channel_playlists' }),
+            makeSub({ id: 'future', author: 'Future Type', subscriptionType: 'future' }),
+        ];
+        renderPage('/subscriptions?type=playlist&keep=value');
+        expect(screen.getByRole('heading', { level: 1, name: 'playlistSubscriptions' })).toBeInTheDocument();
+        expect(screen.getByRole('tab', { name: 'allSubscriptions (5)' })).toBeInTheDocument();
+        expect(screen.getByRole('tab', { name: 'authorSubscriptions (2)' })).toBeInTheDocument();
+        expect(screen.getByRole('tab', { name: 'playlistSubscriptions (2)' })).toHaveAttribute('aria-selected', 'true');
+        expect(screen.getByText('Single Playlist')).toBeInTheDocument();
+        expect(screen.getByText('Playlist Watcher (playlistsWatcher)')).toBeInTheDocument();
+        expect(screen.queryByText('Legacy Author')).not.toBeInTheDocument();
+        expect(screen.queryByText('Future Type')).not.toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole('tab', { name: 'authorSubscriptions (2)' }));
+        expect(screen.getByTestId('location')).toHaveTextContent('/subscriptions?type=author&keep=value');
+        expect(screen.getByText('Legacy Author')).toBeInTheDocument();
+        expect(screen.getByText('Explicit Author')).toBeInTheDocument();
+        expect(screen.queryByText('Single Playlist')).not.toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole('tab', { name: 'allSubscriptions (5)' }));
+        expect(screen.getByTestId('location')).toHaveTextContent('/subscriptions?keep=value');
+        expect(screen.getByText('Future Type')).toBeInTheDocument();
+        expect(api.put).not.toHaveBeenCalled();
+        expect(api.delete).not.toHaveBeenCalled();
+    });
+
+    it('restores the category on browser back and forward navigation', async () => {
+        mockSubscriptions = [makeSub({ author: 'Alice' })];
+        renderPage();
+        fireEvent.click(screen.getByRole('tab', { name: 'authorSubscriptions (1)' }));
+        fireEvent.click(screen.getByRole('tab', { name: 'playlistSubscriptions (0)' }));
+        expect(screen.getByText('noPlaylistSubscriptions')).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+        await waitFor(() => expect(screen.getByRole('tab', { name: 'authorSubscriptions (1)' })).toHaveAttribute('aria-selected', 'true'));
+        expect(screen.getByText('Alice')).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'Forward' }));
+        await waitFor(() => expect(screen.getByText('noPlaylistSubscriptions')).toBeInTheDocument());
+    });
+
+    it('filters before paginating and resets the page when the category changes', () => {
+        mockSubscriptions = [
+            ...Array.from({ length: 12 }, (_, i) => makeSub({ id: `author-${i}`, author: `Author ${i}` })),
+            makeSub({ id: 'playlist', author: 'Only Playlist', subscriptionType: 'playlist' }),
+        ];
+        renderPage();
+        fireEvent.click(screen.getByRole('button', { name: 'Go to next page' }));
+        expect(screen.getByText('Author 10')).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('tab', { name: 'playlistSubscriptions (1)' }));
+        expect(screen.getByText('Only Playlist')).toBeInTheDocument();
+        expect(screen.queryByText('Author 10')).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Go to next page' })).not.toBeInTheDocument();
+        fireEvent.click(screen.getByRole('tab', { name: 'authorSubscriptions (12)' }));
+        expect(screen.getByText('Author 0')).toBeInTheDocument();
+        expect(screen.queryByText('Author 10')).not.toBeInTheDocument();
+        expect(screen.getByText('1–10 of 12')).toBeInTheDocument();
+    });
+
+    it('keeps backfill tasks independent of the subscription category and preserves filtered actions', async () => {
+        mockSubscriptions = [makeSub({ id: 'playlist', author: 'List', subscriptionType: 'playlist' })];
+        mockTasks = [makeTask({ author: 'Author Backfill' })];
+        renderPage('/subscriptions?type=playlist');
+        expect(screen.getByText('Author Backfill')).toBeInTheDocument();
+        expect(screen.getByText('subscriptionTasksAllCategories')).toBeInTheDocument();
+        fireEvent.click(screen.getByTitle('pauseSubscription'));
+        await waitFor(() => expect(api.put).toHaveBeenCalledWith('/subscriptions/playlist/pause'));
+    });
+
+    it('uses the overview for an unknown category and keeps visitor actions hidden', () => {
+        mockUserRole = 'visitor';
+        mockSubscriptions = [makeSub({ author: 'Unknown Type', subscriptionType: 'future' })];
+        renderPage('/subscriptions?type=future');
+        expect(screen.getByRole('tab', { name: 'allSubscriptions (1)' })).toHaveAttribute('aria-selected', 'true');
+        expect(screen.getByText('Unknown Type')).toBeInTheDocument();
+        expect(screen.queryByTitle('pauseSubscription')).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'unsubscribe' })).not.toBeInTheDocument();
     });
 
     // ── 3. Renders subscriptions table with data ─────────────────────────

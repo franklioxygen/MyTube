@@ -11,7 +11,7 @@ UPDATE_KEY_LIST=1 npx vitest run src/utils/locales/__tests__/localeParity.test.t
 
 This list is intentionally unnumbered. When new keys are inserted, only the local section order changes.
 
-Total keys: 1422
+Total keys: 1430
 
 ## Summary
 
@@ -41,7 +41,7 @@ Total keys: 1422
 | Downloads | 31 | `downloads` | `incompleteDownloadFragments` |
 | Snackbar Messages | 22 | `videoDownloading` | `subtitleDeleted` |
 | Batch Download | 6 | `batchDownload` | `addBatchTasks` |
-| Subscriptions | 60 | `subscribeToAuthor` | `clear` |
+| Subscriptions | 68 | `subscribeToAuthor` | `clear` |
 | Subscription Retention | 11 | `retentionDays` | `retentionDaysUpdateFailed` |
 | Auto Delete (library-wide age-based cleanup) | 15 | `autoDelete` | `videoUnlocked` |
 | Per-subscription yt-dlp config override (issue #345) | 5 | `editYtdlpConfigOverride` | `ytdlpConfigOverrideUpdateFailed` |
@@ -1018,6 +1018,14 @@ Total keys: 1422
 | `checkIntervalMinutes` |
 | `subscribe` |
 | `subscriptions` |
+| `allSubscriptions` |
+| `authorSubscriptions` |
+| `playlistSubscriptions` |
+| `subscriptionCategories` |
+| `noSubscriptions` |
+| `noAuthorSubscriptions` |
+| `noPlaylistSubscriptions` |
+| `subscriptionTasksAllCategories` |
 | `interval` |
 | `lastCheck` |
 | `nextCheck` |

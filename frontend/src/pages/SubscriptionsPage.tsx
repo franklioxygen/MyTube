@@ -18,6 +18,8 @@ import {
     TableHead,
     TablePagination,
     TableRow,
+    Tab,
+    Tabs,
     TextField,
     Typography,
     useMediaQuery
@@ -25,6 +27,7 @@ import {
 import { useTheme } from '@mui/material/styles';
 import { useQuery } from '@tanstack/react-query';
 import React, { useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router';
 import ConfirmationModal from '../components/ConfirmationModal';
 import SubscriptionFilenameTemplateField from '../components/SubscriptionFilenameTemplateField';
 import { useAuth } from '../contexts/AuthContext';
@@ -79,6 +82,18 @@ const parsePositiveInteger = (value: string): number | null => {
 };
 
 const DEFAULT_SUBSCRIPTIONS_ROWS_PER_PAGE = 10;
+const SUBSCRIPTION_CATEGORIES = [
+    { value: 'all', label: 'allSubscriptions', emptyLabel: 'noSubscriptions' },
+    { value: 'author', label: 'authorSubscriptions', emptyLabel: 'noAuthorSubscriptions' },
+    { value: 'playlist', label: 'playlistSubscriptions', emptyLabel: 'noPlaylistSubscriptions' },
+] as const;
+type SubscriptionCategory = typeof SUBSCRIPTION_CATEGORIES[number]['value'];
+
+const getSubscriptionCategory = (subscription: Subscription): SubscriptionCategory => {
+    if (subscription.subscriptionType == null || subscription.subscriptionType === 'author') return 'author';
+    if (subscription.subscriptionType === 'playlist' || subscription.subscriptionType === 'channel_playlists') return 'playlist';
+    return 'all'; // Unknown future types remain visible in the overview.
+};
 
 const SubscriptionsPage: React.FC = () => {
     const theme = useTheme();
@@ -87,6 +102,10 @@ const SubscriptionsPage: React.FC = () => {
     const { showSnackbar } = useSnackbar();
     const { userRole } = useAuth();
     const isVisitor = userRole === 'visitor';
+    const [searchParams, setSearchParams] = useSearchParams();
+    const selectedCategory = SUBSCRIPTION_CATEGORIES.find((category) => category.value === searchParams.get('type'))
+        ?? SUBSCRIPTION_CATEGORIES[0];
+    const subscriptionCategory = selectedCategory.value;
     const [isUnsubscribeModalOpen, setIsUnsubscribeModalOpen] = useState(false);
     const [selectedSubscription, setSelectedSubscription] = useState<{ id: string; author: string } | null>(null);
     const [isCancelTaskModalOpen, setIsCancelTaskModalOpen] = useState(false);
@@ -111,7 +130,7 @@ const SubscriptionsPage: React.FC = () => {
     const [editedFilenameTemplate, setEditedFilenameTemplate] = useState<string>('');
     const [isFilenameTemplateValid, setIsFilenameTemplateValid] = useState<boolean>(true);
     const [isSavingFilenameTemplate, setIsSavingFilenameTemplate] = useState(false);
-    const [subscriptionsPage, setSubscriptionsPage] = useState(0);
+    const [pagination, setPagination] = useState<{ category: SubscriptionCategory; page: number }>({ category: subscriptionCategory, page: 0 });
     const [subscriptionsRowsPerPage, setSubscriptionsRowsPerPage] = useState(DEFAULT_SUBSCRIPTIONS_ROWS_PER_PAGE);
     const [subscriptionActionId, setSubscriptionActionId] = useState<string | null>(null);
     const [taskActionId, setTaskActionId] = useState<string | null>(null);
@@ -148,23 +167,41 @@ const SubscriptionsPage: React.FC = () => {
     // Newest-first task list. Memoized so we don't allocate a fresh reversed
     // array on every render (this polls every 10s while tasks are active).
     const reversedTasks = useMemo(() => [...tasks].reverse(), [tasks]);
+    const subscriptionsByCategory = useMemo(() => ({
+        all: subscriptions,
+        author: subscriptions.filter((subscription) => getSubscriptionCategory(subscription) === 'author'),
+        playlist: subscriptions.filter((subscription) => getSubscriptionCategory(subscription) === 'playlist'),
+    }), [subscriptions]);
+    const filteredSubscriptions = subscriptionsByCategory[subscriptionCategory];
     const maxSubscriptionsPage = Math.max(
         0,
-        Math.ceil(subscriptions.length / subscriptionsRowsPerPage) - 1
+        Math.ceil(filteredSubscriptions.length / subscriptionsRowsPerPage) - 1
     );
-    const safeSubscriptionsPage = Math.min(subscriptionsPage, maxSubscriptionsPage);
+    const safeSubscriptionsPage = Math.min(pagination.category === subscriptionCategory ? pagination.page : 0, maxSubscriptionsPage);
     const paginatedSubscriptions = useMemo(() => {
         const start = safeSubscriptionsPage * subscriptionsRowsPerPage;
-        return subscriptions.slice(start, start + subscriptionsRowsPerPage);
-    }, [subscriptions, safeSubscriptionsPage, subscriptionsRowsPerPage]);
+        return filteredSubscriptions.slice(start, start + subscriptionsRowsPerPage);
+    }, [filteredSubscriptions, safeSubscriptionsPage, subscriptionsRowsPerPage]);
+
+    const handleCategoryChange = (_event: React.SyntheticEvent, category: SubscriptionCategory) => {
+        setSearchParams((previous) => {
+            const next = new URLSearchParams(previous);
+            if (category === 'all') next.delete('type');
+            else next.set('type', category);
+            return next;
+        });
+        setPagination({ category, page: 0 });
+        setEditingSubscriptionId(null);
+        setEditingRetentionId(null);
+    };
 
     const handleSubscriptionsPageChange = (_event: unknown, page: number) => {
-        setSubscriptionsPage(page);
+        setPagination({ category: subscriptionCategory, page });
     };
 
     const handleSubscriptionsRowsPerPageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         setSubscriptionsRowsPerPage(parseInt(event.target.value, 10));
-        setSubscriptionsPage(0);
+        setPagination({ category: subscriptionCategory, page: 0 });
     };
 
     const handleUnsubscribeClick = (id: string, author: string, subscriptionType?: string) => {
@@ -606,14 +643,40 @@ const SubscriptionsPage: React.FC = () => {
     return (
         <Container maxWidth="lg" sx={{ py: 4 }}>
             <Typography variant="h4" component="h1" gutterBottom fontWeight="bold">
-                {t('subscriptions')}
+                {t(subscriptionCategory === 'all' ? 'subscriptions' : selectedCategory.label)}
             </Typography>
 
-            <TableContainer component={Paper} sx={{ mt: 3 }}>
+            <Tabs
+                value={subscriptionCategory}
+                onChange={handleCategoryChange}
+                aria-label={t('subscriptionCategories')}
+                variant="scrollable"
+                scrollButtons="auto"
+                allowScrollButtonsMobile
+            >
+                {SUBSCRIPTION_CATEGORIES.map((category) => (
+                    <Tab
+                        key={category.value}
+                        id={`subscription-category-${category.value}`}
+                        aria-controls="subscription-list-panel"
+                        value={category.value}
+                        label={`${t(category.label)} (${subscriptionsByCategory[category.value].length})`}
+                    />
+                ))}
+            </Tabs>
+
+            <TableContainer
+                component={Paper}
+                id="subscription-list-panel"
+                role="tabpanel"
+                aria-labelledby={`subscription-category-${subscriptionCategory}`}
+                tabIndex={0}
+                sx={{ mt: 3 }}
+            >
                 <Table>
                     <TableHead>
                         <TableRow>
-                            <TableCell>{t('author')}</TableCell>
+                            <TableCell>{t(subscriptionCategory === 'author' ? 'author' : 'authorOrPlaylist')}</TableCell>
                             <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>{t('platform')}</TableCell>
                             <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>{t('interval')}</TableCell>
                             <TableCell sx={{ display: { xs: 'none', md: 'table-cell' }, whiteSpace: 'nowrap' }}>
@@ -641,11 +704,11 @@ const SubscriptionsPage: React.FC = () => {
                         </TableRow>
                     </TableHead>
                     <TableBody>
-                        {subscriptions.length === 0 ? (
+                        {filteredSubscriptions.length === 0 ? (
                             <TableRow>
                                 <TableCell colSpan={isVisitor ? 6 : 7} align="center">
                                     <Typography color="text.secondary" sx={{ py: 4 }}>
-                                        {t('noVideos')} {/* Reusing "No videos found" or similar if "No subscriptions" key missing */}
+                                        {t(selectedCategory.emptyLabel)}
                                     </Typography>
                                 </TableCell>
                             </TableRow>
@@ -792,10 +855,10 @@ const SubscriptionsPage: React.FC = () => {
                         )}
 	                    </TableBody>
 	                </Table>
-                    {subscriptions.length > DEFAULT_SUBSCRIPTIONS_ROWS_PER_PAGE && (
+                    {filteredSubscriptions.length > DEFAULT_SUBSCRIPTIONS_ROWS_PER_PAGE && (
                         <TablePagination
                             component="div"
-                            count={subscriptions.length}
+                            count={filteredSubscriptions.length}
                             page={safeSubscriptionsPage}
                             onPageChange={handleSubscriptionsPageChange}
                             rowsPerPage={subscriptionsRowsPerPage}
@@ -823,6 +886,11 @@ const SubscriptionsPage: React.FC = () => {
                             </Button>
                         )}
                     </Box>
+                    {subscriptionCategory !== 'all' && (
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                            {t('subscriptionTasksAllCategories')}
+                        </Typography>
+                    )}
                     <TableContainer component={Paper} sx={{ mt: 2 }}>
                         <Table>
                             <TableHead>
