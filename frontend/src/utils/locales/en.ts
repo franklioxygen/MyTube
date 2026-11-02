@@ -5,10 +5,11 @@ export const en = {
   bulkRequestNotSent: "The request could not be sent. No videos were changed. Please retry.",
   bulkSelectVideos: "Select videos",
   bulkExitSelection: "Exit selection",
-  bulkSelectedCount: "{count} videos selected",
-  bulkSelectPage: "Select current page",
+  bulkSelectedCount: "{count} selected",
+  bulkSelectPage: "All",
+  bulkSelectPageDescription: "All videos on this page",
   bulkSelectResults: "Select current results ({count})",
-  bulkClearSelection: "Clear selection",
+  bulkClearSelection: "Clear",
   bulkSelectionLimit: "Select up to 500 videos. Narrow the filter or select videos individually.",
   bulkTagsTitle: "Add tags to {count} videos",
   bulkTagsHint: "Existing tags are preserved. Only the selected tags will be added.",
@@ -1267,6 +1268,7 @@ export const en = {
   changeSettings: "Change Settings",
 
   // Sorting
+  select: "Select",
   sort: "Sort",
   sortBy: "Sort by",
   dateDesc: "Date Added (Newest)",

@@ -148,6 +148,16 @@ function getSettingsTabUrlKey(search: string, hash: string): string {
     return `${search}\0${hash}`;
 }
 
+const createSettingsDraft = (saved: Settings): Settings => ({
+    ...saved,
+    tags: saved.tags || [],
+    mountDirectories: saved.mountDirectories || '',
+    autoRetryEnabled: saved.autoRetryEnabled ?? false,
+    autoRetryTimes: saved.autoRetryTimes ?? 3,
+    autoRetryIntervalMinutes: saved.autoRetryIntervalMinutes ?? 5,
+    authorOrganizationMode: resolveAuthorOrganizationMode(saved),
+});
+
 const SettingsPage: React.FC = () => {
     const { t, setLanguage } = useLanguage();
     const { activeDownloads } = useDownload();
@@ -156,8 +166,9 @@ const SettingsPage: React.FC = () => {
     const theme = useTheme();
     const isDesktop = useMediaQuery(theme.breakpoints.up('md'));
     const location = useLocation();
+    const { data: settingsData } = useSettings();
 
-    const [settings, setSettings] = useState<Settings>({
+    const [settings, setSettings] = useState<Settings>(() => settingsData ? createSettingsDraft(settingsData) : ({
         loginEnabled: false,
         password: '',
         apiKeyEnabled: false,
@@ -202,7 +213,7 @@ const SettingsPage: React.FC = () => {
         twitchClientSecret: '',
         telegramDownloadEnabled: false,
         mediaServerExportMode: 'off',
-    });
+    }));
     const { setPreference } = useThemeContext();
     const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' | 'warning' | 'info' } | null>(null);
     const [isGlowing, setIsGlowing] = useState(false);
@@ -216,8 +227,8 @@ const SettingsPage: React.FC = () => {
         urlKey: settingsTabUrlKey,
         tab: getInitialSettingsTab(location.search),
     }));
-    const [seekIntervalsValid, setSeekIntervalsValid] = useState(true);
-    const [autoDeleteValid, setAutoDeleteValid] = useState(true);
+    const [seekIntervalsValid, setSeekIntervalsValid] = useState(() => arePersistedSeekIntervalsValid(settings));
+    const [autoDeleteValid, setAutoDeleteValid] = useState(() => isAutoDeleteSettingValid(settings));
     const [showTrustDetailsModal, setShowTrustDetailsModal] = useState(false);
     const twitchCredentialValidationCode = getTwitchCredentialValidationCode(
         settings.twitchClientId,
@@ -267,8 +278,6 @@ const SettingsPage: React.FC = () => {
     const observerTarget = useRef<HTMLDivElement | null>(null);
     const isSticky = useStickyButton(observerTarget);
 
-    // Fetch settings
-    const { data: settingsData } = useSettings();
     const deploymentSecurity = settings.deploymentSecurity ?? settingsData?.deploymentSecurity;
     const adminTrustLevel: AdminTrustLevel | undefined = deploymentSecurity?.adminTrustLevel;
     const canUseContainerAdminFeatures = adminTrustLevel === 'container' || adminTrustLevel === 'host';
@@ -296,23 +305,18 @@ const SettingsPage: React.FC = () => {
         }
     }, [location.search, location.hash]);
 
-    const hasHydratedSettings = useRef(false);
+    const hasHydratedSettings = useRef(Boolean(settingsData));
+    const lastSettingsData = useRef(settingsData);
     // Tail of the in-flight tag-save chain; keeps immediate tag PATCHes ordered.
     const tagSaveChain = useRef<Promise<unknown>>(Promise.resolve());
     useEffect(() => {
-        if (!settingsData) return;
+        if (!settingsData || lastSettingsData.current === settingsData) return;
+        lastSettingsData.current = settingsData;
         if (!hasHydratedSettings.current) {
             // Initial load: populate the whole form from server truth.
-            const newSettings = {
-                ...settingsData,
-                tags: settingsData.tags || [],
-                mountDirectories: settingsData.mountDirectories || '',
-                autoRetryEnabled: settingsData.autoRetryEnabled ?? false,
-                autoRetryTimes: settingsData.autoRetryTimes ?? 3,
-                autoRetryIntervalMinutes: settingsData.autoRetryIntervalMinutes ?? 5,
-                authorOrganizationMode: resolveAuthorOrganizationMode(settingsData),
-            };
-            setSettings(newSettings);
+            setSettings(createSettingsDraft(settingsData));
+            setSeekIntervalsValid(arePersistedSeekIntervalsValid(settingsData));
+            setAutoDeleteValid(isAutoDeleteSettingValid(settingsData));
             hasHydratedSettings.current = true;
             return;
         }
@@ -693,6 +697,22 @@ const SettingsPage: React.FC = () => {
     const currentTab = tabs.some((tabItem) => tabItem.key === selectedTab)
         ? selectedTab
         : DEFAULT_SETTINGS_TAB;
+    const [mobileSections, setMobileSections] = useState(() => ({
+        urlKey: settingsTabUrlKey,
+        isDesktop,
+        expanded: new Set<SettingsTabKey>(isDesktop ? [] : [currentTab]),
+    }));
+    // Open the active section on mobile URL navigation or a desktop-to-mobile
+    // transition, without retaining a history of desktop-only tab visits.
+    if (mobileSections.urlKey !== settingsTabUrlKey || mobileSections.isDesktop !== isDesktop) {
+        setMobileSections({
+            urlKey: settingsTabUrlKey,
+            isDesktop,
+            expanded: !isDesktop
+                ? new Set([...mobileSections.expanded, currentTab])
+                : mobileSections.expanded,
+        });
+    }
 
     const renderDesktopTabContent = () =>
         tabs.find((tabItem) => tabItem.key === currentTab)?.render() ?? null;
@@ -700,9 +720,15 @@ const SettingsPage: React.FC = () => {
     // Mobile: the same tabs as stacked collapsible sections.
     const renderSettingsSections = () => (
         <>
-            {tabs.map((tabItem, index) => (
+            {tabs.map((tabItem) => (
                 <Grid size={12} key={tabItem.key}>
-                    <CollapsibleSection title={tabItem.label} defaultExpanded={index === 0}>
+                    <CollapsibleSection title={tabItem.label} expanded={mobileSections.expanded.has(tabItem.key)}
+                        onExpandedChange={(expanded) => setMobileSections((previous) => {
+                            const next = new Set(previous.expanded);
+                            if (expanded) next.add(tabItem.key);
+                            else next.delete(tabItem.key);
+                            return { ...previous, expanded: next };
+                        })} deferMount>
                         <Box sx={{ maxWidth: SETTINGS_SECTION_MAX_WIDTH }}>
                             {tabItem.render()}
                         </Box>

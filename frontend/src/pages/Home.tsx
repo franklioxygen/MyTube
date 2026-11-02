@@ -261,6 +261,11 @@ const Home: React.FC<HomeProps> = ({ initialViewMode }) => {
                                 viewMode={viewMode}
                                 onViewModeChange={handleHomeViewModeChange}
                                 onSidebarToggle={handleSidebarToggle}
+                                onSelectionToggle={selection.canWrite && (selection.active || sortedVideos.length > 0)
+                                    ? selection.active ? selection.exit : selection.enter
+                                    : undefined}
+                                selectionActive={selection.active}
+                                actionsDisabled={selection.locked}
                                 selectedTagsCount={selectedTags.length}
                                 onDeleteFilteredClick={() => setIsDeleteFilteredOpen(true)}
                                 onClearTagFilter={clearSelectedTags}
@@ -272,7 +277,7 @@ const Home: React.FC<HomeProps> = ({ initialViewMode }) => {
                         </Box>
                         <VideoBatchToolbar selection={selection} pageIds={displayedVideos.map((v) => v.id)}
                             orderedIds={sortedVideos.map((v) => v.id)} availableTags={availableTags}
-                            infiniteScroll={infiniteScroll} />
+                            infiniteScroll={infiniteScroll} hideEntryButton />
                         {viewMode === 'favorite' ? (
                             <FavoritePage
                                 onBrowseCollections={() => handleHomeViewModeChange('collections')}

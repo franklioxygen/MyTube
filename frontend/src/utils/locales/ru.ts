@@ -5,10 +5,11 @@ export const ru = {
   bulkRequestNotSent: "Не удалось отправить запрос. Видео не изменены. Повторите попытку.",
   bulkSelectVideos: "Выбрать видео",
   bulkExitSelection: "Завершить выбор",
-  bulkSelectedCount: "Выбрано видео: {count}",
-  bulkSelectPage: "Выбрать текущую страницу",
+  bulkSelectedCount: "Выбрано: {count}",
+  bulkSelectPage: "Все",
+  bulkSelectPageDescription: "Все видео на текущей странице",
   bulkSelectResults: "Выбрать результаты ({count})",
-  bulkClearSelection: "Сбросить выбор",
+  bulkClearSelection: "Сбросить",
   bulkSelectionLimit: "Select up to 500 videos. Narrow the filter or select videos individually.",
   bulkTagsTitle: "Add tags to {count} videos",
   bulkTagsHint: "Existing tags are preserved. Only the selected tags will be added.",
@@ -1302,6 +1303,7 @@ export const ru = {
 
 
   // Sorting
+  select: "Выбрать",
   sort: "Сортировка",
   sortBy: "Сортировать по",
   dateDesc: "Дата добавления (Сначала новые)",

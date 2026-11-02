@@ -5,10 +5,11 @@ export const zh = {
   bulkRequestNotSent: "请求未能发送，本次未修改任何视频，请重试。",
   bulkSelectVideos: "选择视频",
   bulkExitSelection: "退出选择",
-  bulkSelectedCount: "已选 {count} 个视频",
-  bulkSelectPage: "全选当前页",
+  bulkSelectedCount: "已选 {count}",
+  bulkSelectPage: "全选",
+  bulkSelectPageDescription: "全选当前页",
   bulkSelectResults: "全选当前结果（{count}）",
-  bulkClearSelection: "清空选择",
+  bulkClearSelection: "清空",
   bulkSelectionLimit: "最多选择 500 个视频，请缩小筛选范围或逐个选择。",
   bulkTagsTitle: "为 {count} 个视频添加标签",
   bulkTagsHint: "保留原有标签，仅追加本次选择的标签。",
@@ -1236,6 +1237,7 @@ export const zh = {
 
 
   // Sorting
+  select: "选择",
   sort: "排序",
   sortBy: "排序方式",
   dateDesc: "添加日期 (最新)",
