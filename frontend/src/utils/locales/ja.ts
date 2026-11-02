@@ -7,6 +7,7 @@ export const ja = {
   bulkExitSelection: "選択を終了",
   bulkSelectedCount: "{count} 件選択中",
   bulkSelectPage: "すべて",
+  bulkSelectPageDescription: "このページの動画をすべて選択",
   bulkSelectResults: "検索結果をすべて選択（{count}）",
   bulkClearSelection: "解除",
   bulkSelectionLimit: "Select up to 500 videos. Narrow the filter or select videos individually.",

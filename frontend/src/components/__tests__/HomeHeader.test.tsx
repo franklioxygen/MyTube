@@ -42,6 +42,20 @@ describe('HomeHeader', () => {
         expect(screen.getByRole('button', { name: 'allVideos' })).toBeInTheDocument();
     });
 
+    it('keeps the selection toggle name stable while its pressed state changes', () => {
+        const onSelectionToggle = vi.fn();
+        const { rerender } = render(<HomeHeader {...defaultProps} onSelectionToggle={onSelectionToggle} />);
+        const toggle = screen.getByRole('button', { name: 'bulkSelectVideos' });
+        expect(toggle).toHaveAttribute('aria-pressed', 'false');
+        fireEvent.click(toggle);
+        expect(onSelectionToggle).toHaveBeenCalledOnce();
+
+        rerender(<HomeHeader {...defaultProps} onSelectionToggle={onSelectionToggle} selectionActive />);
+        expect(screen.getByRole('button', { name: 'bulkSelectVideos' })).toBe(toggle);
+        expect(toggle).toHaveAttribute('aria-pressed', 'true');
+        expect(toggle).toHaveAttribute('title', 'bulkSelectVideos');
+    });
+
     it('should call onViewModeChange when toggle button is clicked', () => {
         render(<HomeHeader {...defaultProps} />);
 

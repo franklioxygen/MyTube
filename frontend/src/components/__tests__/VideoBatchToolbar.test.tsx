@@ -38,7 +38,7 @@ function setup() {
     return { client, user, ...view };
 }
 async function selectTags(user: ReturnType<typeof userEvent.setup>) {
-    await user.click(screen.getByRole('checkbox', { name: en.bulkSelectPage }));
+    await user.click(screen.getByRole('checkbox', { name: en.bulkSelectPageDescription }));
     await user.click(screen.getByRole('button', { name: en.addTags }));
     const dialog = await screen.findByRole('dialog');
     await user.type(within(dialog).getByRole('combobox'), 'New tag');
@@ -49,6 +49,15 @@ beforeEach(() => { vi.clearAllMocks(); mocks.post.mockResolvedValue(saved); });
 afterEach(() => { observers.splice(0).forEach((stop) => stop()); });
 
 describe('bulk organization interaction', () => {
+    it('keeps the All label while explaining and selecting only the current page', async () => {
+        const { user } = setup();
+        expect(screen.getByText(en.bulkSelectPage)).toBeVisible();
+        expect(screen.getByTitle(en.bulkSelectPageDescription)).toBeInTheDocument();
+        await user.click(screen.getByRole('checkbox', { name: en.bulkSelectPageDescription }));
+        expect(screen.getByText('2 selected')).toBeInTheDocument();
+        await user.click(screen.getByRole('checkbox', { name: en.bulkSelectPageDescription }));
+        expect(screen.getByText('0 selected')).toBeInTheDocument();
+    });
     it('appends tags with one request, preserves selection, refreshes caches without overwriting video objects', async () => {
         const { client, user } = setup();
         client.setQueryData(['videos'], [{ id: 'a', title: 'Current', tags: ['old'] }]);
@@ -118,7 +127,7 @@ describe('bulk organization interaction', () => {
         const readCollections = observe(client, ['collections', 'admin'], [current], async () => committed ? [latest] : [current]);
         const readFavorites = observe(client, ['favorite-collections', 'admin'], [current], async () => committed ? [latest] : [current]);
         mocks.post.mockImplementationOnce(async () => { committed = true; throw new Error('connection reset'); });
-        await user.click(screen.getByRole('checkbox', { name: en.bulkSelectPage }));
+        await user.click(screen.getByRole('checkbox', { name: en.bulkSelectPageDescription }));
         await user.click(screen.getByRole('button', { name: en.bulkAddToCollection }));
         const dialog = await screen.findByRole('dialog');
         await user.click(within(dialog).getByRole('combobox'));
@@ -169,7 +178,7 @@ describe('bulk organization interaction', () => {
             created.push({ ...body.newCollection, videos: body.videoIds });
             throw new Error('timeout');
         });
-        await user.click(screen.getByRole('checkbox', { name: en.bulkSelectPage }));
+        await user.click(screen.getByRole('checkbox', { name: en.bulkSelectPageDescription }));
         await user.click(screen.getByRole('button', { name: en.bulkAddToCollection }));
         const dialog = await screen.findByRole('dialog');
         await user.click(within(dialog).getByRole('radio', { name: en.bulkNewCollection }));
@@ -220,7 +229,7 @@ describe('bulk organization interaction', () => {
         await user.click(within(dialog).getByRole('button', { name: en.addTags }));
         rerender(<QueryClientProvider client={client}><Harness scope="different" /></QueryClientProvider>);
         expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-        await user.click(screen.getByRole('checkbox', { name: en.bulkSelectPage }));
+        await user.click(screen.getByRole('checkbox', { name: en.bulkSelectPageDescription }));
         await act(async () => finish(saved));
         expect(screen.getByText('2 selected')).toBeInTheDocument();
         expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
@@ -283,7 +292,7 @@ it('preselects the existing collection after a name conflict and requires an exp
     mocks.post.mockRejectedValueOnce({ response: { status: 409, data: {
         error: 'Name already exists', details: { existingCollectionId: 'c1' },
     } } });
-    await user.click(screen.getByRole('checkbox', { name: en.bulkSelectPage }));
+    await user.click(screen.getByRole('checkbox', { name: en.bulkSelectPageDescription }));
     await user.click(screen.getByRole('button', { name: en.bulkAddToCollection }));
     const dialog = await screen.findByRole('dialog');
     await user.click(within(dialog).getByRole('radio', { name: en.bulkNewCollection }));

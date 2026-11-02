@@ -697,6 +697,18 @@ const SettingsPage: React.FC = () => {
     const currentTab = tabs.some((tabItem) => tabItem.key === selectedTab)
         ? selectedTab
         : DEFAULT_SETTINGS_TAB;
+    const [mobileSections, setMobileSections] = useState(() => ({
+        urlKey: settingsTabUrlKey,
+        expanded: new Set<SettingsTabKey>([currentTab]),
+    }));
+    // URL navigation must open deferred content before the hash scroll runs.
+    // Keep other sections mounted so their unsaved drafts survive navigation.
+    if (mobileSections.urlKey !== settingsTabUrlKey) {
+        setMobileSections({
+            urlKey: settingsTabUrlKey,
+            expanded: new Set([...mobileSections.expanded, currentTab]),
+        });
+    }
 
     const renderDesktopTabContent = () =>
         tabs.find((tabItem) => tabItem.key === currentTab)?.render() ?? null;
@@ -706,7 +718,13 @@ const SettingsPage: React.FC = () => {
         <>
             {tabs.map((tabItem) => (
                 <Grid size={12} key={tabItem.key}>
-                    <CollapsibleSection title={tabItem.label} defaultExpanded={tabItem.key === currentTab} deferMount>
+                    <CollapsibleSection title={tabItem.label} expanded={mobileSections.expanded.has(tabItem.key)}
+                        onExpandedChange={(expanded) => setMobileSections((previous) => {
+                            const next = new Set(previous.expanded);
+                            if (expanded) next.add(tabItem.key);
+                            else next.delete(tabItem.key);
+                            return { ...previous, expanded: next };
+                        })} deferMount>
                         <Box sx={{ maxWidth: SETTINGS_SECTION_MAX_WIDTH }}>
                             {tabItem.render()}
                         </Box>

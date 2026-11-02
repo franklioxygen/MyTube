@@ -7,6 +7,7 @@ export const ko = {
   bulkExitSelection: "선택 종료",
   bulkSelectedCount: "{count}개 선택됨",
   bulkSelectPage: "전체",
+  bulkSelectPageDescription: "현재 페이지 전체 선택",
   bulkSelectResults: "결과 선택 ({count})",
   bulkClearSelection: "해제",
   bulkSelectionLimit: "Select up to 500 videos. Narrow the filter or select videos individually.",

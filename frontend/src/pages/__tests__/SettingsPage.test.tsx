@@ -5,6 +5,7 @@ import { overlay } from '../../theme/colors';
 import SettingsPage from '../SettingsPage';
 
 let mockIsDesktop = false;
+let mockRealCollapsibleSections = false;
 let mockIsSticky = false;
 let mockUserRole: string | undefined = 'admin';
 let mockSettingsData: any = {};
@@ -166,14 +167,15 @@ vi.mock('../../hooks/useStickyButton', () => ({
   useStickyButton: () => mockIsSticky,
 }));
 
-vi.mock('../../components/CollapsibleSection', () => ({
-  default: ({ title, children }: any) => (
-    <div data-testid={`section-${title}`}>
-      <h3>{title}</h3>
-      {children}
+vi.mock('../../components/CollapsibleSection', async () => {
+  const { default: CollapsibleSection } = await vi.importActual<typeof import('../../components/CollapsibleSection')>('../../components/CollapsibleSection');
+  return { default: (props: React.ComponentProps<typeof CollapsibleSection>) => mockRealCollapsibleSections ? <CollapsibleSection {...props} /> : (
+    <div data-testid={`section-${props.title}`}>
+      <h3>{props.title}</h3>
+      {props.children}
     </div>
-  ),
-}));
+  ) };
+});
 
 vi.mock('../../components/Settings/BasicSettings', () => ({
   default: ({ onChange }: any) => (
@@ -394,6 +396,8 @@ const SettingsPageWithNavigation = () => {
       <button onClick={() => navigate('/settings?tab=security#security-access-target')}>
         go-security-hash
       </button>
+      <button onClick={() => navigate(-1)}>go-back</button>
+      <button onClick={() => navigate(1)}>go-forward</button>
       <SettingsPage />
     </>
   );
@@ -405,6 +409,7 @@ describe('SettingsPage', () => {
     vi.useRealTimers();
 
     mockIsDesktop = false;
+    mockRealCollapsibleSections = false;
     mockIsSticky = false;
     mockUserRole = 'admin';
     mockSettingsData = {};
@@ -513,6 +518,53 @@ describe('SettingsPage', () => {
 
     vi.advanceTimersByTime(2000);
     expect(target.style.backgroundColor).toBe('');
+  });
+
+  it('opens deferred mobile sections for URL and history navigation while retaining mounted content', async () => {
+    mockRealCollapsibleSections = true;
+    vi.useFakeTimers();
+    render(
+      <MemoryRouter initialEntries={['/settings?tab=interface']}>
+        <SettingsPageWithNavigation />
+      </MemoryRouter>
+    );
+    const downloads = screen.getByRole('button', { name: 'downloadsFiles' });
+    expect(downloads).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByTestId('download-settings')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('go-downloads-hash'));
+    expect(downloads).toHaveAttribute('aria-expanded', 'true');
+    const target = document.getElementById('dontSkipDeletedVideo-setting')!;
+    target.scrollIntoView = vi.fn();
+    vi.advanceTimersByTime(500);
+    expect(target.scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'center' });
+
+    fireEvent.click(downloads);
+    expect(downloads).toHaveAttribute('aria-expanded', 'false');
+    fireEvent.click(screen.getByText('go-security-hash'));
+    const security = screen.getByRole('button', { name: 'securityAccess' });
+    expect(security).toHaveAttribute('aria-expanded', 'true');
+    fireEvent.click(security);
+    fireEvent.click(screen.getByText('go-back'));
+    expect(downloads).toHaveAttribute('aria-expanded', 'true');
+    expect(document.getElementById('dontSkipDeletedVideo-setting')).toBe(target);
+    fireEvent.click(screen.getByText('go-forward'));
+    expect(security).toHaveAttribute('aria-expanded', 'true');
+  });
+
+  it('reopens a collapsed mobile section when only the URL hash changes', () => {
+    mockRealCollapsibleSections = true;
+    vi.useFakeTimers();
+    render(
+      <MemoryRouter initialEntries={['/settings?tab=security']}>
+        <SettingsPageWithNavigation />
+      </MemoryRouter>
+    );
+    const security = screen.getByRole('button', { name: 'securityAccess' });
+    fireEvent.click(security);
+    expect(security).toHaveAttribute('aria-expanded', 'false');
+    fireEvent.click(screen.getByText('go-security-hash'));
+    expect(security).toHaveAttribute('aria-expanded', 'true');
   });
 
   it('resynchronizes the selected desktop tab when the URL query changes on the mounted route', async () => {

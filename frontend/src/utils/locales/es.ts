@@ -7,6 +7,7 @@ export const es = {
   bulkExitSelection: "Salir de la selección",
   bulkSelectedCount: "{count} seleccionados",
   bulkSelectPage: "Todos",
+  bulkSelectPageDescription: "Todos los vídeos de esta página",
   bulkSelectResults: "Seleccionar resultados ({count})",
   bulkClearSelection: "Limpiar",
   bulkSelectionLimit: "Select up to 500 videos. Narrow the filter or select videos individually.",

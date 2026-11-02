@@ -6,15 +6,22 @@ interface CollapsibleSectionProps {
     title: string;
     children: ReactNode;
     defaultExpanded?: boolean;
+    expanded?: boolean;
+    onExpandedChange?: (expanded: boolean) => void;
     deferMount?: boolean;
 }
 
-const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({ title, children, defaultExpanded = true, deferMount = false }) => {
-    const [hasExpanded, setHasExpanded] = useState(defaultExpanded);
+const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({ title, children, defaultExpanded = true, expanded, onExpandedChange, deferMount = false }) => {
+    const [localExpanded, setLocalExpanded] = useState(defaultExpanded);
+    const isExpanded = expanded ?? localExpanded;
+    const [hasExpanded, setHasExpanded] = useState(isExpanded);
+    if (isExpanded && !hasExpanded) setHasExpanded(true);
     return (
-        <Accordion defaultExpanded={defaultExpanded} sx={{ width: '100%', mb: 0.25 }}
+        <Accordion expanded={isExpanded} sx={{ width: '100%', mb: 0.25 }}
             onChange={(_, expanded) => {
-                if (deferMount && expanded) setHasExpanded(true);
+                if (expanded) setHasExpanded(true);
+                setLocalExpanded(expanded);
+                onExpandedChange?.(expanded);
             }}>
             <AccordionSummary
                 expandIcon={<ExpandMoreIcon />}

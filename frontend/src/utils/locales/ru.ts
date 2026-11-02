@@ -7,6 +7,7 @@ export const ru = {
   bulkExitSelection: "Завершить выбор",
   bulkSelectedCount: "Выбрано: {count}",
   bulkSelectPage: "Все",
+  bulkSelectPageDescription: "Все видео на текущей странице",
   bulkSelectResults: "Выбрать результаты ({count})",
   bulkClearSelection: "Сбросить",
   bulkSelectionLimit: "Select up to 500 videos. Narrow the filter or select videos individually.",

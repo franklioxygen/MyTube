@@ -258,8 +258,8 @@ export const HomeHeader: React.FC<HomeHeaderProps> = ({
                             <Button
                                 onClick={onSelectionToggle}
                                 disabled={actionsDisabled || !onSelectionToggle}
-                                title={t(selectionActive ? 'bulkExitSelection' : 'bulkSelectVideos')}
-                                aria-label={t(selectionActive ? 'bulkExitSelection' : 'bulkSelectVideos')}
+                                title={t('bulkSelectVideos')}
+                                aria-label={t('bulkSelectVideos')}
                                 aria-pressed={selectionActive}
                                 sx={{ bgcolor: selectionActive ? 'action.selected' : undefined }}
                             >

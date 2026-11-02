@@ -7,6 +7,7 @@ export const ar = {
   bulkExitSelection: "إنهاء التحديد",
   bulkSelectedCount: "تم تحديد {count}",
   bulkSelectPage: "الكل",
+  bulkSelectPageDescription: "الكل في الصفحة الحالية",
   bulkSelectResults: "تحديد النتائج ({count})",
   bulkClearSelection: "مسح",
   bulkSelectionLimit: "Select up to 500 videos. Narrow the filter or select videos individually.",

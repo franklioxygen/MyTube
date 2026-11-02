@@ -102,6 +102,8 @@ function VideoBatchToolbarContent({ selection, pageIds, orderedIds, availableTag
         }}>{error.invalidVideoIds.length ? t('bulkRemoveInvalid') : t('bulkRemoveMissing')}</Button>}
     </Alert> : null;
     const targetIds = infiniteScroll ? orderedIds : pageIds;
+    const selectionLabel = infiniteScroll ? t('bulkSelectResults', { count: targetIds.length }) : t('bulkSelectPage');
+    const selectionDescription = infiniteScroll ? selectionLabel : t('bulkSelectPageDescription');
     const pageSelected = targetIds.filter((id) => selection.selectedIds.has(id)).length;
     const overLimit = targetIds.length > MAX_BULK_VIDEOS;
     const showExitButton = !alwaysOn && !hideEntryButton;
@@ -122,8 +124,9 @@ function VideoBatchToolbarContent({ selection, pageIds, orderedIds, availableTag
                     <FormControlLabel control={<Checkbox checked={targetIds.length > 0 && pageSelected === targetIds.length}
                         indeterminate={pageSelected > 0 && pageSelected < targetIds.length}
                         disabled={selection.locked || overLimit || targetIds.length === 0}
+                        slotProps={{ input: { 'aria-label': selectionDescription } }}
                         onChange={() => selection.togglePage(targetIds)} />}
-                        label={infiniteScroll ? t('bulkSelectResults', { count: targetIds.length }) : t('bulkSelectPage')}
+                        label={selectionLabel} title={selectionDescription}
                         sx={{ m: 0, minHeight: 40 }} />
                     <Typography aria-live="polite" color="text.secondary" sx={{
                         fontSize: { xs: '0.8125rem', sm: '0.875rem' },

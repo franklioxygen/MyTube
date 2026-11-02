@@ -30,4 +30,23 @@ describe('CollapsibleSection deferred content', () => {
         render(<CollapsibleSection title="Settings" deferMount><input aria-label="Draft" /></CollapsibleSection>);
         expect(screen.getByRole('textbox', { name: 'Draft' })).toBeVisible();
     });
+
+    it('mounts on controlled expansion and preserves the draft after controlled collapse', async () => {
+        const user = userEvent.setup();
+        const section = (expanded: boolean) => (
+            <CollapsibleSection title="Settings" expanded={expanded} deferMount>
+                <input aria-label="Draft" />
+            </CollapsibleSection>
+        );
+        const { rerender } = render(section(false));
+        expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+        rerender(section(true));
+        const draft = screen.getByRole('textbox', { name: 'Draft' });
+        await user.type(draft, 'Keep this edit');
+        rerender(section(false));
+        expect(draft).toBeInTheDocument();
+        rerender(section(true));
+        expect(screen.getByRole('textbox', { name: 'Draft' })).toBe(draft);
+        expect(draft).toHaveValue('Keep this edit');
+    });
 });

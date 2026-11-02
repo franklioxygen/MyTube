@@ -7,6 +7,7 @@ export const zh = {
   bulkExitSelection: "退出选择",
   bulkSelectedCount: "已选 {count}",
   bulkSelectPage: "全选",
+  bulkSelectPageDescription: "全选当前页",
   bulkSelectResults: "全选当前结果（{count}）",
   bulkClearSelection: "清空",
   bulkSelectionLimit: "最多选择 500 个视频，请缩小筛选范围或逐个选择。",
