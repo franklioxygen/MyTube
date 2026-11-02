@@ -91,6 +91,51 @@ describe('DownloadsMenu', () => {
         expect(mockNavigate).not.toHaveBeenCalled();
     });
 
+    it.each(
+        (['altKey', 'ctrlKey', 'metaKey', 'shiftKey'] as const).flatMap((modifier) =>
+            ['ArrowLeft', 'ArrowRight'].map((key) => ({ modifier, key })),
+        ),
+    )('leaves $modifier + $key available without opening or closing the submenu', async ({ modifier, key }) => {
+        const user = userEvent.setup();
+        render(<DownloadsMenu anchorEl={anchorEl} onClose={onClose} activeDownloads={[]} queuedDownloads={[]} />);
+        const trigger = screen.getByRole('menuitem', { name: 'subscriptions' });
+        trigger.focus();
+        expect(fireEvent.keyDown(trigger, { key, [modifier]: true })).toBe(true);
+        expect(trigger).toHaveAttribute('aria-expanded', 'false');
+        expect(trigger).toHaveFocus();
+
+        await user.click(trigger);
+        const firstItem = screen.getByRole('menuitem', { name: 'allSubscriptions' });
+        await waitFor(() => expect(firstItem).toHaveFocus());
+        expect(fireEvent.keyDown(firstItem, { key, [modifier]: true })).toBe(true);
+        expect(trigger).toHaveAttribute('aria-expanded', 'true');
+        expect(firstItem).toHaveFocus();
+        expect(onClose).not.toHaveBeenCalled();
+        expect(mockNavigate).not.toHaveBeenCalled();
+    });
+
+    it.each(['ArrowLeft', 'ArrowRight'])('ignores held %s repeats while allowing a separate press to return', async (key) => {
+        render(<DownloadsMenu anchorEl={anchorEl} onClose={onClose} activeDownloads={[]} queuedDownloads={[]} />);
+        const trigger = screen.getByRole('menuitem', { name: 'subscriptions' });
+        trigger.focus();
+        expect(fireEvent.keyDown(trigger, { key, repeat: true })).toBe(true);
+        expect(trigger).toHaveAttribute('aria-expanded', 'false');
+
+        fireEvent.keyDown(trigger, { key, repeat: false });
+        const firstItem = screen.getByRole('menuitem', { name: 'allSubscriptions' });
+        await waitFor(() => expect(firstItem).toHaveFocus());
+        expect(fireEvent.keyDown(firstItem, { key, repeat: true })).toBe(true);
+        expect(trigger).toHaveAttribute('aria-expanded', 'true');
+        expect(firstItem).toHaveFocus();
+
+        fireEvent.keyUp(firstItem, { key });
+        fireEvent.keyDown(firstItem, { key, repeat: false });
+        await waitFor(() => expect(trigger).toHaveFocus());
+        expect(trigger).toHaveAttribute('aria-expanded', 'false');
+        expect(onClose).not.toHaveBeenCalled();
+        expect(mockNavigate).not.toHaveBeenCalled();
+    });
+
     it.each(['Escape', 'ArrowRight'])('returns focus to the parent subscription item with %s', async (key) => {
         const user = userEvent.setup();
         render(<DownloadsMenu anchorEl={anchorEl} onClose={onClose} activeDownloads={[]} queuedDownloads={[]} />);

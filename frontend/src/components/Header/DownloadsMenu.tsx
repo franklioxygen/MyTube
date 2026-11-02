@@ -135,6 +135,7 @@ const DownloadsMenu: React.FC<DownloadsMenuProps> = ({
                 aria-controls={isSubscriptionMenuOpen ? subscriptionMenuId : undefined}
                 onClick={(event) => setSubscriptionAnchorEl(event.currentTarget)}
                 onKeyDown={(event) => {
+                    if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || event.repeat) return;
                     if (event.key === openKey || event.key === standardOpenKey) {
                         event.preventDefault();
                         setSubscriptionAnchorEl(event.currentTarget);
@@ -232,6 +233,7 @@ const DownloadsMenu: React.FC<DownloadsMenuProps> = ({
                     id: subscriptionMenuId,
                     'aria-labelledby': subscriptionTriggerId,
                     onKeyDown: (event: React.KeyboardEvent<HTMLUListElement>) => {
+                        if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || event.repeat) return;
                         if (event.key === closeKey || event.key === standardCloseKey) {
                             event.preventDefault();
                             event.stopPropagation();
