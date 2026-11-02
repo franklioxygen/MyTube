@@ -41,8 +41,9 @@ const DownloadsMenu: React.FC<DownloadsMenuProps> = ({
     const subscriptionMenuId = useId();
     const subscriptionTriggerId = useId();
     const isSubscriptionMenuOpen = Boolean(anchorEl && subscriptionAnchorEl);
-    const openKey = theme.direction === 'rtl' ? 'ArrowLeft' : 'ArrowRight';
-    const closeKey = theme.direction === 'rtl' ? 'ArrowRight' : 'ArrowLeft';
+    // Desktop opens left to stay clear of the header's right screen edge.
+    const openKey = !isMobile || theme.direction === 'rtl' ? 'ArrowLeft' : 'ArrowRight';
+    const closeKey = openKey === 'ArrowLeft' ? 'ArrowRight' : 'ArrowLeft';
 
     const handleClose = () => {
         setSubscriptionAnchorEl(null);
@@ -133,7 +134,7 @@ const DownloadsMenu: React.FC<DownloadsMenuProps> = ({
                     <Subscriptions />
                 </Badge>
                 <Box component="span" sx={{ flexGrow: 1 }}>{t('subscriptions')}</Box>
-                {theme.direction === 'rtl' ? <ChevronLeft /> : <ChevronRight />}
+                {openKey === 'ArrowLeft' ? <ChevronLeft /> : <ChevronRight />}
             </MenuItem>
             {(activeDownloads.length > 0 || queuedDownloads.length > 0) && <Divider />}
 

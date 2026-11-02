@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import DownloadsMenu from '../DownloadsMenu';
 
@@ -22,6 +23,11 @@ describe('DownloadsMenu', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         document.body.appendChild(anchorEl);
+        vi.mocked(window.matchMedia).mockImplementation((query: string) => ({
+            matches: false, media: query, onchange: null,
+            addListener: vi.fn(), removeListener: vi.fn(),
+            addEventListener: vi.fn(), removeEventListener: vi.fn(), dispatchEvent: vi.fn(),
+        }));
     });
 
     afterEach(() => anchorEl.remove());
@@ -64,14 +70,14 @@ describe('DownloadsMenu', () => {
         render(<DownloadsMenu anchorEl={anchorEl} onClose={onClose} activeDownloads={[]} queuedDownloads={[]} />);
         const trigger = screen.getByRole('menuitem', { name: 'subscriptions' });
         trigger.focus();
-        await user.keyboard('{ArrowRight}');
+        await user.keyboard('{ArrowLeft}');
         await waitFor(() => expect(screen.getByRole('menuitem', { name: 'allSubscriptions' })).toHaveFocus());
         await user.keyboard('{ArrowDown}{ArrowDown}{Enter}');
         expect(mockNavigate).toHaveBeenCalledExactlyOnceWith('/subscriptions?type=playlist');
         expect(onClose).toHaveBeenCalledTimes(1);
     });
 
-    it.each(['Escape', 'ArrowLeft'])('returns focus to the parent subscription item with %s', async (key) => {
+    it.each(['Escape', 'ArrowRight'])('returns focus to the parent subscription item with %s', async (key) => {
         const user = userEvent.setup();
         render(<DownloadsMenu anchorEl={anchorEl} onClose={onClose} activeDownloads={[]} queuedDownloads={[]} />);
         const trigger = screen.getByRole('menuitem', { name: 'subscriptions' });
@@ -80,6 +86,34 @@ describe('DownloadsMenu', () => {
         await user.keyboard(`{${key}}`);
         await waitFor(() => expect(trigger).toHaveFocus());
         expect(trigger).toHaveAttribute('aria-expanded', 'false');
+        expect(onClose).not.toHaveBeenCalled();
+        expect(mockNavigate).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        ['ltr', false, 'ArrowLeft', 'ArrowRight'],
+        ['rtl', false, 'ArrowLeft', 'ArrowRight'],
+        ['ltr', true, 'ArrowRight', 'ArrowLeft'],
+        ['rtl', true, 'ArrowLeft', 'ArrowRight'],
+    ] as const)('uses matching open and return keys in %s layout (mobile: %s)', async (direction, mobile, openKey, closeKey) => {
+        vi.mocked(window.matchMedia).mockImplementation((query: string) => ({
+            matches: mobile && query.includes('max-width'), media: query, onchange: null,
+            addListener: vi.fn(), removeListener: vi.fn(),
+            addEventListener: vi.fn(), removeEventListener: vi.fn(), dispatchEvent: vi.fn(),
+        }));
+        const user = userEvent.setup();
+        render(
+            <ThemeProvider theme={createTheme({ direction })}>
+                <DownloadsMenu anchorEl={anchorEl} onClose={onClose} activeDownloads={[]} queuedDownloads={[]} />
+            </ThemeProvider>,
+        );
+        const trigger = screen.getByRole('menuitem', { name: 'subscriptions' });
+        expect(trigger.querySelector(`[data-testid="${openKey === 'ArrowLeft' ? 'ChevronLeft' : 'ChevronRight'}Icon"]`)).toBeInTheDocument();
+        trigger.focus();
+        await user.keyboard(`{${openKey}}`);
+        await waitFor(() => expect(screen.getByRole('menuitem', { name: 'allSubscriptions' })).toHaveFocus());
+        await user.keyboard(`{${closeKey}}`);
+        await waitFor(() => expect(trigger).toHaveFocus());
         expect(onClose).not.toHaveBeenCalled();
         expect(mockNavigate).not.toHaveBeenCalled();
     });
