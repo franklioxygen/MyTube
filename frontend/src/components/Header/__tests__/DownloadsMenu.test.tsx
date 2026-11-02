@@ -77,6 +77,20 @@ describe('DownloadsMenu', () => {
         expect(onClose).toHaveBeenCalledTimes(1);
     });
 
+    it('preserves standard LTR desktop keys for opening and returning from the submenu', async () => {
+        const user = userEvent.setup();
+        render(<DownloadsMenu anchorEl={anchorEl} onClose={onClose} activeDownloads={[]} queuedDownloads={[]} />);
+        const trigger = screen.getByRole('menuitem', { name: 'subscriptions' });
+        trigger.focus();
+        await user.keyboard('{ArrowRight}');
+        await waitFor(() => expect(screen.getByRole('menuitem', { name: 'allSubscriptions' })).toHaveFocus());
+        await user.keyboard('{ArrowLeft}');
+        await waitFor(() => expect(trigger).toHaveFocus());
+        expect(trigger).toHaveAttribute('aria-expanded', 'false');
+        expect(onClose).not.toHaveBeenCalled();
+        expect(mockNavigate).not.toHaveBeenCalled();
+    });
+
     it.each(['Escape', 'ArrowRight'])('returns focus to the parent subscription item with %s', async (key) => {
         const user = userEvent.setup();
         render(<DownloadsMenu anchorEl={anchorEl} onClose={onClose} activeDownloads={[]} queuedDownloads={[]} />);

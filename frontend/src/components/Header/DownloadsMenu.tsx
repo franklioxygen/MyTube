@@ -1,5 +1,5 @@
 import { ChevronLeft, ChevronRight, Download, Subscriptions } from '@mui/icons-material';
-import { useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import {
     alpha,
     Badge,
@@ -40,10 +40,26 @@ const DownloadsMenu: React.FC<DownloadsMenuProps> = ({
     const [subscriptionAnchorEl, setSubscriptionAnchorEl] = useState<HTMLElement | null>(null);
     const subscriptionMenuId = useId();
     const subscriptionTriggerId = useId();
+    const subscriptionListRef = useRef<HTMLUListElement>(null);
     const isSubscriptionMenuOpen = Boolean(anchorEl && subscriptionAnchorEl);
     // Desktop opens left to stay clear of the header's right screen edge.
     const openKey = !isMobile || theme.direction === 'rtl' ? 'ArrowLeft' : 'ArrowRight';
     const closeKey = openKey === 'ArrowLeft' ? 'ArrowRight' : 'ArrowLeft';
+    // Also accept standard menu keys when the visual direction differs.
+    const standardOpenKey = theme.direction === 'rtl' ? 'ArrowLeft' : 'ArrowRight';
+    const standardCloseKey = standardOpenKey === 'ArrowLeft' ? 'ArrowRight' : 'ArrowLeft';
+
+    useEffect(() => {
+        if (!isSubscriptionMenuOpen) return;
+        // Let the nested modal focus traps settle before focusing an item.
+        const frame = requestAnimationFrame(() => {
+            const list = subscriptionListRef.current;
+            if (list && !list.contains(list.ownerDocument.activeElement)) {
+                list.querySelector<HTMLElement>('[role="menuitem"]')?.focus();
+            }
+        });
+        return () => cancelAnimationFrame(frame);
+    }, [isSubscriptionMenuOpen]);
 
     const handleClose = () => {
         setSubscriptionAnchorEl(null);
@@ -119,7 +135,7 @@ const DownloadsMenu: React.FC<DownloadsMenuProps> = ({
                 aria-controls={isSubscriptionMenuOpen ? subscriptionMenuId : undefined}
                 onClick={(event) => setSubscriptionAnchorEl(event.currentTarget)}
                 onKeyDown={(event) => {
-                    if (event.key === openKey) {
+                    if (event.key === openKey || event.key === standardOpenKey) {
                         event.preventDefault();
                         setSubscriptionAnchorEl(event.currentTarget);
                     }
@@ -212,10 +228,11 @@ const DownloadsMenu: React.FC<DownloadsMenuProps> = ({
             slotProps={{
                 paper: { sx: { minWidth: 220, maxWidth: 'calc(100vw - 32px)' } },
                 list: {
+                    ref: subscriptionListRef,
                     id: subscriptionMenuId,
                     'aria-labelledby': subscriptionTriggerId,
                     onKeyDown: (event: React.KeyboardEvent<HTMLUListElement>) => {
-                        if (event.key === closeKey) {
+                        if (event.key === closeKey || event.key === standardCloseKey) {
                             event.preventDefault();
                             event.stopPropagation();
                             closeSubscriptionMenu();
