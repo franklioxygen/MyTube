@@ -5,10 +5,10 @@ export const ja = {
   bulkRequestNotSent: "リクエストを送信できませんでした。動画は変更されていません。再試行してください。",
   bulkSelectVideos: "動画を選択",
   bulkExitSelection: "選択を終了",
-  bulkSelectedCount: "{count} 本の動画を選択中",
-  bulkSelectPage: "現在のページをすべて選択",
+  bulkSelectedCount: "{count} 件選択中",
+  bulkSelectPage: "すべて",
   bulkSelectResults: "検索結果をすべて選択（{count}）",
-  bulkClearSelection: "選択を解除",
+  bulkClearSelection: "解除",
   bulkSelectionLimit: "Select up to 500 videos. Narrow the filter or select videos individually.",
   bulkTagsTitle: "Add tags to {count} videos",
   bulkTagsHint: "Existing tags are preserved. Only the selected tags will be added.",
@@ -1299,6 +1299,7 @@ export const ja = {
 
 
   // Sorting
+  select: "選択",
   sort: "並び替え",
   sortBy: "並び替え順",
   dateDesc: "追加日 (新しい順)",

@@ -5,10 +5,10 @@ export const ko = {
   bulkRequestNotSent: "요청을 보내지 못했습니다. 변경된 동영상은 없습니다. 다시 시도하세요.",
   bulkSelectVideos: "동영상 선택",
   bulkExitSelection: "선택 종료",
-  bulkSelectedCount: "동영상 {count}개 선택됨",
-  bulkSelectPage: "현재 페이지 선택",
+  bulkSelectedCount: "{count}개 선택됨",
+  bulkSelectPage: "전체",
   bulkSelectResults: "결과 선택 ({count})",
-  bulkClearSelection: "선택 해제",
+  bulkClearSelection: "해제",
   bulkSelectionLimit: "Select up to 500 videos. Narrow the filter or select videos individually.",
   bulkTagsTitle: "Add tags to {count} videos",
   bulkTagsHint: "Existing tags are preserved. Only the selected tags will be added.",
@@ -1282,6 +1282,7 @@ export const ko = {
 
 
   // Sorting
+  select: "선택",
   sort: "정렬",
   sortBy: "정렬 기준",
   dateDesc: "추가된 날짜 (최신순)",

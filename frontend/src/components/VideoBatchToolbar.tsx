@@ -1,5 +1,5 @@
-import { Checklist, Label, PlaylistAdd } from '@mui/icons-material';
-import { Alert, Box, Button, Checkbox, FormControlLabel, Paper, Typography } from '@mui/material';
+import { Checklist, Deselect, Label, PlaylistAdd } from '@mui/icons-material';
+import { Alert, Box, Button, Checkbox, Collapse, FormControlLabel, Paper, Typography, useMediaQuery } from '@mui/material';
 import { Suspense, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -20,20 +20,35 @@ interface Props {
     availableTags?: string[];
     infiniteScroll?: boolean;
     alwaysOn?: boolean;
+    hideEntryButton?: boolean;
 }
 
 export default function VideoBatchToolbar(props: Props) {
     const { t } = useLanguage();
+    const reduceMotion = useMediaQuery('(prefers-reduced-motion: reduce)');
+    const { active } = props.selection;
+    const duration = reduceMotion ? 0 : 250;
     if (!props.selection.canWrite) return null;
-    if (!props.selection.active && props.orderedIds.length === 0) return null;
-    if (!props.selection.active) return <Box sx={{ mb: 2 }}>
-        <Button startIcon={<Checklist />} onClick={props.selection.enter}>{t('bulkSelectVideos')}</Button>
+    if (!active && props.orderedIds.length === 0) return null;
+    return <Box sx={{ position: active ? 'sticky' : 'relative', top: active ? 64 : undefined, zIndex: 11, mb: props.hideEntryButton ? 0 : 2 }}>
+        <Collapse in={!active && !props.hideEntryButton} timeout={duration} unmountOnExit aria-hidden={active} inert={active}
+            sx={{ opacity: active ? 0 : 1, transition: `height ${duration}ms ease, opacity ${duration}ms ease` }}>
+            <Button startIcon={<Checklist />} onClick={props.selection.enter} variant="outlined"
+                sx={{ minWidth: 'auto', p: 1, color: 'text.secondary', borderColor: 'text.secondary' }}>
+                {t('bulkSelectVideos')}
+            </Button>
+        </Collapse>
+        <Collapse in={active} timeout={duration} mountOnEnter unmountOnExit aria-hidden={!active} inert={!active}
+            sx={{ opacity: active ? 1 : 0, transition: `height ${duration}ms ease, opacity ${duration}ms ease` }}>
+            <Box sx={{ pb: props.hideEntryButton ? 2 : 0 }}>
+                {/* Remount drafts immediately when the selection/authorization scope changes. */}
+                <VideoBatchToolbarContent key={props.selection.scope} {...props} />
+            </Box>
+        </Collapse>
     </Box>;
-    // Remount all drafts when the selection/authorization scope changes.
-    return <VideoBatchToolbarContent key={props.selection.scope} {...props} />;
 }
 
-function VideoBatchToolbarContent({ selection, pageIds, orderedIds, availableTags = [], infiniteScroll = false, alwaysOn = false }: Props) {
+function VideoBatchToolbarContent({ selection, pageIds, orderedIds, availableTags = [], infiniteScroll = false, alwaysOn = false, hideEntryButton = false }: Props) {
     const { t } = useLanguage();
     const { collections } = useCollection();
     const client = useQueryClient();
@@ -89,19 +104,67 @@ function VideoBatchToolbarContent({ selection, pageIds, orderedIds, availableTag
     const targetIds = infiniteScroll ? orderedIds : pageIds;
     const pageSelected = targetIds.filter((id) => selection.selectedIds.has(id)).length;
     const overLimit = targetIds.length > MAX_BULK_VIDEOS;
+    const showExitButton = !alwaysOn && !hideEntryButton;
     return <>
-        <Paper variant="outlined" sx={{ position: 'sticky', top: 64, zIndex: 11, p: 1, mb: 2 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
-                <FormControlLabel control={<Checkbox checked={targetIds.length > 0 && pageSelected === targetIds.length}
-                    indeterminate={pageSelected > 0 && pageSelected < targetIds.length}
-                    disabled={selection.locked || overLimit || targetIds.length === 0}
-                    onChange={() => selection.togglePage(targetIds)} />}
-                    label={infiniteScroll ? t('bulkSelectResults', { count: targetIds.length }) : t('bulkSelectPage')} />
-                <Typography aria-live="polite">{t('bulkSelectedCount', { count: selection.selectedIds.size })}</Typography>
-                <Button startIcon={<Label />} disabled={!selection.selectedIds.size || selection.locked} onClick={() => open('tags')}>{t('addTags')}</Button>
-                <Button startIcon={<PlaylistAdd />} disabled={!selection.selectedIds.size || selection.locked} onClick={() => open('collection')}>{t('bulkAddToCollection')}</Button>
-                <Button disabled={!selection.selectedIds.size || selection.locked} onClick={selection.clear}>{t('bulkClearSelection')}</Button>
-                {!alwaysOn && <Button disabled={selection.locked} onClick={selection.exit}>{t('bulkExitSelection')}</Button>}
+        <Paper variant="outlined" sx={{
+            p: { xs: 0, sm: 1 },
+            borderRadius: { xs: 0, sm: 1 },
+            borderLeftWidth: { xs: 0, sm: 1 },
+            borderRightWidth: { xs: 0, sm: 1 },
+        }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: { xs: 0, sm: 2 } }}>
+                <Box sx={{
+                    display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 1, minWidth: 0,
+                    width: { xs: '100%', sm: 'auto' },
+                    justifyContent: { xs: 'space-between', sm: 'flex-start' },
+                    px: { xs: 2, sm: 0 }, py: { xs: 0.5, sm: 0 },
+                }}>
+                    <FormControlLabel control={<Checkbox checked={targetIds.length > 0 && pageSelected === targetIds.length}
+                        indeterminate={pageSelected > 0 && pageSelected < targetIds.length}
+                        disabled={selection.locked || overLimit || targetIds.length === 0}
+                        onChange={() => selection.togglePage(targetIds)} />}
+                        label={infiniteScroll ? t('bulkSelectResults', { count: targetIds.length }) : t('bulkSelectPage')}
+                        sx={{ m: 0, minHeight: 40 }} />
+                    <Typography aria-live="polite" color="text.secondary" sx={{
+                        fontSize: { xs: '0.8125rem', sm: '0.875rem' },
+                        borderLeft: { xs: 'none', sm: '1px solid' }, borderColor: 'divider',
+                        pl: { xs: 0, sm: 2 }, ml: { xs: 0, sm: 1 },
+                    }}>
+                        {t('bulkSelectedCount', { count: selection.selectedIds.size })}
+                    </Typography>
+                </Box>
+                {/* Keep actions together so wrapping starts with Add Tags. */}
+                <Box sx={{
+                    display: { xs: 'grid', sm: 'flex' }, alignItems: 'center', flexWrap: 'wrap',
+                    gridTemplateColumns: { xs: `repeat(${showExitButton ? 2 : 3}, minmax(0, 1fr))`, sm: 'none' },
+                    gap: { xs: 0.75, sm: 1 }, flexBasis: { xs: '100%', sm: 'max-content' }, maxWidth: '100%',
+                    ml: { xs: 0, sm: 'auto' },
+                    px: { xs: 1.5, sm: 0 }, pt: { xs: 0.5, sm: 0 }, pb: { xs: 1, sm: 0 },
+                    '& .MuiButton-root': {
+                        minWidth: 0, minHeight: 40, px: { xs: 0.75, sm: 1.5 },
+                        fontSize: { xs: '0.8125rem', sm: '0.875rem' }, whiteSpace: 'nowrap',
+                        bgcolor: 'action.hover',
+                        '& .MuiButton-startIcon': { ml: 0, mr: { xs: 0.5, sm: 1 }, flexShrink: 0 },
+                    },
+                }}>
+                    <Button startIcon={<Label />} aria-label={t('addTags')} title={t('addTags')}
+                        disabled={!selection.selectedIds.size || selection.locked} onClick={() => open('tags')}>
+                        <Box component="span" sx={{ display: { xs: 'block', sm: 'none' }, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{t('tags')}</Box>
+                        <Box component="span" sx={{ display: { xs: 'none', sm: 'block' } }}>{t('addTags')}</Box>
+                    </Button>
+                    <Button startIcon={<PlaylistAdd />} aria-label={t('bulkAddToCollection')} title={t('bulkAddToCollection')}
+                        disabled={!selection.selectedIds.size || selection.locked} onClick={() => open('collection')}>
+                        <Box component="span" sx={{ display: { xs: 'block', sm: 'none' }, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{t('collection')}</Box>
+                        <Box component="span" sx={{ display: { xs: 'none', sm: 'block' } }}>{t('bulkAddToCollection')}</Box>
+                    </Button>
+                    <Button startIcon={<Deselect />} title={t('bulkClearSelection')}
+                        disabled={!selection.selectedIds.size || selection.locked} onClick={selection.clear}>
+                        <Box component="span" sx={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{t('bulkClearSelection')}</Box>
+                    </Button>
+                    {showExitButton && <Button disabled={selection.locked} onClick={selection.exit} title={t('bulkExitSelection')}>
+                        <Box component="span" sx={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{t('bulkExitSelection')}</Box>
+                    </Button>}
+                </Box>
             </Box>
             {overLimit && <Typography variant="caption" color="text.secondary">{t('bulkSelectionLimit')}</Typography>}
         </Paper>

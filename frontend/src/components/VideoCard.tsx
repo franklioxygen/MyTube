@@ -115,12 +115,25 @@ const VideoCardBase: React.FC<VideoCardProps> = ({
                 bgcolor: 'transparent',
                 backgroundImage: 'none',
                 boxShadow: 'none',
-                borderRadius: 2,
+                borderRadius: isMobile ? 0 : 2,
                 overflow: 'visible',
                 transition: 'background-color 0.15s ease, color 0.3s, border-color 0.3s',
                 ...(selected && selectionMode && {
-                    outline: `2px solid ${theme.palette.primary.main}`,
+                    outline: isMobile ? 'none' : `2px solid ${theme.palette.primary.main}`,
                     bgcolor: 'action.selected',
+                    ...(isMobile && {
+                        // Paint inside the card and above the edge-to-edge image.
+                        '&::after': {
+                            content: '""',
+                            position: 'absolute',
+                            inset: 0,
+                            border: `2px solid ${theme.palette.primary.main}`,
+                            borderRadius: 'inherit',
+                            boxSizing: 'border-box',
+                            pointerEvents: 'none',
+                            zIndex: 3,
+                        },
+                    }),
                 }),
                 ...(!isMobile && {
                     '&:hover': {
@@ -151,14 +164,14 @@ const VideoCardBase: React.FC<VideoCardProps> = ({
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'stretch',
-                    borderRadius: 2,
+                    borderRadius: isMobile ? 0 : 2,
                     color: 'inherit',
                     '& .MuiCardActionArea-focusHighlight': {
                         bgcolor: 'transparent'
                     },
                     '&.Mui-focusVisible': {
                         outline: `2px solid ${theme.palette.primary.main}`,
-                        outlineOffset: 2
+                        outlineOffset: isMobile ? -2 : 2
                     }
                 }}
             >

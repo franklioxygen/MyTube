@@ -11,7 +11,7 @@ UPDATE_KEY_LIST=1 npx vitest run src/utils/locales/__tests__/localeParity.test.t
 
 This list is intentionally unnumbered. When new keys are inserted, only the local section order changes.
 
-Total keys: 1430
+Total keys: 1431
 
 ## Summary
 
@@ -52,7 +52,7 @@ Total keys: 1430
 | Instruction Page | 39 | `instructionSection1Title` | `instructionSection3Item3Text` |
 | Disclaimer | 3 | `disclaimerTitle` | `history` |
 | Existing Video Detection | 16 | `existingVideoDetected` | `changeSettings` |
-| Sorting | 10 | `sort` | `random` |
+| Sorting | 11 | `select` | `random` |
 | yt-dlp Configuration | 62 | `ytDlpConfiguration` | `cleanupAuthorCollectionsFailed` |
 | Cloudflare Tunnel | 16 | `cloudflaredTunnel` | `managedInDashboard` |
 | Database Export/Import | 41 | `exportImportDatabase` | `backupDatabasesCleanedUp` |
@@ -1251,6 +1251,7 @@ Total keys: 1430
 
 | Key |
 | --- |
+| `select` |
 | `sort` |
 | `sortBy` |
 | `dateDesc` |

@@ -5,10 +5,10 @@ export const ar = {
   bulkRequestNotSent: "تعذر إرسال الطلب. لم يتم تغيير أي فيديو. يرجى إعادة المحاولة.",
   bulkSelectVideos: "تحديد الفيديوهات",
   bulkExitSelection: "إنهاء التحديد",
-  bulkSelectedCount: "تم تحديد {count} فيديو",
-  bulkSelectPage: "تحديد الصفحة الحالية",
+  bulkSelectedCount: "تم تحديد {count}",
+  bulkSelectPage: "الكل",
   bulkSelectResults: "تحديد النتائج ({count})",
-  bulkClearSelection: "مسح التحديد",
+  bulkClearSelection: "مسح",
   bulkSelectionLimit: "Select up to 500 videos. Narrow the filter or select videos individually.",
   bulkTagsTitle: "Add tags to {count} videos",
   bulkTagsHint: "Existing tags are preserved. Only the selected tags will be added.",
@@ -1274,6 +1274,7 @@ export const ar = {
 
 
   // Sorting
+  select: "تحديد",
   sort: "فرز",
   sortBy: "فرز حسب",
   dateDesc: "تاريخ الإضافة (الأحدث)",

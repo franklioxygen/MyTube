@@ -66,14 +66,14 @@ describe('bulk organization interaction', () => {
         expect(client.getQueryState(['recommendations', 'signals', 'admin', true])?.isInvalidated).toBe(true);
         expect(client.getQueryData(['video', 'a'])).toEqual({ id: 'a', title: 'Current', tags: ['old'] });
         expect(client.getQueryData(['video', 'b'])).toBeUndefined();
-        expect(screen.getByText('2 videos selected')).toBeInTheDocument();
+        expect(screen.getByText('2 selected')).toBeInTheDocument();
         expect(mocks.snackbar).toHaveBeenCalledOnce();
     });
     it('cancels a new-tag draft without writing settings or video tags', async () => {
         const { user } = setup(); const dialog = await selectTags(user);
         await user.click(within(dialog).getByRole('button', { name: en.cancel }));
         expect(mocks.post).not.toHaveBeenCalled();
-        expect(screen.getByText('2 videos selected')).toBeInTheDocument();
+        expect(screen.getByText('2 selected')).toBeInTheDocument();
     });
     it('retains the draft on failure and requires explicit removal of missing IDs before retry', async () => {
         const { user } = setup();
@@ -222,7 +222,7 @@ describe('bulk organization interaction', () => {
         expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
         await user.click(screen.getByRole('checkbox', { name: en.bulkSelectPage }));
         await act(async () => finish(saved));
-        expect(screen.getByText('2 videos selected')).toBeInTheDocument();
+        expect(screen.getByText('2 selected')).toBeInTheDocument();
         expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     });
     it('labels virtual results explicitly and disables result-wide selection over 500', () => {
