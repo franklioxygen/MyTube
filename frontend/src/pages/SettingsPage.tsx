@@ -740,6 +740,10 @@ const SettingsPage: React.FC = () => {
         // that survives the tab switch, while preserving ordering errors.
         setSeekIntervalsValid(arePersistedSeekIntervalsValid(settings));
         setAutoDeleteValid(isAutoDeleteSettingValid(settings));
+        setMobileSections((previous) => ({
+            ...previous,
+            expanded: new Set([...previous.expanded, newValue]),
+        }));
         setCurrentTabState({
             urlKey: settingsTabUrlKey,
             tab: newValue,

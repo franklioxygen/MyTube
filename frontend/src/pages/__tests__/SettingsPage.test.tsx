@@ -625,6 +625,30 @@ describe('SettingsPage', () => {
     expect(target.style.backgroundColor).toBe(overlay.highlightYellow);
   });
 
+  it.each([
+    ['interfaceDisplay', 'basic-settings'],
+    ['downloadsFiles', 'download-settings'],
+  ])('expands the selected %s section after resizing from desktop to mobile', (label, contentId) => {
+    mockIsDesktop = true;
+    mockRealCollapsibleSections = true;
+    const { rerender } = renderPage('/settings?tab=security');
+    fireEvent.click(screen.getByRole('tab', { name: label }));
+    expect(screen.getByTestId(contentId)).toBeInTheDocument();
+
+    mockIsDesktop = false;
+    rerender(
+      <MemoryRouter initialEntries={['/settings?tab=security']}>
+        <SettingsPage />
+      </MemoryRouter>
+    );
+
+    expect(screen.getByRole('button', { name: label })).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByTestId(contentId)).toBeVisible();
+    expect(screen.getByRole('button', { name: 'securityAccess' })).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('button', { name: 'integrationsAdvanced' })).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByTestId('rss-feed-settings')).not.toBeInTheDocument();
+  });
+
   it('switches desktop tabs and renders each tab content', () => {
     mockIsDesktop = true;
 
