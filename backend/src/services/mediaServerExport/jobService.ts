@@ -7,6 +7,7 @@ import {
 } from "../filenameTemplate/renameLockService";
 import { resolveManagedWebPath } from "../filenameTemplate/pathHelpers";
 import * as storageService from "../storageService";
+import { getMediaServerArtifactOwners, getVideosForExport } from "../storageService/videoQueries";
 import type { Video } from "../storageService";
 import {
   removeMediaServerArtifactsForVideo,
@@ -58,7 +59,15 @@ export async function startMediaServerExportJob(
     throw new Error("Could not acquire library maintenance lock.");
   }
 
-  const allVideos = storageService.getVideos();
+  let allVideos: Video[];
+  let artifactOwners: Video[];
+  try {
+    artifactOwners = getMediaServerArtifactOwners();
+    allVideos = action === "cleanup" ? artifactOwners : getVideosForExport();
+  } catch (error) {
+    releaseRenameLock();
+    throw error;
+  }
   const job: MediaServerExportJob = {
     id: jobId,
     status: "running",
@@ -79,7 +88,7 @@ export async function startMediaServerExportJob(
   activeJob = job;
 
   setImmediate(() => {
-    processMediaServerExportJob(job, allVideos).catch((error) => {
+    processMediaServerExportJob(job, allVideos, artifactOwners).catch((error) => {
       logger.error("Media server export rebuild job process error:", error);
       if (activeJob && activeJob.id === jobId) {
         activeJob.status = "failed";
@@ -93,7 +102,8 @@ export async function startMediaServerExportJob(
 
 async function processMediaServerExportJob(
   job: MediaServerExportJob,
-  allVideos: Video[]
+  allVideos: Video[],
+  artifactOwners: Video[]
 ): Promise<void> {
   if (job.cancelRequested) {
     job.status = "cancelled";
@@ -101,7 +111,7 @@ async function processMediaServerExportJob(
     return;
   }
 
-  const sweepResult = sweepOrphanMediaServerArtifacts(allVideos);
+  const sweepResult = sweepOrphanMediaServerArtifacts(artifactOwners);
   job.sweptFiles = sweepResult.sweptFiles;
   job.sweptList = sweepResult.sweptList;
 

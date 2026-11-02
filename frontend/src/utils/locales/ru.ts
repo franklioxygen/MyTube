@@ -1,5 +1,8 @@
 export const ru = {
   // Bulk video organization
+  bulkInvalidVideos: "Теги повреждены у {count} выбранных видео. Видео не изменены. Исключите эти видео, чтобы продолжить, или исправьте теги.",
+  bulkRemoveInvalid: "Исключить повреждённые видео",
+  bulkRequestNotSent: "Не удалось отправить запрос. Видео не изменены. Повторите попытку.",
   bulkSelectVideos: "Выбрать видео",
   bulkExitSelection: "Завершить выбор",
   bulkSelectedCount: "Выбрано видео: {count}",
@@ -707,8 +710,6 @@ export const ru = {
   refreshFileSizesError: "Не удалось обновить размеры файлов: {error}",
   noVideosFoundMatching: "Видео, соответствующие вашему поиску, не найдены.",
   refreshThumbnail: "Обновить миниатюру",
-  selected: "Выбрано",
-  moveCollection: "Переместить в коллекцию",
   confirmBulkDelete:
     "Вы уверены, что хотите удалить эти видео? Это действие нельзя отменить.",
 

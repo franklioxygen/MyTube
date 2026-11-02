@@ -204,8 +204,14 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         });
     }, [queryClient]);
 
+    const refreshVideoMemberships = useCallback(() => Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['favorite-authors'] }),
+        queryClient.invalidateQueries({ queryKey: ['favorite-collections'] }),
+        queryClient.invalidateQueries({ queryKey: ['collections'] }),
+    ]), [queryClient]);
+
     const deleteVideoMutation = useMutation({
-        mutationFn: async ({ id }: { id: string; options?: { showSnackbar?: boolean } }) => {
+        mutationFn: async ({ id }: { id: string; options?: { showSnackbar?: boolean; deferMembershipRefresh?: boolean } }) => {
             await api.delete(`/videos/${id}`);
             return id;
         },
@@ -213,16 +219,7 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             queryClient.setQueryData(['videos'], (old: Video[] | undefined) =>
                 old ? old.filter(video => video.id !== id) : []
             );
-            // Deleting a video changes visibility-aware favorite counts/covers
-            // (e.g. removing an author's last video, or a favorited collection's
-            // cover), so refresh favorites to avoid stale cards that link to now
-            // empty author/collection pages.
-            queryClient.invalidateQueries({ queryKey: ['favorite-authors'] });
-            queryClient.invalidateQueries({ queryKey: ['favorite-collections'] });
-            // Membership is cascaded away with the video in the database, so a
-            // collection cached here would go on listing an id that is gone -
-            // and a collection left with nothing would not read as empty.
-            queryClient.invalidateQueries({ queryKey: ['collections'] });
+            if (!variables.options?.deferMembershipRefresh) void refreshVideoMemberships();
             if (variables.options?.showSnackbar !== false) {
                 showSnackbar(t('videoRemovedSuccessfully'));
             }
@@ -255,7 +252,7 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 const outcomes = await Promise.all(
                     chunk.map(async (id) => {
                         try {
-                            await deleteVideoMutation.mutateAsync({ id, options: { showSnackbar: false } });
+                            await deleteVideoMutation.mutateAsync({ id, options: { showSnackbar: false, deferMembershipRefresh: true } });
                             return true;
                         } catch (error) {
                             console.error(`Failed to delete video ${id}:`, error);
@@ -269,17 +266,19 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 }
             }
 
+            if (successCount) await refreshVideoMemberships();
+
             if (failCount === 0) {
                 showSnackbar(t('deleteFilteredVideosSuccess', { count: successCount }));
                 return { success: true };
             } else {
                 showSnackbar(`${t('deleteFilteredVideosSuccess', { count: successCount })} (${failCount} failed)`);
-                return { success: failCount === 0 }; // Consider partial success as success? strict: fail if any fail
+                return { success: false };
             }
         } catch {
             return { success: false, error: t('failedToDeleteVideo') };
         }
-    }, [deleteVideoMutation, showSnackbar, t]);
+    }, [deleteVideoMutation, refreshVideoMemberships, showSnackbar, t]);
 
     const searchLocalVideos = useCallback((query: string) => {
         if (!query || !videos.length) return [];

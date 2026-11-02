@@ -1,5 +1,8 @@
 export const ja = {
   // Bulk video organization
+  bulkInvalidVideos: "選択した {count} 本の動画の保存済みタグが破損しています。動画は変更されていません。これらを除外して続行するか、修復して再試行してください。",
+  bulkRemoveInvalid: "タグが破損した動画を除外",
+  bulkRequestNotSent: "リクエストを送信できませんでした。動画は変更されていません。再試行してください。",
   bulkSelectVideos: "動画を選択",
   bulkExitSelection: "選択を終了",
   bulkSelectedCount: "{count} 本の動画を選択中",
@@ -706,8 +709,6 @@ export const ja = {
   refreshFileSizesError: "ファイルサイズの更新に失敗しました: {error}",
   noVideosFoundMatching: "検索に一致する動画は見つかりませんでした。",
   refreshThumbnail: "サムネイルを更新",
-  selected: "選択済み",
-  moveCollection: "コレクションに移動",
   confirmBulkDelete:
     "これらの動画を削除してもよろしいですか？この操作は取り消せません。",
 

@@ -1,4 +1,5 @@
 import Database from "better-sqlite3";
+import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import { mkdtempSync, rmSync } from "fs";
 import { tmpdir } from "os";
@@ -6,8 +7,10 @@ import path from "path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as schema from "../../db/schema";
 
-const state = vi.hoisted(() => ({ connection: null as unknown as ReturnType<typeof drizzle> }));
-vi.mock("../../db", () => ({ db: new Proxy({}, {
+vi.mock("../../utils/logger", () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() } }));
+
+const state = vi.hoisted(() => ({ connection: null as unknown as ReturnType<typeof drizzle>, sqlite: null as unknown as Database.Database }));
+vi.mock("../../db", () => ({ get sqlite() { return state.sqlite; }, db: new Proxy({}, {
   get: (_target, key) => {
     const value = state.connection[key as keyof typeof state.connection];
     return typeof value === "function" ? value.bind(state.connection) : value;
@@ -18,6 +21,8 @@ vi.mock("../../services/recommendationSignalsService", () => ({ invalidateRecomm
 
 import { addVideosToCollection, appendTagsToVideos, BulkOrganizationError } from "../../services/bulkVideoOrganizationService";
 import { invalidateSettingsCache } from "../../services/storageService/settings";
+import { migrateColumnsAndTables, migrateTagsColumn } from "../../services/storageService/migrations/schemaMigrations";
+import { getVideosForExport, getVideosStrict, getVideoById, getVideoBySourceUrl, getVideoSummaries } from "../../services/storageService/videoQueries";
 import { getVideosListETag } from "../../services/storageService/videoListRevision";
 
 let sqlite: Database.Database;
@@ -38,17 +43,14 @@ beforeEach(() => {
   sqlite = new Database(filename);
   sqlite.pragma("foreign_keys=ON");
   sqlite.pragma("busy_timeout=0");
+  state.sqlite = sqlite;
   state.connection = drizzle(sqlite, { schema });
+  migrate(state.connection, { migrationsFolder: path.resolve(__dirname, "../../../drizzle") });
+  migrateTagsColumn();
+  migrateColumnsAndTables();
   sqlite.exec(`
-    CREATE TABLE videos(id TEXT PRIMARY KEY, title TEXT NOT NULL, tags TEXT, video_path TEXT);
-    CREATE TABLE settings(key TEXT PRIMARY KEY, value TEXT NOT NULL);
-    CREATE TABLE collections(id TEXT PRIMARY KEY, name TEXT NOT NULL, title TEXT, origin TEXT,
-      created_at TEXT NOT NULL, updated_at TEXT, source_platform TEXT, source_type TEXT, source_mid TEXT, source_id TEXT);
-    CREATE TABLE collection_videos(collection_id TEXT NOT NULL REFERENCES collections(id) ON DELETE CASCADE,
-      video_id TEXT NOT NULL REFERENCES videos(id) ON DELETE CASCADE, "order" INTEGER,
-      PRIMARY KEY(collection_id,video_id));
-    INSERT INTO videos VALUES ('v1','One','["original"]','/videos/one.mp4'),
-      ('v2','Two','["music"]','/videos/two.mp4'), ('v3','Three',NULL,'cloud:three');
+    INSERT INTO videos(id,title,tags,video_path,created_at) VALUES ('v1','One','["original"]','/videos/one.mp4','2026-01-01'),
+      ('v2','Two','["music"]','/videos/two.mp4','2026-01-01'), ('v3','Three',NULL,'cloud:three','2026-01-01');
     INSERT INTO settings VALUES ('tags','["Music"]'),('language','"zh"');
     INSERT INTO collections(id,name,title,origin,created_at) VALUES
       ('c1','First','First','manual','2026-01-01'),('c2','Other','Other','author_auto','2026-01-01');
@@ -182,7 +184,7 @@ describe("bulk collection membership with real SQLite", () => {
     expectBulkError(() => addVideosToCollection({ videoIds: ["v1"], newCollection: { ...candidate, name } }), 400);
   });
   it("processes 500 selected videos in a library of 10,000 with a 5,000-member collection", () => {
-    const insert = sqlite.prepare("INSERT INTO videos(id,title) VALUES(?,?)");
+    const insert = sqlite.prepare("INSERT INTO videos(id,title,created_at) VALUES(?,?,'2026-01-01')");
     const link = sqlite.prepare('INSERT INTO collection_videos VALUES(?,?,?)');
     sqlite.transaction(() => {
       for (let i = 0; i < 10_000; i++) {
@@ -197,4 +199,54 @@ describe("bulk collection membership with real SQLite", () => {
     expect(links()).toHaveLength(5_501);
     console.info(`Bulk benchmark: two 500-video transactions in a 10,000-video library: ${Math.round(performance.now() - start)}ms`);
   });
+});
+
+describe("bulk review regressions", () => {
+  it.each(["CON", "NUL", "COM1", "aux.txt", "LPT9.nfo"])("rejects Windows reserved name %s", (name) => {
+    expectBulkError(() => addVideosToCollection({ videoIds: ["v1"], newCollection: { ...candidate, name } }), 400);
+  });
+  it("returns the existing collection for a case-insensitive name or title collision", () => {
+    for (const name of ["first", "FIRST"]) {
+      expect(() => addVideosToCollection({ videoIds: ["v1"], newCollection: { ...candidate, name } }))
+        .toThrowError(expect.objectContaining({ status: 409, details: { existingCollectionId: "c1" } }));
+    }
+    sqlite.exec("UPDATE collections SET title='Alias' WHERE id='c1'");
+    expectBulkError(() => addVideosToCollection({ videoIds: ["v1"], newCollection: { ...candidate, name: "alias" } }), 409);
+  });
+  it("reports all damaged selected videos before writing anything", () => {
+    sqlite.exec("UPDATE videos SET tags='broken' WHERE id IN ('v2','v3')");
+    expect(() => appendTagsToVideos({ videoIds: ["v1", "v2", "v3"], tags: ["new"] }))
+      .toThrowError(expect.objectContaining({ status: 409, details: { invalidVideoIds: ["v2", "v3"] } }));
+    expect(getTags("v1")).toEqual(["original"]);
+  });
+  it("reads only requested exports and skips damaged rows in a full library read", () => {
+    sqlite.exec("UPDATE videos SET subtitles='broken' WHERE id='v2'; UPDATE videos SET tags='broken' WHERE id='v3'");
+    expect(getVideosForExport(["v1"]).map((video) => video.id)).toEqual(["v1"]);
+    expect(getVideosForExport().map((video) => video.id)).toEqual(["v1"]);
+    expect(() => getVideosStrict()).toThrow();
+    expect(getVideosForExport([])).toEqual([]);
+  });
+});
+
+it.each(['"bad"', 'null'])("uses the same invalid-tag rule for detail, strict, and export reads: %s", (tags) => {
+  sqlite.prepare("UPDATE videos SET tags=?, source_url='https://example.test/v1' WHERE id='v1'").run(tags);
+  expect(() => getVideosStrict()).toThrow();
+  expect(() => getVideoById("v1")).toThrow();
+  expect(() => getVideoBySourceUrl("https://example.test/v1")).toThrow();
+  expect(getVideosForExport(["v1"])).toEqual([]);
+  expect(getVideosForExport(["v2"]).map((video) => video.id)).toEqual(["v2"]);
+});
+
+it.each(['[1]', '[null]', '["a",1,null,{"bad":true},"b"]'])("keeps legacy tag arrays readable without rewriting stored data: %s", (tags) => {
+  sqlite.prepare("UPDATE videos SET tags=?, source_url='https://example.test/v1' WHERE id='v1'").run(tags);
+  const expected = (JSON.parse(tags) as unknown[]).filter((tag) => typeof tag === "string");
+  expect(getVideoById("v1")?.tags).toEqual(expected);
+  expect(getVideoBySourceUrl("https://example.test/v1")?.tags).toEqual(expected);
+  expect(getVideosStrict().find((video) => video.id === "v1")?.tags).toEqual(expected);
+  expect(getVideosForExport(["v1"])[0].tags).toEqual(expected);
+  expect(getVideoSummaries().find((video) => video.id === "v1")?.tags).toEqual(expected);
+  expect(sqlite.prepare("SELECT tags FROM videos WHERE id='v1'").get()).toEqual({ tags });
+  expect(() => appendTagsToVideos({ videoIds: ["v1"], tags: ["new"] })).toThrowError(
+    expect.objectContaining({ status: 409, details: { invalidVideoIds: ["v1"] } }),
+  );
 });

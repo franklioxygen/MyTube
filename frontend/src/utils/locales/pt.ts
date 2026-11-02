@@ -1,5 +1,8 @@
 export const pt = {
   // Bulk video organization
+  bulkInvalidVideos: "As etiquetas de {count} vídeos selecionados estão danificadas. Nenhum vídeo foi alterado. Exclua-os para continuar ou repare as etiquetas.",
+  bulkRemoveInvalid: "Excluir vídeos danificados",
+  bulkRequestNotSent: "Não foi possível enviar o pedido. Nenhum vídeo foi alterado. Tente novamente.",
   bulkSelectVideos: "Selecionar vídeos",
   bulkExitSelection: "Sair da seleção",
   bulkSelectedCount: "{count} vídeos selecionados",
@@ -712,8 +715,6 @@ export const pt = {
   noVideosFoundMatching:
     "Nenhum vídeo encontrado correspondente à sua pesquisa.",
   refreshThumbnail: "Atualizar miniatura",
-  selected: "Selecionado",
-  moveCollection: "Mover para coleção",
   confirmBulkDelete:
     "Tem certeza de que deseja excluir estes vídeos? Esta ação não pode ser desfeita.",
 

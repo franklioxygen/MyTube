@@ -1,11 +1,13 @@
 import { QueryClient, QueryClientProvider, QueryObserver } from '@tanstack/react-query';
-import { act, render, screen, waitFor, within } from '@testing-library/react';
+import { act, render, renderHook, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { useBulkVideoActions } from '../../hooks/useBulkVideoActions';
 import { useVideoSelection } from '../../hooks/useVideoSelection';
 import { en } from '../../utils/locales/en';
 import { createCollectionId } from '../../utils/bulkVideoOrganization';
 import VideoBatchToolbar from '../VideoBatchToolbar';
+import { ensureCsrfToken } from '../../utils/apiClient';
 
 const mocks = vi.hoisted(() => ({ post: vi.fn(), snackbar: vi.fn() }));
 vi.mock('../../utils/apiClient', () => ({ api: { post: mocks.post }, ensureCsrfToken: vi.fn().mockResolvedValue(undefined) }));
@@ -238,4 +240,90 @@ describe('bulk organization interaction', () => {
             else Reflect.deleteProperty(crypto, 'randomUUID');
         }
     });
+});
+
+it('reports a CSRF preflight failure as not sent without refreshing write caches', async () => {
+    vi.mocked(ensureCsrfToken).mockRejectedValueOnce(new Error('preflight offline'));
+    const { client, user } = setup();
+    const invalidate = vi.spyOn(client, 'invalidateQueries');
+    const dialog = await selectTags(user);
+    await user.click(within(dialog).getByRole('button', { name: en.addTags }));
+    expect(await within(dialog).findByText(en.bulkRequestNotSent)).toBeInTheDocument();
+    expect(mocks.post).not.toHaveBeenCalled();
+    expect(invalidate).not.toHaveBeenCalled();
+});
+it('reports the damaged count without raw IDs and can exclude them from a retry', async () => {
+    const { user } = setup();
+    mocks.post.mockRejectedValueOnce({ response: { status: 409, data: {
+        error: 'Stored tags are invalid', details: { invalidVideoIds: ['a'] },
+    } } });
+    const dialog = await selectTags(user);
+    await user.click(within(dialog).getByRole('button', { name: en.addTags }));
+    expect(await within(dialog).findByText(en.bulkInvalidVideos.replace('{count}', '1'))).toBeInTheDocument();
+    expect(within(dialog).getByRole('combobox')).toHaveValue('New tag');
+    await user.click(within(dialog).getByRole('button', { name: en.bulkRemoveInvalid }));
+    expect(within(dialog).getByText(en.bulkTagsTitle.replace('{count}', '1'))).toBeInTheDocument();
+    await user.click(within(dialog).getByRole('button', { name: en.addTags }));
+    await waitFor(() => expect(mocks.post).toHaveBeenLastCalledWith('/videos/batch/tags', {
+        videoIds: ['b'], tags: ['New tag'],
+    }));
+});
+it('hides the entry button when the current results are empty', () => {
+    const client = new QueryClient();
+    render(<QueryClientProvider client={client}><EmptyHarness /></QueryClientProvider>);
+    expect(screen.queryByRole('button', { name: en.bulkSelectVideos })).not.toBeInTheDocument();
+});
+function EmptyHarness() {
+    const selection = useVideoSelection({ scopeKey: 'empty', videos: [] });
+    return <VideoBatchToolbar selection={selection} pageIds={[]} orderedIds={[]} />;
+}
+
+it('preselects the existing collection after a name conflict and requires an explicit retry', async () => {
+    const { user } = setup();
+    mocks.post.mockRejectedValueOnce({ response: { status: 409, data: {
+        error: 'Name already exists', details: { existingCollectionId: 'c1' },
+    } } });
+    await user.click(screen.getByRole('checkbox', { name: en.bulkSelectPage }));
+    await user.click(screen.getByRole('button', { name: en.bulkAddToCollection }));
+    const dialog = await screen.findByRole('dialog');
+    await user.click(within(dialog).getByRole('radio', { name: en.bulkNewCollection }));
+    await user.type(within(dialog).getByRole('textbox', { name: en.bulkNewCollection }), 'study');
+    await user.click(within(dialog).getByRole('button', { name: en.bulkAddToCollection }));
+    expect(await within(dialog).findByText(en.bulkCollectionConflict)).toBeInTheDocument();
+    expect(within(dialog).getByRole('radio', { name: en.bulkExistingCollection })).toBeChecked();
+    expect(within(dialog).getByRole('combobox')).toHaveValue('Study');
+    expect(mocks.post).toHaveBeenCalledOnce();
+    await user.click(within(dialog).getByRole('button', { name: en.bulkAddToCollection }));
+    await waitFor(() => expect(mocks.post).toHaveBeenLastCalledWith('/collections/batch-add', {
+        videoIds: ['a', 'b'], collectionId: 'c1',
+    }));
+});
+
+it('disables saving after all damaged videos are excluded without sending an empty write', async () => {
+    const { user } = setup();
+    mocks.post.mockRejectedValueOnce({ response: { status: 409, data: {
+        error: 'Invalid tags', details: { invalidVideoIds: ['a', 'b'] },
+    } } });
+    const dialog = await selectTags(user);
+    await user.click(within(dialog).getByRole('button', { name: en.addTags }));
+    await user.click(await within(dialog).findByRole('button', { name: en.bulkRemoveInvalid }));
+    expect(within(dialog).getByRole('button', { name: en.addTags })).toBeDisabled();
+    expect(mocks.post).toHaveBeenCalledOnce();
+    expect(within(dialog).getByRole('button', { name: en.cancel })).toBeEnabled();
+});
+
+it('blocks a second write synchronously before pending reaches the next render', async () => {
+    const client = new QueryClient({ defaultOptions: { mutations: { retry: false } } });
+    const wrapper = ({ children }: { children: React.ReactNode }) =>
+        <QueryClientProvider client={client}>{children}</QueryClientProvider>;
+    const { result } = renderHook(() => useBulkVideoActions(), { wrapper });
+    const captured = result.current;
+    await act(async () => {
+        const operation = { kind: 'tags' as const, videoIds: ['a'], tags: ['New tag'] };
+        const first = captured.run(operation);
+        expect(captured.isPending).toBe(false);
+        await expect(captured.run(operation)).rejects.toThrow('A bulk operation is already in progress');
+        await first;
+    });
+    expect(mocks.post).toHaveBeenCalledOnce();
 });

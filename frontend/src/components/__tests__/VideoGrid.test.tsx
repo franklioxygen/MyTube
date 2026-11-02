@@ -2,7 +2,10 @@ import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { ViewMode } from '../../hooks/useViewMode';
 import { Collection, Video } from '../../types';
+import type { VideoSelection } from '../../hooks/useVideoSelection';
 import { VideoGrid } from '../VideoGrid';
+
+const captured = vi.hoisted(() => ({ render: undefined as unknown }));
 
 // Mock components
 vi.mock('../VideoCard', () => ({
@@ -14,15 +17,16 @@ vi.mock('../CollectionCard', () => ({
 }));
 
 vi.mock('../VirtualizedVideoGrid', () => ({
-    default: ({ sortedVideos, renderVideoItem }: any) => (
-        <div data-testid="virtuoso-grid">
+    default: ({ sortedVideos, renderVideoItem }: any) => {
+        captured.render = renderVideoItem;
+        return <div data-testid="virtuoso-grid">
             {sortedVideos.map((item: any, index: number) => (
                 <div key={item.id || index} data-testid={`virtuoso-item-${index}`}>
                     {renderVideoItem(item, index)}
                 </div>
             ))}
-        </div>
-    )
+        </div>;
+    }
 }));
 
 describe('VideoGrid', () => {
@@ -94,5 +98,17 @@ describe('VideoGrid', () => {
 
         expect(await screen.findByTestId('collection-card-c1')).toBeInTheDocument();
         expect(screen.queryByTestId('collection-card-c2')).not.toBeInTheDocument();
+    });
+    it('keeps the item renderer stable when only the selection wrapper changes', async () => {
+        const selection = {
+            active: true, selectedIds: new Set(['1']), locked: false, toggle: vi.fn(),
+        } as unknown as VideoSelection;
+        const { rerender } = render(<VideoGrid {...defaultProps} infiniteScroll selection={selection} />);
+        await screen.findByTestId('virtuoso-grid');
+        const initial = captured.render;
+        rerender(<VideoGrid {...defaultProps} infiniteScroll selection={{ ...selection }} />);
+        expect(captured.render).toBe(initial);
+        rerender(<VideoGrid {...defaultProps} infiniteScroll selection={{ ...selection, selectedIds: new Set(['2']) }} />);
+        expect(captured.render).not.toBe(initial);
     });
 });

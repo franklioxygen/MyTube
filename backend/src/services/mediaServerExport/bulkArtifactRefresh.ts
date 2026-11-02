@@ -2,7 +2,7 @@ import { getDatabaseGeneration } from "../../db";
 import { logger } from "../../utils/logger";
 import { getSettings } from "../storageService/settings";
 import { getVideosListETag } from "../storageService/videoListRevision";
-import { getVideosStrict } from "../storageService/videos";
+import { getVideosForExport } from "../storageService/videos";
 import type { Video } from "../storageService/types";
 import { syncMediaServerArtifactsForRecord } from "./syncService";
 
@@ -12,13 +12,11 @@ const CHUNK_SIZE = 10;
 let scheduled = false;
 let generation = -1;
 let snapshotRevision = "";
-let snapshot: Video[] = [];
-let snapshotById = new Map<string, Video>();
+let snapshot: Video[] | undefined;
 
 function clearSnapshot(): void {
   snapshotRevision = "";
-  snapshot = [];
-  snapshotById.clear();
+  snapshot = undefined;
 }
 
 function drain(): void {
@@ -31,21 +29,17 @@ function drain(): void {
     }
     const revision = getVideosListETag("all");
     if (snapshotRevision !== revision) {
-      snapshot = getVideosStrict();
-      snapshotById = new Map(snapshot.map((video) => [video.id, video]));
+      clearSnapshot();
       snapshotRevision = revision;
     }
-    for (const id of [...pending].slice(0, CHUNK_SIZE)) {
+    const loadLibraryVideos = () => snapshot ??= getVideosForExport();
+    const ids = [...pending].slice(0, CHUNK_SIZE);
+    // Read only this chunk. A damaged or deleted row cannot discard healthy work.
+    const records = new Map(getVideosForExport(ids).map((video) => [video.id, video]));
+    for (const id of ids) {
       pending.delete(id);
-      const video = snapshotById.get(id);
-      if (video) {
-        try {
-          syncMediaServerArtifactsForRecord(video, { libraryVideos: snapshot });
-        } catch (error) {
-          // One failed export must not discard unrelated queued videos.
-          logger.error("Bulk media artifact refresh failed for video", error, { videoId: id });
-        }
-      }
+      const video = records.get(id);
+      if (video) syncMediaServerArtifactsForRecord(video, { loadLibraryVideos });
     }
   } catch (error) {
     // Derived files can be repaired by the existing export rebuild operation.

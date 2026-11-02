@@ -1,5 +1,8 @@
 export const ar = {
   // Bulk video organization
+  bulkInvalidVideos: "الوسوم المحفوظة تالفة في {count} من مقاطع الفيديو المحددة. لم يتم تغيير أي فيديو. استبعد هذه المقاطع للمتابعة أو أصلح الوسوم.",
+  bulkRemoveInvalid: "استبعاد المقاطع التالفة",
+  bulkRequestNotSent: "تعذر إرسال الطلب. لم يتم تغيير أي فيديو. يرجى إعادة المحاولة.",
   bulkSelectVideos: "تحديد الفيديوهات",
   bulkExitSelection: "إنهاء التحديد",
   bulkSelectedCount: "تم تحديد {count} فيديو",
@@ -691,8 +694,6 @@ export const ar = {
   refreshFileSizesError: "فشل تحديث أحجام الملفات: {error}",
   noVideosFoundMatching: "لم يتم العثور على فيديوهات مطابقة لبحثك.",
   refreshThumbnail: "تحديث الصورة المصغرة",
-  selected: "محدد",
-  moveCollection: "نقل إلى المجموعة",
   confirmBulkDelete:
     "هل أنت متأكد أنك تريد حذف هذه الفيديوهات؟ لا يمكن التراجع عن هذا الإجراء.",
 

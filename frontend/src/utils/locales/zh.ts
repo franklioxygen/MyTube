@@ -1,5 +1,8 @@
 export const zh = {
   // Bulk video organization
+  bulkInvalidVideos: "有 {count} 个所选视频的已存标签已损坏，本次未修改任何视频。可移除这些视频后继续，或修复后重试。",
+  bulkRemoveInvalid: "移除标签损坏的视频",
+  bulkRequestNotSent: "请求未能发送，本次未修改任何视频，请重试。",
   bulkSelectVideos: "选择视频",
   bulkExitSelection: "退出选择",
   bulkSelectedCount: "已选 {count} 个视频",
@@ -672,8 +675,6 @@ export const zh = {
   refreshFileSizesError: "刷新文件大小失败：{error}",
   noVideosFoundMatching: "未找到匹配的视频。",
   refreshThumbnail: "刷新缩略图",
-  selected: "已选择",
-  moveCollection: "移动到合集",
   confirmBulkDelete: "确定要删除这些视频吗？此操作无法撤销。",
 
 

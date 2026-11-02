@@ -59,6 +59,11 @@ export const VideoGrid: React.FC<VideoGridProps> = ({
         return map;
     }, [collections]);
 
+    const selectionMode = selection?.active;
+    const selectedIds = selection?.selectedIds;
+    const selectionDisabled = selection?.locked;
+    const onSelectionToggle = selection?.toggle;
+
     const renderVideoItem = useCallback((video: Video, index?: number) => {
         const eagerImageCount = isMobile ? 1 : 3;
         const isHeroImage = index === 0;
@@ -68,10 +73,10 @@ export const VideoGrid: React.FC<VideoGridProps> = ({
         if (viewMode === 'all-videos' || viewMode === 'history') {
             return (
                 <VideoCard
-                    selectionMode={selection?.active}
-                    selected={selection?.selectedIds.has(video.id)}
-                    selectionDisabled={selection?.locked}
-                    onSelectionToggle={selection?.toggle}
+                    selectionMode={selectionMode}
+                    selected={selectedIds?.has(video.id)}
+                    selectionDisabled={selectionDisabled}
+                    onSelectionToggle={onSelectionToggle}
                     video={video}
                     collections={collections}
                     disableCollectionGrouping={true}
@@ -119,7 +124,10 @@ export const VideoGrid: React.FC<VideoGridProps> = ({
         showTagsOnThumbnail,
         videos,
         viewMode,
-        selection
+        selectionMode,
+        selectedIds,
+        selectionDisabled,
+        onSelectionToggle
     ]);
 
     const renderRegularGrid = (items: Video[]) => (

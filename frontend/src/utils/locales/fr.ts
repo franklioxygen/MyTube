@@ -1,5 +1,8 @@
 export const fr = {
   // Bulk video organization
+  bulkInvalidVideos: "Les tags de {count} vidéos sélectionnées sont endommagés. Aucune vidéo modifiée. Excluez ces vidéos pour continuer ou réparez les tags.",
+  bulkRemoveInvalid: "Exclure les vidéos endommagées",
+  bulkRequestNotSent: "La requête n’a pas pu être envoyée. Aucune vidéo modifiée. Veuillez réessayer.",
   bulkSelectVideos: "Sélectionner des vidéos",
   bulkExitSelection: "Quitter la sélection",
   bulkSelectedCount: "{count} vidéos sélectionnées",
@@ -714,8 +717,6 @@ export const fr = {
   refreshFileSizesError: "Échec de l'actualisation des tailles de fichiers : {error}",
   noVideosFoundMatching: "Aucune vidéo ne correspond à votre recherche.",
   refreshThumbnail: "Actualiser la miniature",
-  selected: "Sélectionné",
-  moveCollection: "Déplacer vers la collection",
   confirmBulkDelete:
     "Êtes-vous sûr de vouloir supprimer ces vidéos ? Cette action est irréversible.",
 

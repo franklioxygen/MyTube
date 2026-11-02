@@ -9,21 +9,31 @@ type Target = { collectionId: string } | { newCollection: { id: string; name: st
 interface Props {
     count: number;
     collections: Collection[];
+    conflictingCollectionId?: string;
     pending: boolean;
     error: ReactNode;
     onClose: () => void;
     onSave: (target: Target) => Promise<void>;
 }
 
-export default function BulkCollectionModal({ count, collections, pending, error, onClose, onSave }: Props) {
+export default function BulkCollectionModal({ count, collections, conflictingCollectionId, pending, error, onClose, onSave }: Props) {
     const { t } = useLanguage();
     const [mode, setMode] = useState('existing');
     const [selected, setSelected] = useState<Collection | null>(null);
     const [name, setName] = useState('');
+    const [handledConflict, setHandledConflict] = useState<string>();
+    if (!conflictingCollectionId && handledConflict) setHandledConflict(undefined);
+    const conflict = collections.find((collection) => collection.id === conflictingCollectionId);
+    if (conflict && handledConflict !== conflict.id) {
+        setHandledConflict(conflict.id);
+        setMode('existing');
+        setSelected(conflict);
+    }
     const candidate = useRef<{ id: string; name: string } | null>(null);
     const trimmed = name.trim();
     const validName = trimmed.length > 0 && Array.from(trimmed).length <= 200 &&
-        !hasControlCharacters(trimmed) && !/[<>:"/\\|?*]/u.test(trimmed) && !trimmed.endsWith('.');
+        !hasControlCharacters(trimmed) && !/[<>:"/\\|?*]/u.test(trimmed) && !trimmed.endsWith('.') &&
+        !/^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/iu.test(trimmed);
     const save = async () => {
         if (mode === 'existing' && selected) await onSave({ collectionId: selected.id });
         else if (mode === 'new' && validName) {

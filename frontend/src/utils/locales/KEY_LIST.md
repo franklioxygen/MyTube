@@ -11,13 +11,13 @@ UPDATE_KEY_LIST=1 npx vitest run src/utils/locales/__tests__/localeParity.test.t
 
 This list is intentionally unnumbered. When new keys are inserted, only the local section order changes.
 
-Total keys: 1421
+Total keys: 1422
 
 ## Summary
 
 | Section | Keys | First Key | Last Key |
 | --- | ---: | --- | --- |
-| Bulk video organization | 24 | `bulkSelectVideos` | `bulkRequestUnknown` |
+| Bulk video organization | 27 | `bulkInvalidVideos` | `bulkRequestUnknown` |
 | Header | 11 | `myTube` | `instruction` |
 | Home | 28 | `pasteUrl` | `views` |
 | Settings | 4 | `general` | `downloadSettings` |
@@ -26,7 +26,7 @@ Total keys: 1421
 | Task Hooks | 101 | `taskHooks` | `cleanupTempFilesFailed` |
 | Cookie Settings | 13 | `cookieSettings` | `youtubeCookiesMayHaveExpired` |
 | Cloud Drive | 38 | `cloudDriveSettings` | `clearThumbnailCacheConfirmMessage` |
-| Manage | 48 | `manageContent` | `confirmBulkDelete` |
+| Manage | 46 | `manageContent` | `confirmBulkDelete` |
 | Video Player | 35 | `playing` | `loadingVideo` |
 | D Mode (canvas + WebCodecs playback, no media element) | 36 | `compatibilityMode` | `deletingVideos` |
 | Login | 23 | `signIn` | `tooManyAttempts` |
@@ -69,6 +69,9 @@ Total keys: 1421
 
 | Key |
 | --- |
+| `bulkInvalidVideos` |
+| `bulkRemoveInvalid` |
+| `bulkRequestNotSent` |
 | `bulkSelectVideos` |
 | `bulkExitSelection` |
 | `bulkSelectedCount` |
@@ -663,8 +666,6 @@ Total keys: 1421
 | `refreshFileSizesError` |
 | `noVideosFoundMatching` |
 | `refreshThumbnail` |
-| `selected` |
-| `moveCollection` |
 | `confirmBulkDelete` |
 
 ### Video Player

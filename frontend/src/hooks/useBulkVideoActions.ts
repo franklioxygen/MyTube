@@ -3,7 +3,7 @@ import { useRef } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useSnackbar } from '../contexts/SnackbarContext';
 import { api, ensureCsrfToken } from '../utils/apiClient';
-import { bulkErrorDetails } from '../utils/bulkVideoOrganization';
+import { BulkRequestNotSentError, bulkErrorDetails } from '../utils/bulkVideoOrganization';
 import type { BulkOperation, BulkResult } from '../utils/bulkVideoOrganization';
 
 export function useBulkVideoActions() {
@@ -42,7 +42,8 @@ export function useBulkVideoActions() {
     const mutation = useMutation({
         retry: false,
         mutationFn: async (operation: BulkOperation) => {
-            await ensureCsrfToken();
+            try { await ensureCsrfToken(); }
+            catch (error) { throw new BulkRequestNotSentError(error); }
             const { kind, ...body } = operation;
             const response = await api.post<{ success: boolean; data: BulkResult }>(
                 kind === 'tags' ? '/videos/batch/tags' : '/collections/batch-add', body,
@@ -60,9 +61,9 @@ export function useBulkVideoActions() {
             return data;
         },
         onError: async (error, operation) => {
-            const { status } = bulkErrorDetails(error);
+            const { status, requestNotSent } = bulkErrorDetails(error);
             if (status === 401 || status === 403) void client.invalidateQueries({ queryKey: ['authSettings'] });
-            if (!status) {
+            if (!status && !requestNotSent) {
                 // A lost response can hide a committed write, including new catalog tags.
                 try { await refresh(operation, operation.kind === 'tags'); }
                 catch { /* Preserve the original write error and the dialog draft. */ }
@@ -77,5 +78,5 @@ export function useBulkVideoActions() {
         finally { inFlight.current = false; }
     };
 
-    return { run, isPending: mutation.isPending, refresh };
+    return { run, isPending: mutation.isPending };
 }

@@ -47,18 +47,30 @@ export function validBulkTags(tags: string[]): boolean {
     );
 }
 
+/** The write was never dispatched, so there is no uncertain server result. */
+export class BulkRequestNotSentError extends Error {
+    constructor(public readonly cause: unknown) {
+        super('The bulk request was not sent');
+    }
+}
+
 export function bulkErrorDetails(error: unknown): {
-    status?: number; message?: string; missingVideoIds: string[]; existingCollectionId?: string;
+    status?: number; message?: string; missingVideoIds: string[]; invalidVideoIds: string[];
+    existingCollectionId?: string; requestNotSent: boolean;
 } {
-    const response = (error as { response?: { status?: number; data?: {
-        error?: string; details?: { missingVideoIds?: unknown; existingCollectionId?: unknown };
+    const requestNotSent = error instanceof BulkRequestNotSentError;
+    const source = requestNotSent ? error.cause : error;
+    const response = (source as { response?: { status?: number; data?: {
+        error?: string; details?: { missingVideoIds?: unknown; invalidVideoIds?: unknown; existingCollectionId?: unknown };
     } } } | null)?.response;
-    const missing = response?.data?.details?.missingVideoIds;
+    const ids = (value: unknown) => Array.isArray(value) ? value.filter((id): id is string => typeof id === 'string') : [];
     const existing = response?.data?.details?.existingCollectionId;
     return {
         status: response?.status,
         message: response?.data?.error,
-        missingVideoIds: Array.isArray(missing) ? missing.filter((id): id is string => typeof id === 'string') : [],
+        missingVideoIds: ids(response?.data?.details?.missingVideoIds),
+        invalidVideoIds: ids(response?.data?.details?.invalidVideoIds),
         existingCollectionId: typeof existing === 'string' ? existing : undefined,
+        requestNotSent,
     };
 }

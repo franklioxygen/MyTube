@@ -25,6 +25,7 @@ interface Props {
 export default function VideoBatchToolbar(props: Props) {
     const { t } = useLanguage();
     if (!props.selection.canWrite) return null;
+    if (!props.selection.active && props.orderedIds.length === 0) return null;
     if (!props.selection.active) return <Box sx={{ mb: 2 }}>
         <Button startIcon={<Checklist />} onClick={props.selection.enter}>{t('bulkSelectVideos')}</Button>
     </Box>;
@@ -76,11 +77,14 @@ function VideoBatchToolbarContent({ selection, pageIds, orderedIds, availableTag
     const errorContent = error ? <Alert severity="error" sx={{ mb: 2 }}>
         {error.missingVideoIds.length ? t('bulkMissingVideos', { count: error.missingVideoIds.length })
             : error.existingCollectionId ? t('bulkCollectionConflict')
+            : error.invalidVideoIds.length ? t('bulkInvalidVideos', { count: error.invalidVideoIds.length })
+            : error.requestNotSent ? t('bulkRequestNotSent')
             : !error.status ? t('bulkRequestUnknown') : error.message || t('error')}
-        {error.missingVideoIds.length > 0 && <Button disabled={actions.isPending} onClick={() => {
-            setSnapshot((ids) => ids.filter((id) => !error.missingVideoIds.includes(id)));
+        {(error.missingVideoIds.length > 0 || error.invalidVideoIds.length > 0) && <Button disabled={actions.isPending} onClick={() => {
+            const excluded = new Set([...error.missingVideoIds, ...error.invalidVideoIds]);
+            setSnapshot((ids) => ids.filter((id) => !excluded.has(id)));
             setError(null);
-        }}>{t('bulkRemoveMissing')}</Button>}
+        }}>{error.invalidVideoIds.length ? t('bulkRemoveInvalid') : t('bulkRemoveMissing')}</Button>}
     </Alert> : null;
     const targetIds = infiniteScroll ? orderedIds : pageIds;
     const pageSelected = targetIds.filter((id) => selection.selectedIds.has(id)).length;
@@ -106,6 +110,7 @@ function VideoBatchToolbarContent({ selection, pageIds, orderedIds, availableTag
             pending={actions.isPending} error={errorContent} onClose={close}
             onSave={(tags) => save({ kind: 'tags', videoIds: snapshot, tags })} />}
         {modal === 'collection' && <BulkCollectionModal count={snapshot.length} collections={collections}
+            conflictingCollectionId={error?.existingCollectionId}
             pending={actions.isPending} error={errorContent} onClose={close}
             onSave={(target) => save({ kind: 'collection', videoIds: snapshot, ...target })} />}
         </Suspense>

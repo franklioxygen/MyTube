@@ -1,4 +1,4 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryObserver, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -777,6 +777,47 @@ describe('VideoContext', () => {
     mockApiDelete.mockRejectedValueOnce(new Error('delete fail'));
     const failed = await result.current.deleteVideo('v2', { showSnackbar: false });
     expect(failed).toEqual({ success: false, error: 'failedToDeleteVideo' });
+  });
+
+  it('caps bulk deletion at five requests and reports one summary', async () => {
+    const { wrapper } = createWrapper();
+    const { result } = renderHook(() => useVideo(), { wrapper });
+    await waitFor(() => expect(result.current.videos).toHaveLength(2));
+    const releases: Array<() => void> = [];
+    mockApiDelete.mockImplementation(() => new Promise((resolve) => {
+      releases.push(() => resolve({ data: { success: true } }));
+    }));
+    const ids = Array.from({ length: 12 }, (_, i) => `bulk${i}`);
+    let operation: ReturnType<typeof result.current.deleteVideos>;
+    act(() => { operation = result.current.deleteVideos(ids); });
+    for (const expected of [5, 10, 12]) {
+      await waitFor(() => expect(mockApiDelete).toHaveBeenCalledTimes(expected));
+      await act(async () => { releases.splice(0).forEach((release) => release()); });
+    }
+    await act(async () => { expect(await operation).toEqual({ success: true }); });
+    expect(mockShowSnackbar).toHaveBeenCalledExactlyOnceWith('deleteFilteredVideosSuccess');
+  });
+
+  it.each([false, true])('refreshes each membership query once after bulk deletion (partial failure: %s)', async (partialFailure) => {
+    const { wrapper, queryClient } = createWrapper();
+    const { result } = renderHook(() => useVideo(), { wrapper });
+    await waitFor(() => expect(result.current.videos).toHaveLength(2));
+    const readCollections = vi.fn(async () => []);
+    const observer = new QueryObserver(queryClient, {
+      queryKey: ['collections'], queryFn: readCollections, initialData: [], staleTime: Infinity,
+    });
+    const stop = observer.subscribe(() => {});
+    const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
+    if (partialFailure) mockApiDelete.mockRejectedValueOnce(new Error('one failed'));
+    try {
+      await act(async () => {
+        expect((await result.current.deleteVideos(Array.from({ length: 12 }, (_, i) => `bulk${i}`))).success).toBe(!partialFailure);
+      });
+      for (const key of ['collections', 'favorite-collections', 'favorite-authors']) {
+        expect(invalidate.mock.calls.filter(([filter]) => filter?.queryKey?.[0] === key)).toHaveLength(1);
+      }
+      expect(readCollections).toHaveBeenCalledOnce();
+    } finally { stop(); }
   });
 
   it('deleteVideos handles partial failures', async () => {

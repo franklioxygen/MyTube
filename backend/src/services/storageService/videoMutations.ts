@@ -3,6 +3,7 @@ import { db } from "../../db";
 import { videos } from "../../db/schema";
 import { DatabaseError } from "../../errors/DownloadErrors";
 import { logger } from "../../utils/logger";
+import { mapVideoRow } from "./videoQueries";
 import { bumpVideosListRevision } from "./videoListRevision";
 
 export interface SaveVideoOptions {
@@ -178,11 +179,7 @@ export function updateVideo(
 
     if (result) {
       bumpVideosListRevision();
-      return {
-        ...result,
-        tags: result.tags ? JSON.parse(result.tags) : [],
-        subtitles: result.subtitles ? JSON.parse(result.subtitles) : undefined,
-      } as import("./types").Video;
+      return mapVideoRow(result);
     }
     return null;
   } catch (error) {

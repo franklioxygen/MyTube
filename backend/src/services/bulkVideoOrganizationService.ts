@@ -1,4 +1,5 @@
-import { and, eq, inArray, or, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
+import { mergeTagCatalog } from "../utils/tagCatalog";
 import { db } from "../db";
 import { collections, collectionVideos, settings, videos } from "../db/schema";
 import { invalidateRecommendationSignalsCache } from "./recommendationSignalsService";
@@ -100,21 +101,23 @@ export function appendTagsToVideos(body: unknown) {
     const rows = selectedRows(tx, ids);
     const catalogRow = tx.select().from(settings).where(eq(settings.key, "tags")).get();
     const catalog = parseStoredTags(catalogRow?.value ?? null, { field: "settings.tags" });
-    const canonical = new Map<string, string>();
-    for (const tag of catalog) {
-      if (!canonical.has(tag.toLowerCase())) canonical.set(tag.toLowerCase(), tag);
-    }
-    const newCatalogTags: string[] = [];
-    for (const [key, tag] of requested) {
-      if (!canonical.has(key)) {
-        canonical.set(key, tag);
-        newCatalogTags.push(tag);
+    const { canonical, added: newCatalogTags, tags: mergedCatalog } = mergeTagCatalog(catalog, [...requested.values()]);
+    const storedTags = new Map<string, string[]>();
+    const invalidVideoIds: string[] = [];
+    for (const id of ids) {
+      try { storedTags.set(id, parseStoredTags(rows.get(id)!.tags, { invalidVideoIds: [id] })); }
+      catch (error) {
+        if (!(error instanceof BulkOrganizationError)) throw error;
+        invalidVideoIds.push(id);
       }
+    }
+    if (invalidVideoIds.length) {
+      throw new BulkOrganizationError(409, "Stored tags are invalid; repair them before retrying", { invalidVideoIds });
     }
     const changedVideoIds: string[] = [];
     const unchangedVideoIds: string[] = [];
     const updated = ids.map((id) => {
-      const old = parseStoredTags(rows.get(id)!.tags, { invalidVideoIds: [id] });
+      const old = storedTags.get(id)!;
       const existing = new Set(old.map((tag) => tag.toLowerCase()));
       const added = [...requested.keys()].filter((key) => !existing.has(key))
         .map((key) => canonical.get(key)!);
@@ -128,7 +131,7 @@ export function appendTagsToVideos(body: unknown) {
       return { id, tags };
     });
     if (newCatalogTags.length) {
-      const value = JSON.stringify([...catalog, ...newCatalogTags].sort((a, b) => a.localeCompare(b)));
+      const value = JSON.stringify(mergedCatalog);
       tx.insert(settings).values({ key: "tags", value })
         .onConflictDoUpdate({ target: settings.key, set: { value } }).run();
     }
@@ -167,7 +170,7 @@ export function addVideosToCollection(body: unknown) {
       throw new BulkOrganizationError(400, "New collection ID must be a UUID v4");
     }
     newName = label(target.name, 200);
-    if (/[<>:"/\\|?*]/u.test(newName) || newName.endsWith(".")) {
+    if (/[<>:"/\\|?*]/u.test(newName) || newName.endsWith(".") || /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/iu.test(newName)) {
       throw new BulkOrganizationError(400, "Invalid collection name");
     }
   }
@@ -182,8 +185,10 @@ export function addVideosToCollection(body: unknown) {
           throw new BulkOrganizationError(409, "Collection ID is already in use");
         }
       } else {
-        const duplicate = tx.select({ id: collections.id }).from(collections)
-          .where(or(eq(collections.name, newName), eq(collections.title, newName))).get();
+        const nameKey = newName.toLowerCase();
+        const duplicate = tx.select({ id: collections.id, name: collections.name, title: collections.title })
+          .from(collections).all().find((row) =>
+            row.name.trim().toLowerCase() === nameKey || row.title?.trim().toLowerCase() === nameKey);
         if (duplicate) {
           throw new BulkOrganizationError(409, "A collection with this name already exists", {
             existingCollectionId: duplicate.id,

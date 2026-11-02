@@ -1,5 +1,8 @@
 export const ko = {
   // Bulk video organization
+  bulkInvalidVideos: "선택한 동영상 {count}개의 저장된 태그가 손상되었습니다. 변경된 동영상은 없습니다. 해당 동영상을 제외하고 계속하거나 태그를 복구하세요.",
+  bulkRemoveInvalid: "손상된 동영상 제외",
+  bulkRequestNotSent: "요청을 보내지 못했습니다. 변경된 동영상은 없습니다. 다시 시도하세요.",
   bulkSelectVideos: "동영상 선택",
   bulkExitSelection: "선택 종료",
   bulkSelectedCount: "동영상 {count}개 선택됨",
@@ -699,8 +702,6 @@ export const ko = {
   refreshFileSizesError: "파일 크기 새로 고침 실패: {error}",
   noVideosFoundMatching: "검색과 일치하는 동영상이 없습니다.",
   refreshThumbnail: "썸네일 새로고침",
-  selected: "선택됨",
-  moveCollection: "컬렉션으로 이동",
   confirmBulkDelete:
     "이 동영상들을 삭제하시겠습니까? 이 작업을 취소할 수 없습니다.",
 

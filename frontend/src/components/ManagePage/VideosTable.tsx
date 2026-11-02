@@ -135,7 +135,7 @@ const VideosTable: React.FC<VideosTableProps> = ({
 }) => {
     const { t } = useLanguage();
     const { userRole } = useAuth();
-    const { deleteVideo, availableTags } = useVideo();
+    const { deleteVideos, availableTags } = useVideo();
     const { activeDownloads, queuedDownloads } = useDownload();
     const isVisitor = userRole === 'visitor';
     const isTouch = useMediaQuery('(hover: none), (pointer: coarse)');
@@ -226,12 +226,10 @@ const VideosTable: React.FC<VideosTableProps> = ({
     const handleBulkDelete = async () => {
         setIsBulkDeleting(true);
         try {
-            await Promise.all(selectedVideoIds.map((id) => deleteVideo(id)));
+            const result = await deleteVideos(selectedVideoIds);
+            if (!result.success) throw new Error(result.error || t('failedToDeleteVideo'));
             selection.clear();
             setIsBulkDeleteModalOpen(false);
-        } catch (error) {
-            console.error('Failed to delete videos', error);
-            throw error;
         } finally {
             setIsBulkDeleting(false);
         }
@@ -245,13 +243,13 @@ const VideosTable: React.FC<VideosTableProps> = ({
                     {t('videos')} ({totalVideosCount}) - {formatSize(totalSize)}
                 </Typography>
                 <TextField placeholder={t('searchVideos')} size="small" value={searchTerm}
-                    disabled={selection.locked} onChange={(event) => onSearchChange(event.target.value)}
+                    disabled={selection.locked || isBulkDeleting} onChange={(event) => onSearchChange(event.target.value)}
                     InputProps={{ startAdornment: <InputAdornment position="start"><Search /></InputAdornment> }} />
                 {selection.canWrite && selectedVideoIds.length > 0 && <Button variant="outlined" color="error"
                     startIcon={<Delete />} disabled={selection.locked || isBulkDeleting}
                     onClick={() => setIsBulkDeleteModalOpen(true)}>{t('delete')}</Button>}
             </Box>
-            <VideoBatchToolbar selection={selection} pageIds={displayedVideos.map((video) => video.id)}
+            <VideoBatchToolbar selection={{ ...selection, locked: selection.locked || isBulkDeleting }} pageIds={displayedVideos.map((video) => video.id)}
                 orderedIds={orderedVideos.map((video) => video.id)} availableTags={availableTags} alwaysOn />
 
             {displayedVideos.length > 0 ? (
@@ -278,7 +276,7 @@ const VideosTable: React.FC<VideosTableProps> = ({
                                 <TableCell>{t('thumbnail')}</TableCell>
                                 <TableCell>
                                     <TableSortLabel
-                                        disabled={selection.locked}
+                                        disabled={selection.locked || isBulkDeleting}
                                         active={orderBy === 'title'}
                                         direction={orderBy === 'title' ? order : 'asc'}
                                         onClick={() => onSort('title')}
@@ -288,7 +286,7 @@ const VideosTable: React.FC<VideosTableProps> = ({
                                 </TableCell>
                                 <TableCell>
                                     <TableSortLabel
-                                        disabled={selection.locked}
+                                        disabled={selection.locked || isBulkDeleting}
                                         active={orderBy === 'author'}
                                         direction={orderBy === 'author' ? order : 'asc'}
                                         onClick={() => onSort('author')}
@@ -313,7 +311,7 @@ const VideosTable: React.FC<VideosTableProps> = ({
                                             </Tooltip>
                                         )}
                                         <TableSortLabel
-                                        disabled={selection.locked}
+                                        disabled={selection.locked || isBulkDeleting}
                                             active={orderBy === 'fileSize'}
                                             direction={orderBy === 'fileSize' ? order : 'asc'}
                                             onClick={() => onSort('fileSize')}

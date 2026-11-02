@@ -1,5 +1,8 @@
 export const en = {
   // Bulk video organization
+  bulkInvalidVideos: "Stored tags are damaged for {count} selected videos. No videos were changed. Remove these videos to continue, or repair them before retrying.",
+  bulkRemoveInvalid: "Remove damaged videos",
+  bulkRequestNotSent: "The request could not be sent. No videos were changed. Please retry.",
   bulkSelectVideos: "Select videos",
   bulkExitSelection: "Exit selection",
   bulkSelectedCount: "{count} videos selected",
@@ -678,8 +681,6 @@ export const en = {
   refreshFileSizesError: "Failed to refresh file sizes: {error}",
   noVideosFoundMatching: "No videos found matching your search.",
   refreshThumbnail: "Refresh Thumbnail",
-  selected: "Selected",
-  moveCollection: "Move to Collection",
   confirmBulkDelete:
     "Are you sure you want to delete these videos? This action cannot be undone.",
 

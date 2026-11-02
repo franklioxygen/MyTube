@@ -1,3 +1,4 @@
+import { mergeTagCatalog } from "../utils/tagCatalog";
 import { eq, sql } from "drizzle-orm";
 import { db } from "../db";
 import { videos } from "../db/schema";
@@ -149,23 +150,9 @@ export function addTagsToGlobalSettings(tags: string[]): boolean {
     const existing: string[] = Array.isArray(currentSettings.tags)
       ? (currentSettings.tags as string[])
       : [];
-    const existingLower = new Set(existing.map((t) => t.toLowerCase()));
-
-    const toAdd: string[] = [];
-    for (const tag of tags) {
-      const trimmed = typeof tag === "string" ? tag.trim() : "";
-      if (!trimmed) continue;
-      const lower = trimmed.toLowerCase();
-      if (existingLower.has(lower)) continue;
-      existingLower.add(lower);
-      toAdd.push(trimmed);
-    }
-
+    const { added: toAdd, tags: updatedTags } = mergeTagCatalog(existing, tags);
     if (toAdd.length === 0) return false;
 
-    const updatedTags = [...existing, ...toAdd].sort((a, b) =>
-      a.localeCompare(b)
-    );
     saveSettings({ ...currentSettings, tags: updatedTags });
     logger.info(`Added new tags to global catalog: [${toAdd.join(", ")}]`);
     return true;

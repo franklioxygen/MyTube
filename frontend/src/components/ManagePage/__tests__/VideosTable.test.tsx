@@ -18,6 +18,7 @@ let mockQueuedDownloads: Array<{ sourceUrl: string }> = [];
 const mockAvailableTags = ['Music', 'Tutorial'];
 
 const mockDeleteVideo = vi.fn();
+const mockDeleteVideos = vi.fn();
 const mockAddToCollection = vi.fn();
 const mockCreateCollection = vi.fn();
 const mockFetchCollections = vi.fn();
@@ -35,6 +36,7 @@ vi.mock('../../../contexts/AuthContext', () => ({
 vi.mock('../../../contexts/VideoContext', () => ({
     useVideo: () => ({
         deleteVideo: mockDeleteVideo,
+        deleteVideos: mockDeleteVideos,
         availableTags: mockAvailableTags,
     }),
 }));
@@ -203,6 +205,7 @@ describe('VideosTable', () => {
         mockActiveDownloads = [];
         mockQueuedDownloads = [];
         mockDeleteVideo.mockResolvedValue(undefined);
+        mockDeleteVideos.mockResolvedValue({ success: true });
         mockAddToCollection.mockResolvedValue(undefined);
         mockCreateCollection.mockResolvedValue({ id: 'created-collection' });
         mockFetchCollections.mockResolvedValue(undefined);
@@ -285,8 +288,7 @@ describe('VideosTable', () => {
         await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'delete' }));
 
         await waitFor(() => {
-            expect(mockDeleteVideo).toHaveBeenCalledWith('1');
-            expect(mockDeleteVideo).toHaveBeenCalledWith('2');
+            expect(mockDeleteVideos).toHaveBeenCalledWith(['1', '2']);
         });
     });
 
@@ -404,4 +406,17 @@ describe('VideosTable', () => {
             expect(mockInvalidateQueries).toHaveBeenCalledWith({ queryKey: ['downloadStatus'] });
         });
     }, 15000);
+
+    it('retains selection and keeps the confirmation open after a partial delete failure', async () => {
+        mockDeleteVideos.mockResolvedValue({ success: false });
+        const user = userEvent.setup();
+        renderTable();
+        await user.click(screen.getByLabelText('select all videos'));
+        await user.click(screen.getByRole('button', { name: 'delete' }));
+        await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'delete' }));
+        await waitFor(() => expect(mockDeleteVideos).toHaveBeenCalledWith(['1', '2']));
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+        expect(screen.getByLabelText('select all videos')).toBeChecked();
+        expect(mockDeleteVideo).not.toHaveBeenCalled();
+    });
 });
