@@ -1,4 +1,5 @@
-import { Download, Subscriptions } from '@mui/icons-material';
+import { ChevronLeft, ChevronRight, Download, Subscriptions } from '@mui/icons-material';
+import { useEffect, useId, useRef, useState } from 'react';
 import {
     alpha,
     Badge,
@@ -36,14 +37,58 @@ const DownloadsMenu: React.FC<DownloadsMenuProps> = ({
     const { t } = useLanguage();
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+    const [subscriptionAnchorEl, setSubscriptionAnchorEl] = useState<HTMLElement | null>(null);
+    const subscriptionMenuId = useId();
+    const subscriptionTriggerId = useId();
+    const subscriptionListRef = useRef<HTMLUListElement>(null);
+    const isSubscriptionMenuOpen = Boolean(anchorEl && subscriptionAnchorEl);
+    // Desktop opens left to stay clear of the header's right screen edge.
+    const openKey = !isMobile || theme.direction === 'rtl' ? 'ArrowLeft' : 'ArrowRight';
+    const closeKey = openKey === 'ArrowLeft' ? 'ArrowRight' : 'ArrowLeft';
+    // Also accept standard menu keys when the visual direction differs.
+    const standardOpenKey = theme.direction === 'rtl' ? 'ArrowLeft' : 'ArrowRight';
+    const standardCloseKey = standardOpenKey === 'ArrowLeft' ? 'ArrowRight' : 'ArrowLeft';
+
+    useEffect(() => {
+        if (!isSubscriptionMenuOpen) return;
+        // Let the nested modal focus traps settle before focusing an item.
+        const frame = requestAnimationFrame(() => {
+            const list = subscriptionListRef.current;
+            if (list && !list.contains(list.ownerDocument.activeElement)) {
+                list.querySelector<HTMLElement>('[role="menuitem"]')?.focus();
+            }
+        });
+        return () => cancelAnimationFrame(frame);
+    }, [isSubscriptionMenuOpen]);
+
+    const handleClose = () => {
+        setSubscriptionAnchorEl(null);
+        onClose();
+    };
+
+    const closeSubscriptionMenu = () => {
+        const trigger = subscriptionAnchorEl;
+        setSubscriptionAnchorEl(null);
+        requestAnimationFrame(() => {
+            if (trigger?.isConnected) trigger.focus();
+        });
+    };
+
+    const navigateToSubscriptions = (type?: 'author' | 'playlist') => {
+        handleClose();
+        navigate(type ? `/subscriptions?type=${type}` : '/subscriptions');
+    };
 
     return (
+        <>
         <Menu
             anchorEl={anchorEl}
             open={Boolean(anchorEl)}
-            onClose={onClose}
+            onClose={handleClose}
+            disableEnforceFocus={isSubscriptionMenuOpen}
             disableScrollLock
             slotProps={{
+                transition: { onExited: () => setSubscriptionAnchorEl(null) },
                 paper: {
                     elevation: 0,
                     sx: {
@@ -80,10 +125,23 @@ const DownloadsMenu: React.FC<DownloadsMenuProps> = ({
             anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
             slots={{ transition: Fade }}
         >
-            <MenuItem onClick={() => { onClose(); navigate('/downloads'); }}>
+            <MenuItem onClick={() => { handleClose(); navigate('/downloads'); }}>
                 <Download sx={{ mr: 2 }} /> {t('manageDownloads') || 'Manage Downloads'}
             </MenuItem>
-            <MenuItem onClick={() => { onClose(); navigate('/subscriptions'); }}>
+            <MenuItem
+                id={subscriptionTriggerId}
+                aria-haspopup="menu"
+                aria-expanded={isSubscriptionMenuOpen}
+                aria-controls={isSubscriptionMenuOpen ? subscriptionMenuId : undefined}
+                onClick={(event) => setSubscriptionAnchorEl(event.currentTarget)}
+                onKeyDown={(event) => {
+                    if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || event.repeat) return;
+                    if (event.key === openKey || event.key === standardOpenKey) {
+                        event.preventDefault();
+                        setSubscriptionAnchorEl(event.currentTarget);
+                    }
+                }}
+            >
                 <Badge
                     variant="dot"
                     color="primary"
@@ -92,7 +150,8 @@ const DownloadsMenu: React.FC<DownloadsMenuProps> = ({
                 >
                     <Subscriptions />
                 </Badge>
-                <Box component="span">{t('subscriptions')}</Box>
+                <Box component="span" sx={{ flexGrow: 1 }}>{t('subscriptions')}</Box>
+                {openKey === 'ArrowLeft' ? <ChevronLeft /> : <ChevronRight />}
             </MenuItem>
             {(activeDownloads.length > 0 || queuedDownloads.length > 0) && <Divider />}
 
@@ -156,6 +215,39 @@ const DownloadsMenu: React.FC<DownloadsMenuProps> = ({
                 ))
             ]}
         </Menu>
+        <Menu
+            anchorEl={subscriptionAnchorEl}
+            open={isSubscriptionMenuOpen}
+            onClose={(_event, reason) => {
+                if (reason === 'escapeKeyDown') closeSubscriptionMenu();
+                else handleClose();
+            }}
+            disableScrollLock
+            disableRestoreFocus
+            anchorOrigin={{ vertical: isMobile ? 'bottom' : 'top', horizontal: 'left' }}
+            transformOrigin={{ vertical: 'top', horizontal: isMobile ? 'left' : 'right' }}
+            slotProps={{
+                paper: { sx: { minWidth: 220, maxWidth: 'calc(100vw - 32px)' } },
+                list: {
+                    ref: subscriptionListRef,
+                    id: subscriptionMenuId,
+                    'aria-labelledby': subscriptionTriggerId,
+                    onKeyDown: (event: React.KeyboardEvent<HTMLUListElement>) => {
+                        if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || event.repeat) return;
+                        if (event.key === closeKey || event.key === standardCloseKey) {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            closeSubscriptionMenu();
+                        }
+                    },
+                },
+            }}
+        >
+            <MenuItem onClick={() => navigateToSubscriptions()}>{t('allSubscriptions')}</MenuItem>
+            <MenuItem onClick={() => navigateToSubscriptions('author')}>{t('authorSubscriptions')}</MenuItem>
+            <MenuItem onClick={() => navigateToSubscriptions('playlist')}>{t('playlistSubscriptions')}</MenuItem>
+        </Menu>
+        </>
     );
 };
 
