@@ -17,6 +17,8 @@ import { useSearchParams } from 'react-router';
 import ExpandableTagsStrip from '../components/ExpandableTagsStrip';
 import SortControl from '../components/SortControl';
 import { VideoGrid } from '../components/VideoGrid';
+import VideoBatchToolbar from '../components/VideoBatchToolbar';
+import { useVideoSelection } from '../hooks/useVideoSelection';
 import { useCollection } from '../contexts/CollectionContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useVideo } from '../contexts/VideoContext';
@@ -116,6 +118,12 @@ const AllTagsPage: React.FC = () => {
         selectedTags,
     });
 
+    const selection = useVideoSelection({
+        scopeKey: JSON.stringify(['tags', [...selectedTags].sort()]),
+        videos: videoArray,
+        libraryReady: !loading || videoArray.length > 0,
+    });
+
     if (!settingsLoaded || (loading && videoArray.length === 0)) {
         return (
             <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: viewportHeight(50) }}>
@@ -167,7 +175,7 @@ const AllTagsPage: React.FC = () => {
                 <ExpandableTagsStrip
                     tags={orderedTags}
                     selectedTags={selectedTags}
-                    onTagToggle={handleTagToggle}
+                    onTagToggle={selection.locked ? () => {} : handleTagToggle}
                     maxCollapsedLines={3}
                 />
             )}
@@ -188,6 +196,7 @@ const AllTagsPage: React.FC = () => {
                             <Button
                                 size="small"
                                 onClick={clearSelectedTags}
+                                disabled={selection.locked}
                                 sx={{ textTransform: 'none', fontWeight: 600 }}
                             >
                                 {t('filteredByTags', { count: selectedTags.length })} — {t('clear')}
@@ -212,6 +221,9 @@ const AllTagsPage: React.FC = () => {
                 />
             </Box>
 
+            <VideoBatchToolbar selection={selection} pageIds={displayedVideos.map((v) => v.id)}
+                orderedIds={sortedVideos.map((v) => v.id)} availableTags={availableTags}
+                infiniteScroll={infiniteScroll} />
             {videoArray.length === 0 ? (
                 <Typography color="text.secondary" sx={{ py: 6, textAlign: 'center' }}>
                     {t('noVideosYet')}
@@ -225,6 +237,7 @@ const AllTagsPage: React.FC = () => {
                     {/* Swiping the grid sideways turns the page, as on Home. */}
                     <Box {...swipeHandlers}>
                         <VideoGrid
+                            selection={selection}
                             videos={videoArray}
                             sortedVideos={sortedVideos}
                             displayedVideos={displayedVideos}
@@ -234,12 +247,13 @@ const AllTagsPage: React.FC = () => {
                             gridProps={gridProps}
                             onDeleteVideo={deleteVideo}
                             showTagsOnThumbnail={showTagsOnThumbnail}
-                            onTagToggle={handleTagToggle}
+                            onTagToggle={selection.locked ? () => {} : handleTagToggle}
                         />
                     </Box>
                     {!infiniteScroll && totalPages > 1 && (
                         <Box sx={{ mt: 4, display: 'flex', justifyContent: 'center' }}>
                             <Pagination
+                                disabled={selection.locked}
                                 count={totalPages}
                                 page={page}
                                 onChange={handlePageChange}

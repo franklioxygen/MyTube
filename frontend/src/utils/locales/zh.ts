@@ -1,4 +1,33 @@
 export const zh = {
+  // Bulk video organization
+  bulkInvalidVideos: "有 {count} 个所选视频的已存标签已损坏，本次未修改任何视频。可移除这些视频后继续，或修复后重试。",
+  bulkRemoveInvalid: "移除标签损坏的视频",
+  bulkRequestNotSent: "请求未能发送，本次未修改任何视频，请重试。",
+  bulkSelectVideos: "选择视频",
+  bulkExitSelection: "退出选择",
+  bulkSelectedCount: "已选 {count} 个视频",
+  bulkSelectPage: "全选当前页",
+  bulkSelectResults: "全选当前结果（{count}）",
+  bulkClearSelection: "清空选择",
+  bulkSelectionLimit: "最多选择 500 个视频，请缩小筛选范围或逐个选择。",
+  bulkTagsTitle: "为 {count} 个视频添加标签",
+  bulkTagsHint: "保留原有标签，仅追加本次选择的标签。",
+  bulkTagsValidation: "添加 1–20 个标签，每个最多 80 个字符。按回车添加标签。",
+  bulkCollectionTitle: "将 {count} 个视频加入合集",
+  bulkCollectionHint: "保留原有合集归属，视频文件位置不变。",
+  bulkExistingCollection: "现有合集",
+  bulkNewCollection: "新建合集",
+  bulkCollectionNameHint: "1–200 个字符，不允许文件系统保留字符。",
+  bulkAddToCollection: "加入合集",
+  bulkSelectVideo: "选择 {title}",
+  bulkSaved: "已更新 {changed} 个视频，{unchanged} 个无需更改。",
+  bulkUnchanged: "所选视频已包含这些标签或已在目标合集中。",
+  bulkSavedRefreshFailed: "已保存，但列表刷新失败。请刷新页面查看更改。",
+  bulkMissingVideos: "有 {count} 个所选视频已不存在，本次请求未修改任何视频。",
+  bulkRemoveMissing: "移除失效视频",
+  bulkCollectionConflict: "合集名称已存在，请选择现有合集后继续。",
+  bulkRequestUnknown: "尚未收到服务器响应，操作可能已经完成。可以保留当前选择重试。",
+
   // Header
   myTube: "MyTube",
   // Auto Delete (library-wide age-based cleanup)
@@ -646,8 +675,6 @@ export const zh = {
   refreshFileSizesError: "刷新文件大小失败：{error}",
   noVideosFoundMatching: "未找到匹配的视频。",
   refreshThumbnail: "刷新缩略图",
-  selected: "已选择",
-  moveCollection: "移动到合集",
   confirmBulkDelete: "确定要删除这些视频吗？此操作无法撤销。",
 
 

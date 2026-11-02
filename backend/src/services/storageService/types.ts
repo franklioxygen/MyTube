@@ -4,6 +4,17 @@ export function normalizeMediaType(value: unknown): MediaType {
   return value === "audio" ? "audio" : "video";
 }
 
+/** The metadata shape accepted by both subtitle writes and stored-row reads. */
+export function isSubtitleArray(value: unknown): boolean {
+  return Array.isArray(value) && value.every((entry: unknown) => {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) return false;
+    const { path, filename } = entry as Record<string, unknown>;
+    return (path == null || typeof path === "string") &&
+      (filename == null || typeof filename === "string") &&
+      (typeof path === "string" || typeof filename === "string");
+  });
+}
+
 export interface Video {
   id: string;
   title: string;

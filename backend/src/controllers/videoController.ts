@@ -8,6 +8,7 @@ import { NotFoundError, ValidationError } from "../errors/DownloadErrors";
 import { syncMediaServerArtifactsForRecord } from "../services/mediaServerExport";
 import { invalidateRecommendationSignalsCache } from "../services/recommendationSignalsService";
 import * as storageService from "../services/storageService";
+import { isSubtitleArray } from "../services/storageService/types";
 import { addTagsToGlobalSettings } from "../services/tagService";
 import { logger } from "../utils/logger";
 import {
@@ -349,11 +350,20 @@ export const updateVideoDetails = async (
   // Filter allowed updates
   const allowedUpdates: Partial<import("../services/storageService").Video> = {};
   if (updates.title !== undefined) allowedUpdates.title = updates.title;
-  if (updates.tags !== undefined) allowedUpdates.tags = updates.tags;
+  if (updates.tags !== undefined) {
+    if (!Array.isArray(updates.tags) || updates.tags.some((tag: unknown) => typeof tag !== "string")) {
+      throw new ValidationError("tags must be an array of strings", "tags");
+    }
+    allowedUpdates.tags = updates.tags;
+  }
   if (updates.visibility !== undefined)
     allowedUpdates.visibility = updates.visibility;
-  if (updates.subtitles !== undefined)
+  if (updates.subtitles !== undefined) {
+    if (!isSubtitleArray(updates.subtitles)) {
+      throw new ValidationError("subtitles must be an array of objects with a string path or filename", "subtitles");
+    }
     allowedUpdates.subtitles = updates.subtitles;
+  }
   if (updates.autoDeleteLocked !== undefined) {
     // Strict contract: accept boolean, 1/0, or null only. Do NOT use truthiness,
     // which would map arbitrary values ("false", 2, {}, []) to locked. Store the

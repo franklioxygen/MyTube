@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Video } from "../../../services/storageService";
 
 const getSettingsMock = vi.hoisted(() => vi.fn());
+const getArtifactOwnersMock = vi.hoisted(() => vi.fn());
 const getVideosMock = vi.hoisted(() => vi.fn());
 const pathExistsSafeSyncMock = vi.hoisted(() => vi.fn());
 const resolveManagedWebPathMock = vi.hoisted(() => vi.fn());
@@ -13,7 +14,11 @@ const releaseRenameLockMock = vi.hoisted(() => vi.fn());
 
 vi.mock("../../../services/storageService", () => ({
   getSettings: getSettingsMock,
-  getVideos: getVideosMock,
+}));
+
+vi.mock("../../../services/storageService/videoQueries", () => ({
+  getVideosForExport: getVideosMock,
+  getMediaServerArtifactOwners: getArtifactOwnersMock,
 }));
 
 vi.mock("../../../utils/security", () => ({
@@ -92,6 +97,8 @@ describe("mediaServerExport jobService", () => {
   beforeEach(() => {
     getSettingsMock.mockReset();
     getVideosMock.mockReset();
+    getArtifactOwnersMock.mockReset();
+    getArtifactOwnersMock.mockImplementation(() => getVideosMock());
     pathExistsSafeSyncMock.mockReset();
     resolveManagedWebPathMock.mockReset();
     syncMediaServerArtifactsForRecordMock.mockReset();
@@ -181,5 +188,22 @@ describe("mediaServerExport jobService", () => {
     expect(completedJob?.succeeded).toBe(1);
     expect(removeMediaServerArtifactsForVideoMock).toHaveBeenCalledTimes(1);
     expect(syncMediaServerArtifactsForRecordMock).not.toHaveBeenCalled();
+  });
+  it("sweeps against all owners while rebuilding only valid records", async () => {
+    const healthy = createVideo("healthy");
+    const damaged = createVideo("damaged");
+    getVideosMock.mockReturnValue([healthy]);
+    getArtifactOwnersMock.mockReturnValue([healthy, damaged]);
+    const job = await startMediaServerExportJob("nfo");
+    await waitForJobCompletion(job.id);
+    expect(sweepOrphanMediaServerArtifactsMock).toHaveBeenCalledWith([healthy, damaged]);
+    expect(syncMediaServerArtifactsForRecordMock).toHaveBeenCalledExactlyOnceWith(healthy, {
+      modeOverride: "nfo", libraryVideos: [healthy],
+    });
+  });
+  it("releases the maintenance lock when the initial library read fails", async () => {
+    getArtifactOwnersMock.mockImplementationOnce(() => { throw new Error("database unavailable"); });
+    await expect(startMediaServerExportJob("nfo")).rejects.toThrow("database unavailable");
+    expect(releaseRenameLockMock).toHaveBeenCalledOnce();
   });
 });

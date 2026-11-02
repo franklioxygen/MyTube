@@ -11,12 +11,13 @@ UPDATE_KEY_LIST=1 npx vitest run src/utils/locales/__tests__/localeParity.test.t
 
 This list is intentionally unnumbered. When new keys are inserted, only the local section order changes.
 
-Total keys: 1397
+Total keys: 1422
 
 ## Summary
 
 | Section | Keys | First Key | Last Key |
 | --- | ---: | --- | --- |
+| Bulk video organization | 27 | `bulkInvalidVideos` | `bulkRequestUnknown` |
 | Header | 11 | `myTube` | `instruction` |
 | Home | 28 | `pasteUrl` | `views` |
 | Settings | 4 | `general` | `downloadSettings` |
@@ -25,7 +26,7 @@ Total keys: 1397
 | Task Hooks | 101 | `taskHooks` | `cleanupTempFilesFailed` |
 | Cookie Settings | 13 | `cookieSettings` | `youtubeCookiesMayHaveExpired` |
 | Cloud Drive | 38 | `cloudDriveSettings` | `clearThumbnailCacheConfirmMessage` |
-| Manage | 48 | `manageContent` | `confirmBulkDelete` |
+| Manage | 46 | `manageContent` | `confirmBulkDelete` |
 | Video Player | 35 | `playing` | `loadingVideo` |
 | D Mode (canvas + WebCodecs playback, no media element) | 36 | `compatibilityMode` | `deletingVideos` |
 | Login | 23 | `signIn` | `tooManyAttempts` |
@@ -63,6 +64,38 @@ Total keys: 1397
 | Filename template reference (information panel) | 45 | `filenameRefInformationTitle` | `filenameRefItemNestedPathDesc` |
 | Statistics | 87 | `statisticsTitle` | `openCollection` |
 | Gesture Login (admin only) | 31 | `or` | `gestureLoginRetryStatus` |
+
+### Bulk video organization
+
+| Key |
+| --- |
+| `bulkInvalidVideos` |
+| `bulkRemoveInvalid` |
+| `bulkRequestNotSent` |
+| `bulkSelectVideos` |
+| `bulkExitSelection` |
+| `bulkSelectedCount` |
+| `bulkSelectPage` |
+| `bulkSelectResults` |
+| `bulkClearSelection` |
+| `bulkSelectionLimit` |
+| `bulkTagsTitle` |
+| `bulkTagsHint` |
+| `bulkTagsValidation` |
+| `bulkCollectionTitle` |
+| `bulkCollectionHint` |
+| `bulkExistingCollection` |
+| `bulkNewCollection` |
+| `bulkCollectionNameHint` |
+| `bulkAddToCollection` |
+| `bulkSelectVideo` |
+| `bulkSaved` |
+| `bulkUnchanged` |
+| `bulkSavedRefreshFailed` |
+| `bulkMissingVideos` |
+| `bulkRemoveMissing` |
+| `bulkCollectionConflict` |
+| `bulkRequestUnknown` |
 
 ### Header
 
@@ -633,8 +666,6 @@ Total keys: 1397
 | `refreshFileSizesError` |
 | `noVideosFoundMatching` |
 | `refreshThumbnail` |
-| `selected` |
-| `moveCollection` |
 | `confirmBulkDelete` |
 
 ### Video Player

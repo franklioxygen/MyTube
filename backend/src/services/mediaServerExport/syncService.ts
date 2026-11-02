@@ -11,7 +11,7 @@ import {
   writeFileSafeSync,
 } from "../../utils/security";
 import { getSettings } from "../storageService/settings";
-import { getArtifactOwners } from "../storageService/videoQueries";
+import { getArtifactOwners, getMediaServerArtifactOwners, getVideoById, getVideosForExport } from "../storageService/videoQueries";
 import { removeEmptyDirectoryChain } from "../storageService/fileHelpers";
 import type { Video } from "../storageService";
 import {
@@ -29,18 +29,15 @@ import type {
 
 function getLibraryVideos(options?: {
   libraryVideos?: Video[];
+  loadLibraryVideos?: () => Video[];
 }): Video[] {
   if (options?.libraryVideos) {
     return options.libraryVideos;
   }
 
-  const { getVideos } = require("../storageService/videos") as typeof import("../storageService/videos");
-  return getVideos();
-}
+  if (options?.loadLibraryVideos) return options.loadLibraryVideos();
 
-function getVideoById(videoId: string): Video | undefined {
-  const { getVideoById } = require("../storageService/videos") as typeof import("../storageService/videos");
-  return getVideoById(videoId);
+  return getVideosForExport();
 }
 
 function getMediaServerExportMode(): MediaServerExportMode {
@@ -373,6 +370,8 @@ export function syncMediaServerShowArtifactsForShowRoot(
     );
 
     if (showVideos.length === 0) {
+      // An unreadable episode still owns its existing show sidecars.
+      if (getMediaServerArtifactOwners().some((video) => matchesShowRoot(video, showRootRelativeDir))) return;
       removeOwnedArtifact(resolveSafeChildPath(showRootAbsolutePath, "tvshow.nfo"));
       for (const filename of ["show.jpg", "poster.jpg", "folder.jpg"]) {
         removeOwnedArtifact(resolveSafeChildPath(showRootAbsolutePath, filename));
@@ -507,7 +506,7 @@ export function removeMediaServerArtifactsForVideo(
 
     const showStillHasEpisodes = options.preserveSharedArtifacts
       ? Boolean(plan.showNfoAbsolutePath && isShared(plan.showNfoAbsolutePath))
-      : getLibraryVideos(options).some(
+      : (options.libraryVideos ?? getMediaServerArtifactOwners()).some(
       (candidate) =>
         candidate.id !== video.id &&
         matchesShowRoot(candidate, plan.tvLayout.showRootRelativeDir as string)

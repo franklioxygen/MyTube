@@ -1,4 +1,33 @@
 export const ar = {
+  // Bulk video organization
+  bulkInvalidVideos: "الوسوم المحفوظة تالفة في {count} من مقاطع الفيديو المحددة. لم يتم تغيير أي فيديو. استبعد هذه المقاطع للمتابعة أو أصلح الوسوم.",
+  bulkRemoveInvalid: "استبعاد المقاطع التالفة",
+  bulkRequestNotSent: "تعذر إرسال الطلب. لم يتم تغيير أي فيديو. يرجى إعادة المحاولة.",
+  bulkSelectVideos: "تحديد الفيديوهات",
+  bulkExitSelection: "إنهاء التحديد",
+  bulkSelectedCount: "تم تحديد {count} فيديو",
+  bulkSelectPage: "تحديد الصفحة الحالية",
+  bulkSelectResults: "تحديد النتائج ({count})",
+  bulkClearSelection: "مسح التحديد",
+  bulkSelectionLimit: "Select up to 500 videos. Narrow the filter or select videos individually.",
+  bulkTagsTitle: "Add tags to {count} videos",
+  bulkTagsHint: "Existing tags are preserved. Only the selected tags will be added.",
+  bulkTagsValidation: "Add 1–20 tags, up to 80 characters each. Press Enter to add a tag.",
+  bulkCollectionTitle: "Add {count} videos to a collection",
+  bulkCollectionHint: "Existing collection memberships and video file locations are preserved.",
+  bulkExistingCollection: "مجموعة موجودة",
+  bulkNewCollection: "مجموعة جديدة",
+  bulkCollectionNameHint: "1–200 characters; no filesystem-reserved characters.",
+  bulkAddToCollection: "إضافة إلى مجموعة",
+  bulkSelectVideo: "تحديد {title}",
+  bulkSaved: "Updated {changed} videos; {unchanged} needed no changes.",
+  bulkUnchanged: "All selected videos already have these tags or collection membership.",
+  bulkSavedRefreshFailed: "Saved, but the list could not refresh. Refresh the page to see the changes.",
+  bulkMissingVideos: "{count} selected videos no longer exist. This request changed no videos.",
+  bulkRemoveMissing: "Remove unavailable videos",
+  bulkCollectionConflict: "This collection name already exists. Choose the existing collection to continue.",
+  bulkRequestUnknown: "No response was received. The operation may have completed. Retrying these same choices is safe.",
+
   // Header
   myTube: "MyTube",
   // Auto Delete (library-wide age-based cleanup)
@@ -665,8 +694,6 @@ export const ar = {
   refreshFileSizesError: "فشل تحديث أحجام الملفات: {error}",
   noVideosFoundMatching: "لم يتم العثور على فيديوهات مطابقة لبحثك.",
   refreshThumbnail: "تحديث الصورة المصغرة",
-  selected: "محدد",
-  moveCollection: "نقل إلى المجموعة",
   confirmBulkDelete:
     "هل أنت متأكد أنك تريد حذف هذه الفيديوهات؟ لا يمكن التراجع عن هذا الإجراء.",
 

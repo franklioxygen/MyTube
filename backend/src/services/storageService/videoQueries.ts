@@ -1,21 +1,21 @@
-import { and, desc, eq, isNull, or } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, or } from "drizzle-orm";
 import { db } from "../../db";
 import { videos } from "../../db/schema";
 import { DatabaseError } from "../../errors/DownloadErrors";
 import { logger } from "../../utils/logger";
+import { isSubtitleArray } from "./types";
 
 export type VideoCallerRole = "admin" | "visitor";
 
 function parseVideoMetadata(id: string, field: "tags" | "subtitles", value: string | null) {
   try {
     const parsed: unknown = value ? JSON.parse(value) : [];
-    if (!Array.isArray(parsed) || (field === "subtitles" && parsed.some((item) =>
-      !item || typeof item !== "object" ||
-      (item.path != null && typeof item.path !== "string") ||
-      (item.filename != null && typeof item.filename !== "string") ||
-      (typeof item.path !== "string" && typeof item.filename !== "string")
-    ))) throw new Error("Expected an array of valid metadata entries");
-    return parsed;
+    if (!Array.isArray(parsed) || (field === "subtitles" && !isSubtitleArray(parsed))) {
+      throw new Error("Expected an array of valid metadata entries");
+    }
+    // Legacy arrays may contain non-string entries written before API validation.
+    // Keep reads usable without rewriting stored data; write paths validate separately.
+    return field === "tags" ? parsed.filter((tag): tag is string => typeof tag === "string") : parsed;
   } catch (error) {
     throw new DatabaseError(
       `Cannot read video library: video ${id} has invalid ${field} metadata. Repair this record before deleting files.`,
@@ -23,6 +23,23 @@ function parseVideoMetadata(id: string, field: "tags" | "subtitles", value: stri
       "readVideoMetadata"
     );
   }
+}
+
+/** Shared metadata validation for list, detail, and export reads. */
+export function mapVideoRow(row: typeof videos.$inferSelect): import("./types").Video {
+  return {
+    ...row,
+    tags: parseVideoMetadata(row.id, "tags", row.tags),
+    subtitles: row.subtitles ? parseVideoMetadata(row.id, "subtitles", row.subtitles) : undefined,
+  } as import("./types").Video;
+}
+
+/** Sidecar ownership depends on paths, never on tags or subtitles being readable. */
+export function getMediaServerArtifactOwners(): import("./types").Video[] {
+  return db.select({
+    id: videos.id, title: videos.title, createdAt: videos.createdAt, sourceUrl: videos.sourceUrl,
+    videoPath: videos.videoPath,
+  }).from(videos).all() as import("./types").Video[];
 }
 
 /** Ownership checks do not need tags, descriptions, or playback metadata. */
@@ -68,6 +85,22 @@ export function getVideos(
   }
 }
 
+/** Read-only export input: skip damaged records without weakening ownership checks. */
+export function getVideosForExport(ids?: readonly string[]): import("./types").Video[] {
+  if (ids?.length === 0) return [];
+  const query = db.select().from(videos).orderBy(desc(videos.createdAt));
+  const rows = ids ? query.where(inArray(videos.id, [...ids])).all() : query.all();
+  const result: import("./types").Video[] = [];
+  for (const row of rows) {
+    try {
+      result.push(mapVideoRow(row));
+    } catch (error) {
+      logger.error("Skipping damaged video during media export", error, { videoId: row.id });
+    }
+  }
+  return result;
+}
+
 export function getVideosStrict(
   role?: VideoCallerRole
 ): import("./types").Video[] {
@@ -80,11 +113,7 @@ export function getVideosStrict(
       role === "visitor"
         ? baseQuery.where(publicOnlyVisitorFilter()).all()
         : baseQuery.all();
-    return allVideos.map((v) => ({
-      ...v,
-      tags: parseVideoMetadata(v.id, "tags", v.tags),
-      subtitles: v.subtitles ? parseVideoMetadata(v.id, "subtitles", v.subtitles) : undefined,
-    })) as import("./types").Video[];
+    return allVideos.map(mapVideoRow);
   } catch (error) {
     logger.error(
       "Error getting videos",
@@ -177,7 +206,7 @@ export function getVideoSummaries(
     const allVideos = pagedQuery.all();
     return allVideos.map((v) => ({
       ...v,
-      tags: v.tags ? JSON.parse(v.tags) : [],
+      tags: parseVideoMetadata(v.id, "tags", v.tags),
     })) as import("./types").Video[];
   } catch (error) {
     logger.error(
@@ -210,11 +239,7 @@ export function getVideoBySourceUrl(
     const result = db.select().from(videos).where(condition).get();
 
     if (result) {
-      return {
-        ...result,
-        tags: result.tags ? JSON.parse(result.tags) : [],
-        subtitles: result.subtitles ? JSON.parse(result.subtitles) : undefined,
-      } as import("./types").Video;
+      return mapVideoRow(result);
     }
     return undefined;
   } catch (error) {
@@ -245,11 +270,7 @@ export function getVideoById(
             .get()
         : baseQuery.where(eq(videos.id, id)).get();
     if (video) {
-      return {
-        ...video,
-        tags: video.tags ? JSON.parse(video.tags) : [],
-        subtitles: video.subtitles ? JSON.parse(video.subtitles) : undefined,
-      } as import("./types").Video;
+      return mapVideoRow(video);
     }
     return undefined;
   } catch (error) {

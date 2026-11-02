@@ -1,5 +1,6 @@
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { fireEvent, render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Video } from '../../types';
 import VideoCard from '../VideoCard';
@@ -217,5 +218,54 @@ describe('VideoCard', () => {
 
         expect(mockHoverMouseEnter).toHaveBeenCalled();
         expect(mockPrefetchVideo).toHaveBeenCalled();
+    });
+
+    it('toggles selection exactly once without navigating or opening video actions', () => {
+        const toggle = vi.fn();
+        render(<ThemeProvider theme={createTheme()}>
+            <VideoCard video={mockVideo} selectionMode onSelectionToggle={toggle} />
+        </ThemeProvider>);
+        fireEvent.click(screen.getByRole('checkbox', { name: 'bulkSelectVideo' }));
+        expect(toggle).toHaveBeenCalledExactlyOnceWith('123');
+        fireEvent.click(screen.getByText('Test Video'));
+        expect(toggle).toHaveBeenCalledTimes(2);
+        fireEvent.click(screen.getByText('Test Author'));
+        expect(toggle).toHaveBeenCalledTimes(3);
+        expect(mockNavigate).not.toHaveBeenCalled();
+        expect(screen.queryByText('Delete Mock')).not.toBeInTheDocument();
+        const card = screen.getByText('Test Video').closest('.MuiCard-root') as HTMLElement;
+        fireEvent.mouseEnter(card);
+        expect(mockPrefetchVideo).not.toHaveBeenCalled();
+        expect(mockHoverMouseEnter).not.toHaveBeenCalled();
+        expect(screen.getByRole('checkbox').closest('button')).toBeNull();
+    });
+
+    it('updates memoized selection state and disables toggling while pending', () => {
+        const toggle = vi.fn();
+        const theme = createTheme();
+        const { rerender } = render(<ThemeProvider theme={theme}>
+            <VideoCard video={mockVideo} selectionMode selected={false} onSelectionToggle={toggle} />
+        </ThemeProvider>);
+        expect(screen.getByRole('checkbox')).not.toBeChecked();
+        rerender(<ThemeProvider theme={theme}>
+            <VideoCard video={mockVideo} selectionMode selected selectionDisabled onSelectionToggle={toggle} />
+        </ThemeProvider>);
+        expect(screen.getByRole('checkbox')).toBeChecked();
+        expect(screen.getByRole('checkbox')).toBeDisabled();
+        fireEvent.click(screen.getByText('Test Video'));
+        expect(toggle).not.toHaveBeenCalled();
+    });
+
+    it('supports keyboard selection through the checkbox', async () => {
+        const user = userEvent.setup();
+        const toggle = vi.fn();
+        render(<ThemeProvider theme={createTheme()}>
+            <VideoCard video={mockVideo} selectionMode onSelectionToggle={toggle} />
+        </ThemeProvider>);
+        await user.tab();
+        expect(screen.getByRole('checkbox')).toHaveFocus();
+        await user.keyboard('[Space]');
+        expect(toggle).toHaveBeenCalledExactlyOnceWith('123');
+        expect(mockNavigate).not.toHaveBeenCalled();
     });
 });

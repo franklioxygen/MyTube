@@ -25,6 +25,7 @@ export interface MediaServerExportPlan {
 }
 
 export interface SyncMediaServerArtifactsOptions {
+  loadLibraryVideos?: () => Video[];
   rawSourceInfo?: unknown;
   libraryVideos?: Video[];
   modeOverride?: Exclude<MediaServerExportMode, "off">;

@@ -1,5 +1,5 @@
 import { Grid } from '@mui/material';
-import React, { useMemo } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { VirtuosoGrid } from 'react-virtuoso';
 import { Video } from '../types';
 
@@ -16,6 +16,8 @@ interface VirtualizedVideoGridProps {
     gridProps: GridProps;
     renderVideoItem: (video: Video, index: number) => React.ReactNode;
 }
+
+const computeVideoKey = (_index: number, video: Video) => video.id;
 
 const VirtualizedVideoGrid: React.FC<VirtualizedVideoGridProps> = ({
     sortedVideos,
@@ -62,16 +64,17 @@ const VirtualizedVideoGrid: React.FC<VirtualizedVideoGridProps> = ({
         return Item;
     }, [gridProps]);
 
+    const components = useMemo(() => ({ List: VirtuosoList, Item: VirtuosoItem }), [VirtuosoList, VirtuosoItem]);
+    const itemContent = useCallback((index: number, video: Video) => renderVideoItem(video, index), [renderVideoItem]);
+
     return (
         <VirtuosoGrid
             useWindowScroll
             data={sortedVideos}
-            components={{
-                List: VirtuosoList,
-                Item: VirtuosoItem
-            }}
+            computeItemKey={computeVideoKey}
+            components={components}
             overscan={5}
-            itemContent={(index, video) => renderVideoItem(video, index)}
+            itemContent={itemContent}
         />
     );
 };

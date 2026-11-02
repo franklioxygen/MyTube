@@ -1,6 +1,7 @@
 import { Grid, useMediaQuery, useTheme } from '@mui/material';
 import React, { Suspense, useCallback, useMemo } from 'react';
 import { ViewMode } from '../hooks/useViewMode';
+import type { VideoSelection } from '../hooks/useVideoSelection';
 import { Collection, Video } from '../types';
 import { lazyWithRetry } from '../utils/lazyWithRetry';
 import CollectionCard from './CollectionCard';
@@ -20,6 +21,7 @@ interface GridProps {
 }
 
 interface VideoGridProps {
+    selection?: VideoSelection;
     videos: Video[];
     sortedVideos: Video[];
     displayedVideos: Video[];
@@ -33,6 +35,7 @@ interface VideoGridProps {
 }
 
 export const VideoGrid: React.FC<VideoGridProps> = ({
+    selection,
     videos,
     sortedVideos,
     displayedVideos,
@@ -56,6 +59,11 @@ export const VideoGrid: React.FC<VideoGridProps> = ({
         return map;
     }, [collections]);
 
+    const selectionMode = selection?.active;
+    const selectedIds = selection?.selectedIds;
+    const selectionDisabled = selection?.locked;
+    const onSelectionToggle = selection?.toggle;
+
     const renderVideoItem = useCallback((video: Video, index?: number) => {
         const eagerImageCount = isMobile ? 1 : 3;
         const isHeroImage = index === 0;
@@ -65,6 +73,10 @@ export const VideoGrid: React.FC<VideoGridProps> = ({
         if (viewMode === 'all-videos' || viewMode === 'history') {
             return (
                 <VideoCard
+                    selectionMode={selectionMode}
+                    selected={selectedIds?.has(video.id)}
+                    selectionDisabled={selectionDisabled}
+                    onSelectionToggle={onSelectionToggle}
                     video={video}
                     collections={collections}
                     disableCollectionGrouping={true}
@@ -111,7 +123,11 @@ export const VideoGrid: React.FC<VideoGridProps> = ({
         onTagToggle,
         showTagsOnThumbnail,
         videos,
-        viewMode
+        viewMode,
+        selectionMode,
+        selectedIds,
+        selectionDisabled,
+        onSelectionToggle
     ]);
 
     const renderRegularGrid = (items: Video[]) => (
