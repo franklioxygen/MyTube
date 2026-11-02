@@ -1,0 +1,65 @@
+name: yt-dlp macOS Compatibility
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'backend/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/master.yml'
+      - '.github/workflows/ytdlp-macos.yml'
+  pull_request:
+    branches: [master]
+    paths:
+      - 'backend/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/master.yml'
+      - '.github/workflows/ytdlp-macos.yml'
+  schedule:
+    - cron: '23 8 * * 1' # Mondays at 08:23 UTC, on the default branch.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ytdlp-macos-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # This workflow uses path filters, so it must not be a required PR check:
+  # GitHub leaves required checks pending when their workflow is filtered out.
+  ytdlp-release-store:
+    name: yt-dlp release store (macos-latest)
+    runs-on: macos-latest
+    env:
+      SKIP_FFMPEG_AUTO_INSTALL: '1'
+      SKIP_PROVIDER_BUILD: '1'
+      PUPPETEER_SKIP_DOWNLOAD: '1'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js 22.23.4
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.23.4
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install Backend Dependencies
+        working-directory: backend
+        run: npm ci
+
+      - name: Test yt-dlp Release Store
+        working-directory: backend
+        run: >-
+          npx vitest run
+          src/__tests__/utils/ytdlpManagedRelease.test.ts
+          src/__tests__/utils/ytdlpReleaseConcurrency.test.ts
+          src/__tests__/utils/ytdlpReleaseFailureInjection.test.ts
+          src/__tests__/utils/ytdlpReleaseIntegration.test.ts
+          src/__tests__/utils/ytdlpReleaseValidation.test.ts
+          src/__tests__/utils/ytdlpSpawnBoundary.test.ts
