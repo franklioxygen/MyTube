@@ -1,4 +1,5 @@
 import axios from "axios";
+import { BilibiliSearchUnavailableError } from "../../../errors/BilibiliSearchError";
 import { logger } from "../../../utils/logger";
 import { getUserYtDlpConfig } from "../../../utils/ytDlpUtils";
 import { resolveProxiedAxiosConfig } from "./bilibiliConfig";
@@ -9,7 +10,8 @@ const SEARCH_ENDPOINT =
   "https://api.bilibili.com/x/web-interface/wbi/search/type";
 // The endpoint's maximum, so a page of results usually costs one request.
 const UPSTREAM_PAGE_SIZE = 50;
-// A hard ceiling on the outbound requests one call may make. `offset` is not
+// A hard ceiling on the upstream pages one call may read, plus at most one
+// additional request to retry a cookie rejection anonymously. `offset` is not
 // capped by the controller, so without this a single request carrying a large
 // one is amplified into as many upstream requests as it takes to walk there -
 // tying up the handler and spending Bilibili's rate limit - and the only thing
@@ -137,52 +139,84 @@ export function formatSearchEntry(
 }
 
 /**
- * Fetch one upstream page. Returns null when the API refused the request, which
- * the caller must not confuse with a page that legitimately held nothing.
+ * Fetch one upstream page. Failures must never look like a successful empty page.
  */
 async function fetchSearchPage(
   query: string,
   page: number,
-  axiosConfig: Record<string, unknown>
-): Promise<BilibiliSearchEntry[] | null> {
-  // This endpoint is WBI-gated. Unsigned requests still succeed from
-  // un-challenged IPs but come back `code: -352` from datacenter ranges, which
-  // is where most self-hosted instances run.
-  const requestUrl = await buildSignedBilibiliUrl(
-    SEARCH_ENDPOINT,
-    {
-      search_type: "video",
-      keyword: query,
-      page,
-      page_size: UPSTREAM_PAGE_SIZE,
-    },
-    axiosConfig
-  );
+  axiosConfig: Record<string, unknown>,
+  requestState: { headers: Record<string, string>; anonymousRetryUsed: boolean }
+): Promise<BilibiliSearchEntry[]> {
+  try {
+    // This endpoint is WBI-gated. Unsigned requests still succeed from
+    // un-challenged IPs but come back `code: -352` from datacenter ranges, which
+    // is where most self-hosted instances run.
+    const encodedParams = new URL(await buildSignedBilibiliUrl(
+      SEARCH_ENDPOINT,
+      {
+        search_type: "video",
+        keyword: query,
+        page,
+        page_size: UPSTREAM_PAGE_SIZE,
+      },
+      axiosConfig
+    )).search.slice(1);
 
-  // The SSRF rule's taint source is the first parameter of any function taking
-  // two or more - it assumes an Express `(req, res)` handler - so `query` here
-  // is treated as attacker-controlled request data. It is not a URL: requestUrl
-  // is built from the SEARCH_ENDPOINT constant above, and every param the
-  // caller supplies, the keyword included, is percent-encoded into the query
-  // string by both the signed and unsigned branches of buildSignedBilibiliUrl,
-  // so the host is not reachable from it.
-  // nosemgrep: rules_lgpl_javascript_ssrf_rule-node-ssrf
-  const response = await axios.get(requestUrl, {
-    ...axiosConfig,
-    headers: buildBilibiliApiHeaders(requestUrl),
-  });
+    const fetchPage = async () => {
+      try {
+        return await axios.get(SEARCH_ENDPOINT, {
+          ...axiosConfig,
+          params: new URLSearchParams(encodedParams),
+          // Preserve the exact encoding used to calculate the WBI signature.
+          paramsSerializer: { serialize: () => encodedParams },
+          headers: requestState.headers,
+        });
+      } catch (error) {
+        if (axios.isAxiosError(error) && error.response?.status === 412) return error.response;
+        throw error;
+      }
+    };
+    const isRiskControlled = (response: { status?: number; data?: { code?: number; data?: { v_voucher?: unknown } } }): boolean =>
+      response.status === 412 || response.data?.code === -352 || response.data?.code === -412 ||
+      typeof response.data?.data?.v_voucher === "string";
+    let response = await fetchPage();
+    if (isRiskControlled(response) && requestState.headers.Cookie && !requestState.anonymousRetryUsed) {
+      requestState.headers = { ...requestState.headers };
+      delete requestState.headers.Cookie;
+      requestState.anonymousRetryUsed = true;
+      logger.warn("Bilibili video search cookie was rejected; retrying the public API anonymously");
+      response = await fetchPage();
+    }
+    if (isRiskControlled(response)) {
+      logger.warn("Bilibili video search was blocked by upstream risk control", {
+        page, httpStatus: response.status,
+        apiCode: typeof response.data?.code === "number" ? response.data.code : undefined,
+      });
+      throw new BilibiliSearchUnavailableError("BILIBILI_SEARCH_RISK_CONTROLLED");
+    }
 
-  const data = response.data;
-  if (!data || data.code !== 0) {
-    // Risk control answers HTTP 200 with a non-zero code, so this is the only
-    // place the failure is visible.
-    logger.warn(
-      `Bilibili search failed for "${query}": code ${data?.code}, message ${data?.message}`
-    );
-    return null;
+    const data = response.data;
+    if (!data || data.code !== 0) {
+      logger.warn("Bilibili video search returned an unexpected API response", {
+        page, httpStatus: response.status,
+        apiCode: typeof data?.code === "number" ? data.code : undefined,
+      });
+      throw new BilibiliSearchUnavailableError();
+    }
+
+    if (Array.isArray(data.data?.result)) return data.data.result;
+    if (data.data?.numResults === 0) return [];
+    logger.warn("Bilibili video search response had no result array", { page });
+    throw new BilibiliSearchUnavailableError();
+  } catch (error) {
+    if (error instanceof BilibiliSearchUnavailableError) throw error;
+    // Exception messages/configs can contain proxy credentials, cookies or URLs.
+    const axiosError = axios.isAxiosError(error) ? error : undefined;
+    logger.warn("Bilibili video search request failed", {
+      page, errorCode: axiosError?.code, httpStatus: axiosError?.response?.status,
+    });
+    throw new BilibiliSearchUnavailableError();
   }
-
-  return Array.isArray(data.data?.result) ? data.data.result : [];
 }
 
 /**
@@ -215,13 +249,15 @@ export async function searchVideos(
   );
 
   const userConfig = getUserYtDlpConfig(BILIBILI_CONFIG_URL);
-  const axiosConfig = resolveProxiedAxiosConfig(userConfig);
-  if (!axiosConfig) {
+  const proxyConfig = resolveProxiedAxiosConfig(userConfig);
+  if (!proxyConfig) {
     logger.warn(
       "Skipping Bilibili search: proxy is configured but unusable"
     );
-    return [];
+    throw new BilibiliSearchUnavailableError();
   }
+  const axiosConfig = { ...proxyConfig, timeout: 10_000, maxRedirects: 0, maxContentLength: 2 * 1024 * 1024 };
+  const requestState = { headers: buildBilibiliApiHeaders(SEARCH_ENDPOINT), anonymousRetryUsed: false };
 
   const skip = Math.max(0, offset - 1);
   const wanted = Math.max(1, limit);
@@ -232,10 +268,7 @@ export async function searchVideos(
   // reports its final (short) page, or the request ceiling is reached.
   let reachedPageCeiling = false;
   for (let page = 1; page <= MAX_UPSTREAM_PAGES; page += 1) {
-    const entries = await fetchSearchPage(query, page, axiosConfig);
-    if (entries === null) {
-      break;
-    }
+    const entries = await fetchSearchPage(query, page, axiosConfig, requestState);
 
     for (const entry of entries) {
       const formatted = formatSearchEntry(entry);

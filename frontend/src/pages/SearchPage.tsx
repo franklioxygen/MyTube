@@ -7,6 +7,7 @@ import {
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import ExternalSearchSection from '../components/ExternalSearchSection';
+import AuthorSearchSection from '../components/AuthorSearchSection';
 import SortControl from '../components/SortControl';
 import VideoCard from '../components/VideoCard';
 import { useCollection } from '../contexts/CollectionContext';
@@ -31,6 +32,7 @@ const SearchPage: React.FC = () => {
         loadingMore,
         bilibiliSearchResults,
         bilibiliLoading,
+        bilibiliSearchError,
         showBilibiliSearch,
         loadMoreBilibiliSearchResults,
         loadingMoreBilibili
@@ -187,13 +189,16 @@ const SearchPage: React.FC = () => {
                         heading={t('fromBilibili')}
                         loadingLabel={t('loadingBilibiliResults')}
                         emptyLabel={t('noBilibiliResults')}
+                        errorLabel={bilibiliSearchError ? t(bilibiliSearchError === 'risk_control' ? 'bilibiliSearchRiskControlled' : 'bilibiliSearchFailed') : undefined}
+                        onRetry={loadMoreBilibiliSearchResults}
                         results={bilibiliSearchResults}
-                        loading={bilibiliLoading}
+                        loading={bilibiliLoading || (loadingMoreBilibili && bilibiliSearchResults.length === 0)}
                         loadingMore={loadingMoreBilibili}
                         onLoadMore={loadMoreBilibiliSearchResults}
                         onDownload={handleResultDownload}
                         downloadingIds={downloadingIds}
                     />
+                    {query?.trim() && <AuthorSearchSection key={query.trim()} query={query.trim()} />}
                 </Box>
             )}
         </Container>

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { AxiosError, AxiosRequestConfig } from "axios";
+import { AxiosError, AxiosRequestConfig, CanceledError } from "axios";
 import api, {
   apiClient,
   ensureCsrfToken,
@@ -289,6 +289,19 @@ describe("api wrappers", () => {
 });
 
 describe("api interceptors", () => {
+  it.each([false, true])("does not log intentional cancellation (request started: %s)", async (started) => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const handlers = (apiClient.interceptors.response as any).handlers;
+      const error = new CanceledError("canceled");
+      if (started) error.request = {};
+      await expect(handlers[0].rejected(error)).rejects.toBe(error);
+      expect(errorSpy).not.toHaveBeenCalled();
+    } finally {
+      errorSpy.mockRestore();
+    }
+  });
+
   it("attaches the latest CSRF token to request config and rejects request errors", async () => {
     const responseHandlers = (apiClient.interceptors.response as any).handlers;
     const onResponseFulfilled = responseHandlers?.[0]?.fulfilled as

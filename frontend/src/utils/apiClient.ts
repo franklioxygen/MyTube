@@ -70,6 +70,10 @@ if (apiClient?.interceptors?.response?.use) {
       return response;
     },
     (error: AxiosError) => {
+      // Query changes and unmounts intentionally abort obsolete requests.
+      if (error.code === "ERR_CANCELED") {
+        return Promise.reject(error);
+      }
       // Handle common error cases
       if (error.response) {
         // Server responded with error status

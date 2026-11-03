@@ -17,6 +17,7 @@ import * as userController from "../controllers/userController";
 import * as videoController from "../controllers/videoController";
 import * as videoDownloadController from "../controllers/videoDownloadController";
 import * as videoMetadataController from "../controllers/videoMetadataController";
+import { authorSearchLimiter, searchAuthors } from "../controllers/authorSearchController";
 import { asyncHandler } from "../middleware/errorHandler";
 import { requireAdmin } from "../middleware/requireAdmin";
 
@@ -43,6 +44,11 @@ const apiRouteDefinitions: ApiRouteDefinition[] = [
     handlers: [requireAdmin, asyncHandler(bulkVideoOrganizationController.addToCollection)],
   },
   // Video routes
+  {
+    method: "get",
+    path: "/search/authors",
+    handlers: [authorSearchLimiter, asyncHandler(searchAuthors)],
+  },
   {
     method: "get",
     path: "/search",
