@@ -1,4 +1,4 @@
-import { Alert, Avatar, Box, Button, Card, CardContent, CircularProgress, Grid, Link, Stack, TextField, Typography } from '@mui/material';
+import { Alert, Avatar, Box, Button, Card, CardContent, CircularProgress, Link, Stack, TextField, Typography } from '@mui/material';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { isAxiosError } from 'axios';
 import { useState } from 'react';
@@ -6,6 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useSnackbar } from '../contexts/SnackbarContext';
 import { SUBSCRIPTIONS_QUERY_KEY, useSubscriptions } from '../hooks/useSubscriptions';
+import { platform } from '../theme/colors';
 import { api } from '../utils/apiClient';
 import { getBilibiliAuthorId } from '../utils/bilibiliAuthor';
 import { resolveSubscriptionErrorMessage } from '../utils/subscriptionErrors';
@@ -53,6 +54,9 @@ const AuthorSearchSection = ({ query }: { query: string }) => {
         },
         staleTime: 60_000,
         retry: false,
+        // A page turn keeps the current cards up so the section doesn't collapse
+        // and jump the scroll position; a new lookup still shows the loading state.
+        placeholderData: (previous, previousQuery) => (previousQuery?.queryKey[2] === lookupQuery ? previous : undefined),
     });
     const subscriptions = useSubscriptions<SubscriptionRecord[]>({ enabled: canSubscribe });
     const existingIds = new Set((subscriptions.data ?? [])
@@ -86,27 +90,33 @@ const AuthorSearchSection = ({ query }: { query: string }) => {
     };
 
     return (
-        <Box component="section" aria-label={t('bilibiliAuthors')} sx={{ mt: 4 }}>
-            <Typography component="h2" variant="h5" fontWeight={600} gutterBottom>{t('bilibiliAuthors')}</Typography>
-            <Typography color="text.secondary" sx={{ mb: 2 }}>{t('authorSearchHint')}</Typography>
-            <Box component="form" onSubmit={(event) => {
-                event.preventDefault();
-                if (!input.trim()) return;
-                setSelectedAuthor(null);
-                setPage(1);
-                setLookupQuery(input.trim());
-            }} sx={{ display: 'flex', gap: 1, mb: 2, alignItems: 'center' }}>
-                <TextField label={t('authorLookupLabel')} value={input} onChange={(event) => setInput(event.target.value)}
-                    size="small" fullWidth slotProps={{ htmlInput: { maxLength: 100 } }} />
-                <Button type="submit" variant="outlined" disabled={!input.trim()}>{t('search')}</Button>
+        <Box component="section" aria-label={t('bilibiliAuthors')} sx={{ mt: 6 }}>
+            <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, alignItems: { md: 'center' }, justifyContent: 'space-between', gap: 2, mb: 3 }}>
+                <Box sx={{ minWidth: 0 }}>
+                    <Typography component="h2" variant="h5" sx={{ fontWeight: 600, color: platform.bilibili }}>{t('bilibiliAuthors')}</Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>{t('authorSearchHint')}</Typography>
+                </Box>
+                <Box component="form" onSubmit={(event) => {
+                    event.preventDefault();
+                    if (!input.trim()) return;
+                    setSelectedAuthor(null);
+                    setPage(1);
+                    setLookupQuery(input.trim());
+                }} sx={{ display: 'flex', gap: 1, flexShrink: 0, width: { xs: '100%', md: 420 } }}>
+                    <TextField label={t('authorLookupLabel')} value={input} onChange={(event) => setInput(event.target.value)}
+                        size="small" fullWidth slotProps={{ htmlInput: { maxLength: 100 } }} />
+                    <Button type="submit" variant="outlined" sx={{ flexShrink: 0 }} disabled={!input.trim()}>{t('search')}</Button>
+                </Box>
             </Box>
             {authors.isPending ? (
-                <Stack direction="row" spacing={2} alignItems="center" role="status">
-                    <CircularProgress size={24} /><Typography>{t('loadingAuthors')}</Typography>
-                </Stack>
+                <Box role="status" sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 4 }}>
+                    <CircularProgress sx={{ color: platform.bilibili }} />
+                    <Typography sx={{ mt: 2 }}>{t('loadingAuthors')}</Typography>
+                </Box>
             ) : authors.isError ? (
                 <Alert severity="warning" action={<Button color="inherit" onClick={() => { void authors.refetch(); }}>{t('retry')}</Button>}>
-                    {t('authorSearchFailed')}
+                    {t(isAxiosError<{ code?: string }>(authors.error) && authors.error.response?.data?.code === 'AUTHOR_SEARCH_RISK_CONTROLLED'
+                        ? 'authorSearchRiskControlled' : 'authorSearchFailed')}
                 </Alert>
             ) : (
                 <>
@@ -115,41 +125,41 @@ const AuthorSearchSection = ({ query }: { query: string }) => {
                             {t('authorSubscriptionStatusFailed')}
                         </Alert>
                     )}
-                    {authors.data.results.length === 0 ? <Typography>{t('noAuthorsFound')}</Typography> : (
-                        <Grid container spacing={2}>
+                    {authors.data.results.length === 0 ? <Typography color="text.secondary">{t('noAuthorsFound')}</Typography> : (
+                        // The 300px minimum and 24px column gap line up with the
+                        // four-column video grid above on desktop widths.
+                        <Box aria-busy={authors.isPlaceholderData} sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 300px), 1fr))', columnGap: 3, rowGap: 2, opacity: authors.isPlaceholderData ? 0.5 : 1 }}>
                             {authors.data.results.map((author) => {
                                 const subscribed = subscribedIds.has(author.authorId) || existingIds.has(author.authorId);
                                 return (
-                                    <Grid key={author.authorId} size={{ xs: 12, sm: 6, lg: 4 }}>
-                                        <Card sx={{ height: '100%' }}>
-                                            <CardContent>
-                                                <Stack direction="row" spacing={2} alignItems="center">
-                                                    <Avatar src={author.avatarUrl} slotProps={{ img: { referrerPolicy: 'no-referrer' } }}>{author.displayName.charAt(0)}</Avatar>
-                                                    <Box sx={{ minWidth: 0, flex: 1 }}>
-                                                        <Link href={`https://space.bilibili.com/${author.authorId}`} target="_blank" rel="noopener noreferrer" sx={{ overflowWrap: 'anywhere' }}>
-                                                            {author.displayName}
-                                                        </Link>
-                                                        <Typography variant="body2" color="text.secondary">Bilibili · UID {author.authorId}</Typography>
-                                                    </Box>
-                                                </Stack>
-                                                {canSubscribe && (
-                                                    <Button variant="outlined" sx={{ mt: 2 }} disabled={subscribed || subscriptions.isPending || subscriptions.isError}
-                                                        onClick={() => setSelectedAuthor(author)}>
-                                                        {subscribed ? t('authorAlreadySubscribed') : t('subscribe')}
-                                                    </Button>
-                                                )}
-                                            </CardContent>
-                                        </Card>
-                                    </Grid>
+                                    <Card key={author.authorId}>
+                                        <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 1.5, height: '100%', p: 2, '&:last-child': { pb: 2 } }}>
+                                            <Avatar src={author.avatarUrl} sx={{ width: 44, height: 44, bgcolor: 'action.selected', color: 'text.secondary' }} slotProps={{ img: { referrerPolicy: 'no-referrer' } }}>{author.displayName.charAt(0)}</Avatar>
+                                            <Box sx={{ minWidth: 0, flex: 1 }}>
+                                                <Link href={`https://space.bilibili.com/${author.authorId}`} target="_blank" rel="noopener noreferrer" title={author.displayName} underline="hover" color="text.primary"
+                                                    sx={{ fontWeight: 600, lineHeight: 1.3, overflowWrap: 'anywhere', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                                                    {author.displayName}
+                                                </Link>
+                                                <Typography variant="caption" color="text.secondary" noWrap title={`UID ${author.authorId}`} sx={{ display: 'block' }}>UID {author.authorId}</Typography>
+                                            </Box>
+                                            {canSubscribe && (
+                                                // Long labels wrap rather than squeezing the author name out.
+                                                <Button size="small" variant="outlined" sx={{ flexShrink: 0, maxWidth: 110 }} disabled={subscribed || subscriptions.isPending || subscriptions.isError}
+                                                    onClick={() => setSelectedAuthor(author)}>
+                                                    {subscribed ? t('authorAlreadySubscribed') : t('subscribe')}
+                                                </Button>
+                                            )}
+                                        </CardContent>
+                                    </Card>
                                 );
                             })}
-                        </Grid>
+                        </Box>
                     )}
                     {(page > 1 || authors.data.hasMore) && (
-                        <Stack direction="row" spacing={2} alignItems="center" sx={{ mt: 2 }}>
-                            <Button disabled={page === 1} onClick={() => setPage((value) => value - 1)}>{t('previous')}</Button>
-                            <Typography>{t('authorSearchPage', { page })}</Typography>
-                            <Button disabled={!authors.data.hasMore} onClick={() => setPage((value) => value + 1)}>{t('next')}</Button>
+                        <Stack direction="row" spacing={2} alignItems="center" justifyContent="center" sx={{ mt: 4 }}>
+                            <Button variant="outlined" disabled={page === 1} onClick={() => setPage((value) => value - 1)}>{t('previous')}</Button>
+                            <Typography color="text.secondary">{t('authorSearchPage', { page })}</Typography>
+                            <Button variant="outlined" disabled={!authors.data.hasMore || authors.isPlaceholderData} onClick={() => setPage((value) => value + 1)}>{t('next')}</Button>
                         </Stack>
                     )}
                 </>

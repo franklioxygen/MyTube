@@ -5,9 +5,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import AuthorSearchSection from '../AuthorSearchSection';
 import SearchPage from '../../pages/SearchPage';
 
-const mocks = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), snackbar: vi.fn(), download: vi.fn() }));
+const mocks = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), snackbar: vi.fn(), download: vi.fn(), retryVideo: vi.fn() }));
 let role = 'admin';
 let showBilibili = true;
+let videoSearchError: 'risk_control' | 'unavailable' | null = null;
 vi.mock('../../utils/apiClient', () => ({ api: { get: mocks.get, post: mocks.post } }));
 vi.mock('../../contexts/LanguageContext', () => ({ useLanguage: () => ({ t: (key: string) => key }) }));
 vi.mock('../../contexts/AuthContext', () => ({ useAuth: () => ({ userRole: role, loginRequired: true }) }));
@@ -21,6 +22,7 @@ vi.mock('../../contexts/VideoContext', () => ({ useVideo: () => ({
   handleSearch: vi.fn(), searchTerm: 'query', showYoutubeSearch: false,
   bilibiliSearchResults: [{ id: 'BV123', title: 'Usable video', source: 'bilibili', sourceUrl: 'https://www.bilibili.com/video/BV123' }],
   bilibiliLoading: false, showBilibiliSearch: showBilibili, downloadingIds: new Set(),
+  bilibiliSearchError: videoSearchError, loadingMoreBilibili: false, loadMoreBilibiliSearchResults: mocks.retryVideo,
 }) }));
 const author = (id = '123', name = 'Same name') => ({ platform: 'bilibili', authorId: id, displayName: name, channelUrl: `https://space.bilibili.com/${id}`, avatarUrl: '' });
 const page = (results = [author()], hasMore = false) => ({ data: { results, hasMore, page: 1, mode: 'keyword' } });
@@ -36,7 +38,7 @@ const renderSection = (query = 'query') => {
   return { client, ...render(<QueryClientProvider client={client}><AuthorSearchSection key={query} query={query} /></QueryClientProvider>) };
 };
 beforeEach(() => {
-  vi.clearAllMocks(); role = 'admin'; showBilibili = true; subscriptions = [];
+  vi.clearAllMocks(); role = 'admin'; showBilibili = true; videoSearchError = null; subscriptions = [];
   mocks.get.mockImplementation(async (path: string) => path === '/subscriptions' ? { data: subscriptions } : page());
   mocks.post.mockResolvedValue({ data: { subscription: { id: 'new' } } });
 });
@@ -96,6 +98,27 @@ describe('AuthorSearchSection', () => {
     fireEvent.click(screen.getByRole('button', { name: 'retry' }));
     expect(await screen.findByText('noAuthorsFound')).toBeInTheDocument();
   });
+  it('explains persistent Bilibili risk control and clears the warning after a successful retry', async () => {
+    mocks.get.mockImplementation(async (path: string) => path === '/subscriptions' ? { data: [] } : Promise.reject({
+      isAxiosError: true, response: { status: 502, data: { code: 'AUTHOR_SEARCH_RISK_CONTROLLED' } },
+    }));
+    renderSection();
+    expect(await screen.findByRole('alert')).toHaveTextContent('authorSearchRiskControlled');
+    expect(screen.queryByText('authorSearchFailed')).not.toBeInTheDocument();
+    expect(screen.queryByText('noAuthorsFound')).not.toBeInTheDocument();
+    mocks.get.mockImplementation(async (path: string) => path === '/subscriptions' ? { data: [] } : page());
+    fireEvent.click(screen.getByRole('button', { name: 'retry' }));
+    expect(await screen.findByRole('link', { name: 'Same name' })).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+  it.each(['AUTHOR_SEARCH_UNAVAILABLE', 'UNKNOWN_ERROR'])('keeps %s separate from risk control', async (code) => {
+    mocks.get.mockImplementation(async (path: string) => path === '/subscriptions' ? { data: [] } : Promise.reject({
+      isAxiosError: true, response: { status: 502, data: { code } },
+    }));
+    renderSection();
+    expect(await screen.findByRole('alert')).toHaveTextContent('authorSearchFailed');
+    expect(screen.queryByText('authorSearchRiskControlled')).not.toBeInTheDocument();
+  });
   it('blocks creates when subscription state cannot be loaded', async () => {
     mocks.get.mockImplementation(async (path: string) => path === '/subscriptions' ? Promise.reject(new Error('failed')) : page());
     renderSection();
@@ -109,10 +132,40 @@ describe('AuthorSearchSection', () => {
     });
     renderSection();
     fireEvent.click(await screen.findByRole('button', { name: 'next' }));
-    expect(await screen.findByText('Bilibili · UID 456')).toBeInTheDocument();
+    expect(await screen.findByText('UID 456')).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('authorLookupLabel'), { target: { value: 'https://space.bilibili.com/789' } });
     fireEvent.click(screen.getByRole('button', { name: 'search' }));
     await waitFor(() => expect(mocks.get).toHaveBeenCalledWith('/search/authors', expect.objectContaining({ params: { source: 'bilibili', query: 'https://space.bilibili.com/789', page: 1 } })));
+  });
+  it('keeps the current page visible and blocks further paging while the next page loads', async () => {
+    let resolveNext!: (value: ReturnType<typeof page>) => void;
+    mocks.get.mockImplementation(async (path: string, options: any) => {
+      if (path === '/subscriptions') return { data: [] };
+      if (options.params.page === 2) return new Promise((resolve) => { resolveNext = resolve; });
+      return page([author('123', 'First page')], true);
+    });
+    renderSection();
+    fireEvent.click(await screen.findByRole('button', { name: 'next' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'next' })).toBeDisabled());
+    expect(screen.getByRole('link', { name: 'First page' })).toBeInTheDocument();
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    await waitFor(() => expect(resolveNext).toBeDefined());
+    await act(async () => { resolveNext(page([author('456', 'Second page')])); });
+    expect(await screen.findByRole('link', { name: 'Second page' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'First page' })).not.toBeInTheDocument();
+  });
+  it('shows the loading state rather than old results while a new lookup loads', async () => {
+    mocks.get.mockImplementation(async (path: string, options: any) => {
+      if (path === '/subscriptions') return { data: [] };
+      if (options.params.query === 'other') return new Promise(() => {});
+      return page([author('123', 'Old lookup')]);
+    });
+    renderSection();
+    expect(await screen.findByRole('link', { name: 'Old lookup' })).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('authorLookupLabel'), { target: { value: 'other' } });
+    fireEvent.click(screen.getByRole('button', { name: 'search' }));
+    expect(await screen.findByRole('status')).toHaveTextContent('loadingAuthors');
+    expect(screen.queryByRole('link', { name: 'Old lookup' })).not.toBeInTheDocument();
   });
   it('never replaces a new query with a late response from an old query', async () => {
     let resolveOld!: (value: ReturnType<typeof page>) => void;
@@ -134,5 +187,14 @@ describe('AuthorSearchSection', () => {
     expect(screen.getByText('Usable video')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'download' }));
     expect(mocks.download).toHaveBeenCalledWith('https://www.bilibili.com/video/BV123', false, expect.any(Object));
+  });
+  it('wires the video failure and retry while leaving author results usable', async () => {
+    videoSearchError = 'risk_control';
+    render(<QueryClientProvider client={makeClient()}><MemoryRouter initialEntries={['/search?q=query']}><SearchPage /></MemoryRouter></QueryClientProvider>);
+    expect(screen.getByRole('alert')).toHaveTextContent('bilibiliSearchRiskControlled');
+    expect(await screen.findByRole('link', { name: 'Same name' })).toBeInTheDocument();
+    expect(screen.getByText('Usable video')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'retry' }));
+    expect(mocks.retryVideo).toHaveBeenCalledTimes(1);
   });
 });

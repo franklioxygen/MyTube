@@ -91,6 +91,8 @@ export const zh = {
   fromBilibili: "来自哔哩哔哩",
   loadingBilibiliResults: "加载哔哩哔哩结果中...",
   noBilibiliResults: "未找到哔哩哔哩结果",
+  bilibiliSearchFailed: "哔哩哔哩视频搜索失败，请重试或检查网络与代理设置。其他搜索结果仍可使用。",
+  bilibiliSearchRiskControlled: "Bilibili 要求安全校验（风控），视频搜索暂不可用。请尝试更新设置中的 Bilibili Cookie 后重试。其他搜索结果仍可使用。",
   noVideosYet: "暂无视频。提交视频链接以开始下载您的第一个视频！",
   views: "次观看",
 
@@ -1019,6 +1021,7 @@ export const zh = {
   loadingAuthors: "正在搜索作者…",
   noAuthorsFound: "未找到匹配的作者。",
   authorSearchFailed: "作者搜索暂不可用，请重试或使用 UID／作者主页查找。视频结果仍可使用。",
+  authorSearchRiskControlled: "Bilibili 要求安全校验（风控），作者搜索暂不可用。请尝试更新设置中的 Bilibili Cookie，或使用 UID／作者主页精准查找。",
   authorSubscriptionStatusFailed: "无法获取订阅状态，请重试后再订阅。",
   authorAlreadySubscribed: "已订阅",
   authorSearchPage: "第 {page} 页",

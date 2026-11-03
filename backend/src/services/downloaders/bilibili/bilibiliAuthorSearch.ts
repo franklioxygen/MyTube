@@ -1,5 +1,6 @@
 import axios from "axios";
 import { getBilibiliAuthorId } from "../../../utils/bilibiliAuthor";
+import { logger } from "../../../utils/logger";
 import { resolveProxiedAxiosConfigForUrl } from "./bilibiliConfig";
 import { buildBilibiliApiHeaders } from "./bilibiliHeaders";
 import { stripSearchHighlight } from "./bilibiliSearch";
@@ -21,8 +22,10 @@ export interface AuthorSearchPage {
 }
 
 export class AuthorSearchUnavailableError extends Error {
-  constructor() {
-    super("Bilibili author search is unavailable. Please retry later or look up an author by UID or profile URL.");
+  constructor(readonly code: "AUTHOR_SEARCH_UNAVAILABLE" | "AUTHOR_SEARCH_RISK_CONTROLLED" = "AUTHOR_SEARCH_UNAVAILABLE") {
+    super(code === "AUTHOR_SEARCH_RISK_CONTROLLED"
+      ? "Bilibili requires a security check. Try updating the Bilibili cookie in Settings, or look up an author by UID or profile URL."
+      : "Bilibili author search is unavailable. Please retry later or look up an author by UID or profile URL.");
   }
 }
 
@@ -68,13 +71,39 @@ export async function searchBilibiliAuthors(query: string, page: number): Promis
       : new URL(await buildSignedBilibiliUrl(endpoint, {
         search_type: "bili_user", keyword: query, page, page_size: 20,
       }, config)).search.slice(1);
-    const { data } = await axios.get(endpoint, {
+    const requestConfig = {
       ...config,
       params: new URLSearchParams(encodedParams),
       // WBI signatures depend on the original query encoding (including %20 for spaces).
       paramsSerializer: { serialize: () => encodedParams },
-      headers: buildBilibiliApiHeaders(endpoint),
-    });
+    };
+    const fetchPage = async (headers: Record<string, string>) => {
+      try {
+        return await axios.get(endpoint, { ...requestConfig, headers });
+      } catch (error) {
+        if (axios.isAxiosError(error) && error.response?.status === 412) return error.response;
+        throw error;
+      }
+    };
+    const isRiskControlled = (response: { status?: number; data?: { code?: number; data?: { v_voucher?: unknown } } }): boolean =>
+      response.status === 412 || response.data?.code === -352 || response.data?.code === -412 ||
+      typeof response.data?.data?.v_voucher === "string";
+    const headers = buildBilibiliApiHeaders(endpoint);
+    let response = await fetchPage(headers);
+    // These are public APIs. A stale/risk-controlled stored cookie can fail
+    // while the same public lookup succeeds anonymously. Retry once, on the
+    // same proxy, without modifying the saved cookie or retrying other errors.
+    if (headers.Cookie && isRiskControlled(response)) {
+      const anonymousHeaders = { ...headers };
+      delete anonymousHeaders.Cookie;
+      logger.warn("Bilibili author search cookie was rejected; retrying the public API anonymously");
+      response = await fetchPage(anonymousHeaders);
+    }
+    if (isRiskControlled(response)) {
+      logger.warn("Bilibili author search was blocked by upstream risk control");
+      throw new AuthorSearchUnavailableError("AUTHOR_SEARCH_RISK_CONTROLLED");
+    }
+    const { data } = response;
     if (id && data?.code === -404) return { results: [], page: 1, hasMore: false, mode };
     if (data?.code !== 0) throw new AuthorSearchUnavailableError();
     if (id) {
@@ -98,7 +127,8 @@ export async function searchBilibiliAuthors(query: string, page: number): Promis
     const numPages = data.data?.numPages;
     const hasMore = page < 10 && (typeof numPages === "number" ? page < numPages : entries.length >= 20);
     return { results: [...results.values()], page, hasMore, mode };
-  } catch {
+  } catch (error) {
+    if (error instanceof AuthorSearchUnavailableError) throw error;
     throw new AuthorSearchUnavailableError();
   }
 }

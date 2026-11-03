@@ -93,6 +93,8 @@ export const ja = {
   fromBilibili: "Bilibiliから",
   loadingBilibiliResults: "Bilibiliの結果を読み込み中...",
   noBilibiliResults: "Bilibiliの結果が見つかりません",
+  bilibiliSearchFailed: "Bilibili の動画検索に失敗しました。再試行するか、ネットワークとプロキシの設定を確認してください。他の検索結果は引き続き利用できます。",
+  bilibiliSearchRiskControlled: "Bilibili によるセキュリティ確認のため、動画検索を一時的に利用できません。設定で Bilibili の Cookie を更新してから再試行してください。他の検索結果は引き続き利用できます。",
   noVideosYet:
     "動画はまだありません。動画のURLを送信して最初の動画をダウンロードしましょう！",
   views: "回視聴",
@@ -1074,6 +1076,7 @@ export const ja = {
   loadingAuthors: "投稿者を検索中…",
   noAuthorsFound: "一致する投稿者が見つかりません。",
   authorSearchFailed: "投稿者を検索できません。再試行するか UID またはプロフィール URL を入力してください。動画の結果は引き続き利用できます。",
+  authorSearchRiskControlled: "Bilibili によるセキュリティ確認のため、投稿者検索を一時的に利用できません。設定で Bilibili の Cookie を更新するか、UID またはプロフィール URL で検索してください。",
   authorSubscriptionStatusFailed: "購読状況を取得できません。購読前に再試行してください。",
   authorAlreadySubscribed: "購読済み",
   authorSearchPage: "{page} ページ",

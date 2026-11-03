@@ -11,7 +11,7 @@ UPDATE_KEY_LIST=1 npx vitest run src/utils/locales/__tests__/localeParity.test.t
 
 This list is intentionally unnumbered. When new keys are inserted, only the local section order changes.
 
-Total keys: 1441
+Total keys: 1444
 
 ## Summary
 
@@ -19,7 +19,7 @@ Total keys: 1441
 | --- | ---: | --- | --- |
 | Bulk video organization | 28 | `bulkInvalidVideos` | `bulkRequestUnknown` |
 | Header | 11 | `myTube` | `instruction` |
-| Home | 28 | `pasteUrl` | `views` |
+| Home | 30 | `pasteUrl` | `views` |
 | Settings | 4 | `general` | `downloadSettings` |
 | Settings Categories | 247 | `interfaceDisplay` | `enterNewTagName` |
 | Database | 38 | `database` | `cleanupTempFilesConfirmMessage` |
@@ -41,7 +41,7 @@ Total keys: 1441
 | Downloads | 31 | `downloads` | `incompleteDownloadFragments` |
 | Snackbar Messages | 22 | `videoDownloading` | `subtitleDeleted` |
 | Batch Download | 6 | `batchDownload` | `addBatchTasks` |
-| Subscriptions | 77 | `subscribeToAuthor` | `clear` |
+| Subscriptions | 78 | `subscribeToAuthor` | `clear` |
 | Subscription Retention | 11 | `retentionDays` | `retentionDaysUpdateFailed` |
 | Auto Delete (library-wide age-based cleanup) | 15 | `autoDelete` | `videoUnlocked` |
 | Per-subscription yt-dlp config override (issue #345) | 5 | `editYtdlpConfigOverride` | `ytdlpConfigOverrideUpdateFailed` |
@@ -144,6 +144,8 @@ Total keys: 1441
 | `fromBilibili` |
 | `loadingBilibiliResults` |
 | `noBilibiliResults` |
+| `bilibiliSearchFailed` |
+| `bilibiliSearchRiskControlled` |
 | `noVideosYet` |
 | `views` |
 
@@ -1024,6 +1026,7 @@ Total keys: 1441
 | `loadingAuthors` |
 | `noAuthorsFound` |
 | `authorSearchFailed` |
+| `authorSearchRiskControlled` |
 | `authorSubscriptionStatusFailed` |
 | `authorAlreadySubscribed` |
 | `authorSearchPage` |

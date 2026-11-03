@@ -92,6 +92,8 @@ export const ar = {
   fromBilibili: "من Bilibili",
   loadingBilibiliResults: "جاري تحميل نتائج Bilibili...",
   noBilibiliResults: "لم يتم العثور على نتائج Bilibili",
+  bilibiliSearchFailed: "فشل البحث عن فيديوهات Bilibili. أعد المحاولة أو تحقق من الشبكة وإعدادات الوكيل. تظل نتائج البحث الأخرى متاحة.",
+  bilibiliSearchRiskControlled: "يتطلب Bilibili تحققًا أمنيًا، لذا فإن البحث عن الفيديو غير متاح مؤقتًا. جرّب تحديث ملف تعريف ارتباط Bilibili في الإعدادات، ثم أعد المحاولة. تظل نتائج البحث الأخرى متاحة.",
   noVideosYet: "لا توجد فيديوهات بعد. أرسل رابط فيديو لتنزيل أول فيديو لك!",
   views: "مشاهدات",
 
@@ -1051,6 +1053,7 @@ export const ar = {
   loadingAuthors: "جارٍ البحث عن المؤلفين…",
   noAuthorsFound: "لم يتم العثور على مؤلفين مطابقين.",
   authorSearchFailed: "البحث عن المؤلفين غير متاح. أعد المحاولة أو استخدم UID أو رابط الملف الشخصي. تظل نتائج الفيديو متاحة.",
+  authorSearchRiskControlled: "يتطلب Bilibili تحققًا أمنيًا، لذا فإن البحث عن المؤلفين غير متاح مؤقتًا. جرّب تحديث ملف تعريف ارتباط Bilibili في الإعدادات، أو ابحث باستخدام UID أو رابط الملف الشخصي.",
   authorSubscriptionStatusFailed: "تعذر تحميل حالة الاشتراك. أعد المحاولة قبل الاشتراك.",
   authorAlreadySubscribed: "مشترك",
   authorSearchPage: "الصفحة {page}",

@@ -79,6 +79,21 @@ describe('ExternalSearchSection', () => {
         expect(link).toHaveAttribute('target', '_blank');
         expect(link).toHaveAttribute('rel', 'noopener noreferrer');
     });
+    it('shows an actionable failure instead of claiming there are no results', () => {
+        const props = renderSection({ results: [], errorLabel: 'bilibiliSearchRiskControlled', onRetry: vi.fn() });
+        expect(screen.getByRole('alert')).toHaveTextContent('bilibiliSearchRiskControlled');
+        expect(screen.queryByText('noBilibiliResults')).not.toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'retry' }));
+        expect(props.onRetry).toHaveBeenCalledTimes(1);
+    });
+    it('keeps existing cards usable when loading the next page fails', () => {
+        const props = renderSection({ errorLabel: 'bilibiliSearchFailed', onRetry: vi.fn() });
+        expect(screen.getByRole('alert')).toHaveTextContent('bilibiliSearchFailed');
+        expect(screen.getByText('A Bilibili video')).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'more' })).not.toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: /download/i }));
+        expect(props.onDownload).toHaveBeenCalledWith(bilibiliResult);
+    });
 
     it('hands the whole result back on download so the caller keeps its source URL', () => {
         const props = renderSection();

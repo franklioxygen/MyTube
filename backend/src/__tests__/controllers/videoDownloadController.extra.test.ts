@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Request, Response } from "express";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { BilibiliSearchUnavailableError } from "../../errors/BilibiliSearchError";
 import {
   checkBilibiliCollection,
   checkBilibiliParts,
@@ -274,6 +275,16 @@ describe("videoDownloadController extra coverage", () => {
     expect(downloadService.searchBilibili).toHaveBeenCalledWith("music", 12, 3);
     expect(downloadService.searchYouTube).not.toHaveBeenCalled();
     expect(json).toHaveBeenCalledWith({ results: [{ id: "BV1" }] });
+  });
+
+  it.each(["BILIBILI_SEARCH_RISK_CONTROLLED", "BILIBILI_SEARCH_UNAVAILABLE"] as const)("searchVideos returns an explicit Bilibili failure: %s", async (code) => {
+    req.query = { query: "music", source: "bilibili" } as any;
+    const error = new BilibiliSearchUnavailableError(code);
+    vi.mocked(downloadService.searchBilibili).mockRejectedValue(error);
+    await searchVideos(req as Request, res as Response);
+    expect(status).toHaveBeenCalledWith(502);
+    expect(json).toHaveBeenCalledWith({ error: error.message, code });
+    expect(downloadService.searchYouTube).not.toHaveBeenCalled();
   });
 
   it("searchVideos rejects a source it does not serve", async () => {

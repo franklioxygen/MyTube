@@ -95,6 +95,8 @@ export const ru = {
   fromBilibili: "С Bilibili",
   loadingBilibiliResults: "Загрузка результатов Bilibili...",
   noBilibiliResults: "Результаты Bilibili не найдены",
+  bilibiliSearchFailed: "Поиск видео Bilibili не удался. Повторите попытку или проверьте сеть и настройки прокси. Остальные результаты остаются доступны.",
+  bilibiliSearchRiskControlled: "Bilibili требует проверку безопасности, поэтому поиск видео временно недоступен. Попробуйте обновить cookie Bilibili в настройках и повторить поиск. Остальные результаты остаются доступны.",
   noVideosYet: "Видео пока нет. Отправьте URL видео, чтобы скачать первое!",
   views: "просмотров",
 
@@ -1078,6 +1080,7 @@ export const ru = {
   loadingAuthors: "Поиск авторов…",
   noAuthorsFound: "Подходящие авторы не найдены.",
   authorSearchFailed: "Поиск авторов недоступен. Повторите попытку или используйте UID либо ссылку на профиль. Результаты поиска видео остаются доступны.",
+  authorSearchRiskControlled: "Bilibili требует проверку безопасности, поэтому поиск авторов временно недоступен. Попробуйте обновить cookie Bilibili в настройках или найти автора по UID либо ссылке на профиль.",
   authorSubscriptionStatusFailed: "Не удалось загрузить статус подписки. Повторите попытку перед подпиской.",
   authorAlreadySubscribed: "Подписка оформлена",
   authorSearchPage: "Страница {page}",

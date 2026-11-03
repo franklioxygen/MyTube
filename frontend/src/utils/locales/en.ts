@@ -71,6 +71,8 @@ export const en = {
   fromBilibili: "From Bilibili",
   loadingBilibiliResults: "Loading Bilibili results...",
   noBilibiliResults: "No Bilibili results found",
+  bilibiliSearchFailed: "Bilibili video search failed. Retry or check your network and proxy settings. Other search results remain available.",
+  bilibiliSearchRiskControlled: "Bilibili requires a security check, so video search is temporarily unavailable. Try updating the Bilibili cookie in Settings, then retry. Other search results remain available.",
   noVideosYet: "No videos yet. Submit a video URL to download your first one!",
   views: "views",
 
@@ -1026,6 +1028,7 @@ export const en = {
   loadingAuthors: "Loading authors…",
   noAuthorsFound: "No matching authors found.",
   authorSearchFailed: "Author search is unavailable. Retry or look up a UID or profile URL. Video results remain available.",
+  authorSearchRiskControlled: "Bilibili requires a security check, so author search is temporarily unavailable. Try updating the Bilibili cookie in Settings, or look up an author by UID or profile URL.",
   authorSubscriptionStatusFailed: "Subscription status could not be loaded. Retry before subscribing.",
   authorAlreadySubscribed: "Subscribed",
   authorSearchPage: "Page {page}",

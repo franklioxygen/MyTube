@@ -32,6 +32,7 @@ const SearchPage: React.FC = () => {
         loadingMore,
         bilibiliSearchResults,
         bilibiliLoading,
+        bilibiliSearchError,
         showBilibiliSearch,
         loadMoreBilibiliSearchResults,
         loadingMoreBilibili
@@ -188,8 +189,10 @@ const SearchPage: React.FC = () => {
                         heading={t('fromBilibili')}
                         loadingLabel={t('loadingBilibiliResults')}
                         emptyLabel={t('noBilibiliResults')}
+                        errorLabel={bilibiliSearchError ? t(bilibiliSearchError === 'risk_control' ? 'bilibiliSearchRiskControlled' : 'bilibiliSearchFailed') : undefined}
+                        onRetry={loadMoreBilibiliSearchResults}
                         results={bilibiliSearchResults}
-                        loading={bilibiliLoading}
+                        loading={bilibiliLoading || (loadingMoreBilibili && bilibiliSearchResults.length === 0)}
                         loadingMore={loadingMoreBilibili}
                         onLoadMore={loadMoreBilibiliSearchResults}
                         onDownload={handleResultDownload}

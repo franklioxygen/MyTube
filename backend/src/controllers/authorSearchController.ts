@@ -26,6 +26,6 @@ export async function searchAuthors(req: Request, res: Response): Promise<void> 
     res.json(await searchBilibiliAuthors(query, Number(rawPage)));
   } catch (error) {
     if (!(error instanceof AuthorSearchUnavailableError)) throw error;
-    res.status(502).json({ error: error.message, code: "AUTHOR_SEARCH_UNAVAILABLE" });
+    res.status(502).json({ error: error.message, code: error.code });
   }
 }

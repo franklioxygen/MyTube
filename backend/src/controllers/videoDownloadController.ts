@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { isCancelledError, ValidationError } from "../errors/DownloadErrors";
 import downloadManager from "../services/downloadManager";
 import { buildBilibiliDownloadTask } from "../services/bilibiliDownloadTask";
+import { BilibiliSearchUnavailableError } from "../errors/BilibiliSearchError";
 import {
   createBilibiliRetryMetadata,
   createDownloadModeRetryMetadata,
@@ -85,12 +86,17 @@ export const searchVideos = async (
     );
   }
 
-  const results =
-    source === "bilibili"
-      ? await downloadService.searchBilibili(query, limit, offset)
-      : await downloadService.searchYouTube(query, limit, offset);
-  // Return { results } format for backward compatibility (frontend expects response.data.results)
-  sendData(res, { results });
+  try {
+    const results =
+      source === "bilibili"
+        ? await downloadService.searchBilibili(query, limit, offset)
+        : await downloadService.searchYouTube(query, limit, offset);
+    // Return { results } format for backward compatibility (frontend expects response.data.results)
+    sendData(res, { results });
+  } catch (error) {
+    if (source !== "bilibili" || !(error instanceof BilibiliSearchUnavailableError)) throw error;
+    res.status(502).json({ error: error.message, code: error.code });
+  }
 };
 
 /**

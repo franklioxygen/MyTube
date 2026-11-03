@@ -95,6 +95,8 @@ export const fr = {
   fromBilibili: "De Bilibili",
   loadingBilibiliResults: "Chargement des résultats Bilibili...",
   noBilibiliResults: "Aucun résultat Bilibili trouvé",
+  bilibiliSearchFailed: "La recherche vidéo Bilibili a échoué. Réessayez ou vérifiez votre réseau et les paramètres du proxy. Les autres résultats restent disponibles.",
+  bilibiliSearchRiskControlled: "Bilibili exige une vérification de sécurité. La recherche vidéo est temporairement indisponible. Essayez de mettre à jour le cookie Bilibili dans les paramètres, puis réessayez. Les autres résultats restent disponibles.",
   noVideosYet:
     "Pas encore de vidéos. Soumettez une URL de vidéo pour télécharger votre première !",
   views: "vues",
@@ -1095,6 +1097,7 @@ export const fr = {
   loadingAuthors: "Recherche des auteurs…",
   noAuthorsFound: "Aucun auteur correspondant.",
   authorSearchFailed: "La recherche des auteurs est indisponible. Réessayez ou utilisez un UID ou une URL de profil. Les résultats vidéo restent disponibles.",
+  authorSearchRiskControlled: "Bilibili exige une vérification de sécurité. La recherche des auteurs est donc temporairement indisponible. Essayez de mettre à jour le cookie Bilibili dans les paramètres ou recherchez par UID ou URL de profil.",
   authorSubscriptionStatusFailed: "Impossible de charger les abonnements. Réessayez avant de vous abonner.",
   authorAlreadySubscribed: "Abonné",
   authorSearchPage: "Page {page}",

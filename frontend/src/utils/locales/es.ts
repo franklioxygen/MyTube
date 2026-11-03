@@ -95,6 +95,8 @@ export const es = {
   fromBilibili: "De Bilibili",
   loadingBilibiliResults: "Cargando resultados de Bilibili...",
   noBilibiliResults: "No se encontraron resultados de Bilibili",
+  bilibiliSearchFailed: "La búsqueda de vídeos de Bilibili falló. Reintenta o comprueba la red y la configuración del proxy. Los demás resultados siguen disponibles.",
+  bilibiliSearchRiskControlled: "Bilibili requiere una comprobación de seguridad y la búsqueda de vídeos no está disponible temporalmente. Prueba a actualizar la cookie de Bilibili en Configuración y reintenta. Los demás resultados siguen disponibles.",
   noVideosYet:
     "Aún no hay videos. ¡Envía una URL de video para descargar el primero!",
   views: "vistas",
@@ -1091,6 +1093,7 @@ export const es = {
   loadingAuthors: "Buscando autores…",
   noAuthorsFound: "No se encontraron autores.",
   authorSearchFailed: "La búsqueda de autores no está disponible. Reintenta o usa un UID o una URL de perfil. Los resultados de vídeos siguen disponibles.",
+  authorSearchRiskControlled: "Bilibili requiere una comprobación de seguridad, por lo que la búsqueda de autores no está disponible temporalmente. Prueba a actualizar la cookie de Bilibili en Configuración o busca por UID o URL del perfil.",
   authorSubscriptionStatusFailed: "No se pudo cargar el estado de suscripción. Reintenta antes de suscribirte.",
   authorAlreadySubscribed: "Suscrito",
   authorSearchPage: "Página {page}",

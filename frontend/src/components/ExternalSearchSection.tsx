@@ -1,5 +1,6 @@
 import { Download, OndemandVideo, YouTube } from '@mui/icons-material';
 import {
+    Alert,
     Box,
     Button,
     Card,
@@ -25,6 +26,8 @@ interface ExternalSearchSectionProps {
     heading: string;
     loadingLabel: string;
     emptyLabel: string;
+    errorLabel?: string;
+    onRetry?: () => void;
     results: VideoSearchResult[];
     loading: boolean;
     loadingMore: boolean;
@@ -53,6 +56,8 @@ const ExternalSearchSection: React.FC<ExternalSearchSectionProps> = ({
     heading,
     loadingLabel,
     emptyLabel,
+    errorLabel,
+    onRetry,
     results,
     loading,
     loadingMore,
@@ -69,6 +74,12 @@ const ExternalSearchSection: React.FC<ExternalSearchSectionProps> = ({
             <Typography variant="h5" sx={{ mb: 3, fontWeight: 600, color: sourceColor }}>
                 {heading}
             </Typography>
+
+            {!loading && errorLabel && (
+                <Alert severity="warning" sx={{ mb: 2 }} action={onRetry ? (
+                    <Button color="inherit" onClick={onRetry} disabled={loadingMore}>{t('retry')}</Button>
+                ) : undefined}>{errorLabel}</Alert>
+            )}
 
             {loading ? (
                 <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 4 }}>
@@ -156,7 +167,7 @@ const ExternalSearchSection: React.FC<ExternalSearchSectionProps> = ({
                             </Grid>
                         ))}
                     </Grid>
-                    <Box sx={{ mt: 4, display: 'flex', justifyContent: 'center' }}>
+                    {!errorLabel && <Box sx={{ mt: 4, display: 'flex', justifyContent: 'center' }}>
                         <Button
                             variant="outlined"
                             onClick={onLoadMore}
@@ -165,9 +176,9 @@ const ExternalSearchSection: React.FC<ExternalSearchSectionProps> = ({
                         >
                             {t('more')}
                         </Button>
-                    </Box>
+                    </Box>}
                 </>
-            ) : (
+            ) : errorLabel ? null : (
                 <Typography color="text.secondary">{emptyLabel}</Typography>
             )}
         </Box>

@@ -4,7 +4,9 @@ import { beforeEach, expect, it, vi } from 'vitest';
 const search = vi.hoisted(() => vi.fn());
 vi.mock('../../services/downloaders/bilibili/bilibiliAuthorSearch', () => ({
   searchBilibiliAuthors: search,
-  AuthorSearchUnavailableError: class extends Error {},
+  AuthorSearchUnavailableError: class extends Error {
+    constructor(readonly code: 'AUTHOR_SEARCH_UNAVAILABLE' | 'AUTHOR_SEARCH_RISK_CONTROLLED' = 'AUTHOR_SEARCH_UNAVAILABLE') { super(); }
+  },
 }));
 vi.mock('../../services/passwordService', () => ({ isLoginRequired: () => true }));
 import { searchAuthors, authorSearchLimiter } from '../../controllers/authorSearchController';
@@ -37,6 +39,13 @@ it('distinguishes upstream failure from a successful empty result', async () => 
   const response = await request(app).get('/search/authors').query({ query: 'author', source: 'bilibili' });
   expect(response.status).toBe(502);
   expect(response.body.code).toBe('AUTHOR_SEARCH_UNAVAILABLE');
+  expect(response.body.results).toBeUndefined();
+});
+it('exposes persistent upstream risk control separately from ordinary failures', async () => {
+  search.mockRejectedValue(new AuthorSearchUnavailableError('AUTHOR_SEARCH_RISK_CONTROLLED'));
+  const response = await request(app).get('/search/authors').query({ query: 'author', source: 'bilibili' });
+  expect(response.status).toBe(502);
+  expect(response.body.code).toBe('AUTHOR_SEARCH_RISK_CONTROLLED');
   expect(response.body.results).toBeUndefined();
 });
 it('limits upstream amplification separately from general API traffic', async () => {

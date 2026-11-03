@@ -93,6 +93,8 @@ export const ko = {
   fromBilibili: "Bilibili에서",
   loadingBilibiliResults: "Bilibili 결과 로드 중...",
   noBilibiliResults: "Bilibili 결과 없음",
+  bilibiliSearchFailed: "Bilibili 동영상 검색에 실패했습니다. 다시 시도하거나 네트워크 및 프록시 설정을 확인하세요. 다른 검색 결과는 계속 사용할 수 있습니다.",
+  bilibiliSearchRiskControlled: "Bilibili의 보안 확인으로 동영상 검색을 일시적으로 사용할 수 없습니다. 설정에서 Bilibili 쿠키를 갱신한 후 다시 시도해 보세요. 다른 검색 결과는 계속 사용할 수 있습니다.",
   noVideosYet:
     "아직 동영상이 없습니다. 동영상 URL을 제출하여 첫 번째 동영상을 다운로드하세요!",
   views: "조회수",
@@ -1060,6 +1062,7 @@ export const ko = {
   loadingAuthors: "작성자 검색 중…",
   noAuthorsFound: "일치하는 작성자가 없습니다.",
   authorSearchFailed: "작성자를 검색할 수 없습니다. 다시 시도하거나 UID 또는 프로필 URL로 검색하세요. 동영상 결과는 계속 사용할 수 있습니다.",
+  authorSearchRiskControlled: "Bilibili의 보안 확인으로 작성자 검색을 일시적으로 사용할 수 없습니다. 설정에서 Bilibili 쿠키를 갱신하거나 UID 또는 프로필 URL로 검색해 보세요.",
   authorSubscriptionStatusFailed: "구독 상태를 불러올 수 없습니다. 구독하기 전에 다시 시도하세요.",
   authorAlreadySubscribed: "구독 중",
   authorSearchPage: "{page} 페이지",

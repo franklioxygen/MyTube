@@ -1,12 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const mocks = vi.hoisted(() => ({ get: vi.fn(), proxy: vi.fn(), sign: vi.fn() }));
-vi.mock('axios', () => ({ default: { get: mocks.get } }));
+const mocks = vi.hoisted(() => ({ get: vi.fn(), proxy: vi.fn(), sign: vi.fn(), headers: vi.fn() }));
+vi.mock('axios', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('axios')>();
+  return { ...actual, default: { ...actual.default, get: mocks.get } };
+});
 vi.mock('../../../services/downloaders/bilibili/bilibiliConfig', () => ({
   resolveProxiedAxiosConfigForUrl: mocks.proxy,
   resolveProxiedAxiosConfig: mocks.proxy,
 }));
-vi.mock('../../../services/downloaders/bilibili/bilibiliHeaders', () => ({ buildBilibiliApiHeaders: () => ({ Referer: 'https://www.bilibili.com' }) }));
+vi.mock('../../../services/downloaders/bilibili/bilibiliHeaders', () => ({ buildBilibiliApiHeaders: mocks.headers }));
 vi.mock('../../../services/downloaders/bilibili/bilibiliWbi', () => ({ buildSignedBilibiliUrl: mocks.sign }));
 vi.mock('../../../utils/ytDlpUtils', () => ({ getUserYtDlpConfig: () => ({}) }));
 
@@ -18,6 +21,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   mocks.proxy.mockReturnValue({ proxy: false });
   mocks.sign.mockResolvedValue(url);
+  mocks.headers.mockReturnValue({ Referer: 'https://www.bilibili.com' });
 });
 
 describe('Bilibili author identity', () => {
@@ -77,6 +81,63 @@ describe('searchBilibiliAuthors', () => {
   it('returns no match for an explicitly missing UID', async () => {
     mocks.get.mockResolvedValue({ data: { code: -404 } });
     expect(await searchBilibiliAuthors('123', 1)).toEqual({ results: [], page: 1, mode: 'uid', hasMore: false });
+  });
+  it.each([
+    { code: 0, data: { v_voucher: 'challenge' } },
+    { code: -352 },
+    { code: -412 },
+  ])('retries cookie-related risk control once anonymously on the same proxy: %j', async (data) => {
+    const headers = { Referer: 'https://www.bilibili.com', Cookie: 'stored-cookie' };
+    const proxy = { proxy: { host: 'proxy.example', port: 8080 } };
+    mocks.headers.mockReturnValue(headers);
+    mocks.proxy.mockReturnValue(proxy);
+    mocks.get.mockResolvedValueOnce({ data }).mockResolvedValueOnce({ data: { code: 0, data: {
+      numPages: 1, result: [{ mid: 25876945, uname: '极客湾Geekerwan' }],
+    } } });
+
+    const result = await searchBilibiliAuthors('极客湾', 1);
+
+    expect(result.results[0].authorId).toBe('25876945');
+    expect(mocks.get).toHaveBeenCalledTimes(2);
+    const [firstEndpoint, firstConfig] = mocks.get.mock.calls[0];
+    const [retryEndpoint, retryConfig] = mocks.get.mock.calls[1];
+    expect(retryEndpoint).toBe(firstEndpoint);
+    expect(firstConfig.headers.Cookie).toBe('stored-cookie');
+    expect(retryConfig.headers).toEqual({ Referer: 'https://www.bilibili.com' });
+    expect(retryConfig).toEqual({ ...firstConfig, headers: retryConfig.headers });
+    expect(retryConfig.proxy).toBe(proxy.proxy);
+    expect(retryConfig.maxRedirects).toBe(0);
+    expect(headers.Cookie).toBe('stored-cookie');
+  });
+  it('also handles an HTTP 412 rejection from the cookie-authenticated public API', async () => {
+    mocks.headers.mockReturnValue({ Cookie: 'stored-cookie' });
+    mocks.get.mockRejectedValueOnce({ isAxiosError: true, response: { status: 412, data: {} } })
+      .mockResolvedValueOnce({ data: { code: 0, data: { numResults: 0 } } });
+    expect((await searchBilibiliAuthors('query', 1)).results).toEqual([]);
+    expect(mocks.get).toHaveBeenCalledTimes(2);
+    expect(mocks.get.mock.calls[1][1].headers.Cookie).toBeUndefined();
+  });
+  it.each([false, true])('keeps persistent risk control as an error and bounds retries (cookie: %s)', async (withCookie) => {
+    mocks.headers.mockReturnValue(withCookie ? { Cookie: 'stored-cookie' } : {});
+    mocks.get.mockResolvedValue({ data: { code: 0, data: { v_voucher: 'challenge' } } });
+    await expect(searchBilibiliAuthors('query', 1)).rejects.toMatchObject({ code: 'AUTHOR_SEARCH_RISK_CONTROLLED' });
+    expect(mocks.get).toHaveBeenCalledTimes(withCookie ? 2 : 1);
+  });
+  it.each([
+    new Error('timeout'),
+    { isAxiosError: true, response: { status: 500, data: {} } },
+  ])('does not retry unrelated transport failures without the configured cookie: %j', async (error) => {
+    mocks.headers.mockReturnValue({ Cookie: 'stored-cookie' });
+    mocks.get.mockRejectedValue(error);
+    await expect(searchBilibiliAuthors('query', 1)).rejects.toMatchObject({ code: 'AUTHOR_SEARCH_UNAVAILABLE' });
+    expect(mocks.get).toHaveBeenCalledTimes(1);
+  });
+  it('reports a network failure on the anonymous retry as an ordinary failure', async () => {
+    mocks.headers.mockReturnValue({ Cookie: 'stored-cookie' });
+    mocks.get.mockResolvedValueOnce({ data: { code: 0, data: { v_voucher: 'challenge' } } })
+      .mockRejectedValueOnce(new Error('timeout'));
+    await expect(searchBilibiliAuthors('query', 1)).rejects.toMatchObject({ code: 'AUTHOR_SEARCH_UNAVAILABLE' });
+    expect(mocks.get).toHaveBeenCalledTimes(2);
   });
   it('returns a real empty page and caps pagination', async () => {
     mocks.get.mockResolvedValue({ data: { code: 0, data: { numResults: 0 } } });

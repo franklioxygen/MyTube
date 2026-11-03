@@ -660,6 +660,63 @@ describe('VideoContext', () => {
     });
     expect(result.current.bilibiliSearchResults).toEqual([]);
   });
+  it.each([
+    ['BILIBILI_SEARCH_RISK_CONTROLLED', 'risk_control'],
+    ['BILIBILI_SEARCH_UNAVAILABLE', 'unavailable'],
+  ])('reports %s separately, preserves other sources, and retries only Bilibili', async (code, expected) => {
+    let fail = true;
+    const error = { isAxiosError: true, response: { status: 502, data: { code } } };
+    mockApiGet.mockImplementation((url: string, config?: any) => {
+      if (url === '/settings') return Promise.resolve({ data: { showYoutubeSearch: true, showBilibiliSearch: true } });
+      if (url === '/videos') return Promise.resolve({ data: [{ id: 'v1', title: 'React local', visibility: 1 }] });
+      if (url === '/search') return config.params.source === 'bilibili'
+        ? fail ? Promise.reject(error) : Promise.resolve({ data: { results: [{ id: 'BV1' }] } })
+        : Promise.resolve({ data: { results: [{ id: 'yt1' }] } });
+      return Promise.resolve({ data: {} });
+    });
+    const { wrapper } = createWrapper();
+    const { result } = renderHook(() => useVideo(), { wrapper });
+    await waitFor(() => expect(result.current.showBilibiliSearch).toBe(true));
+    await act(async () => { await result.current.handleSearch('react'); });
+    expect(result.current.bilibiliSearchError).toBe(expected);
+    expect(result.current.searchResults).toEqual([{ id: 'yt1' }]);
+    expect(result.current.localSearchResults).toHaveLength(1);
+    const youtubeCalls = mockApiGet.mock.calls.filter(([url, config]) => url === '/search' && config.params.source === 'youtube').length;
+    fail = false;
+    await act(async () => { await result.current.loadMoreBilibiliSearchResults(); });
+    expect(result.current.bilibiliSearchError).toBeNull();
+    expect(result.current.bilibiliSearchResults).toEqual([{ id: 'BV1' }]);
+    expect(mockApiGet.mock.calls.filter(([url, config]) => url === '/search' && config.params.source === 'youtube')).toHaveLength(youtubeCalls);
+    fail = true;
+    await act(async () => { await result.current.loadMoreBilibiliSearchResults(); });
+    expect(result.current.bilibiliSearchError).toBe(expected);
+    expect(result.current.bilibiliSearchResults).toEqual([{ id: 'BV1' }]);
+    expect(result.current.searchResults).toEqual([{ id: 'yt1' }]);
+    await act(async () => { result.current.resetSearch(); });
+    expect(result.current.bilibiliSearchError).toBeNull();
+  });
+  it('ignores a late failure from a superseded Bilibili query', async () => {
+    let rejectOld!: (error: unknown) => void;
+    const oldRequest = new Promise((_resolve, reject) => { rejectOld = reject; });
+    mockApiGet.mockImplementation((url: string, config?: any) => {
+      if (url === '/settings') return Promise.resolve({ data: { showYoutubeSearch: false, showBilibiliSearch: true } });
+      if (url === '/videos') return Promise.resolve({ data: [] });
+      if (url === '/search') return config.params.query === 'old' ? oldRequest : Promise.resolve({ data: { results: [{ id: 'BV-new' }] } });
+      return Promise.resolve({ data: {} });
+    });
+    const { wrapper } = createWrapper();
+    const { result } = renderHook(() => useVideo(), { wrapper });
+    await waitFor(() => expect(result.current.showBilibiliSearch).toBe(true));
+    let old!: Promise<unknown>;
+    act(() => { old = result.current.handleSearch('old'); });
+    await act(async () => { await result.current.handleSearch('new'); });
+    await act(async () => {
+      rejectOld({ isAxiosError: true, response: { status: 502, data: { code: 'BILIBILI_SEARCH_RISK_CONTROLLED' } } });
+      await old;
+    });
+    expect(result.current.bilibiliSearchError).toBeNull();
+    expect(result.current.bilibiliSearchResults).toEqual([{ id: 'BV-new' }]);
+  });
 
   it('does not append a previous query\'s Bilibili more-results response to a newer query', async () => {
     let resolveOldMore: ((value: unknown) => void) | undefined;
