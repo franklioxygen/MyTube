@@ -60,12 +60,21 @@ export async function searchBilibiliAuthors(query: string, page: number): Promis
   if (!proxyConfig) throw new AuthorSearchUnavailableError();
   const config = { ...proxyConfig, timeout: 10_000, maxRedirects: 0, maxContentLength: 2 * 1024 * 1024 };
   try {
-    const url = id
-      ? `https://api.bilibili.com/x/web-interface/card?mid=${id}`
-      : await buildSignedBilibiliUrl("https://api.bilibili.com/x/web-interface/wbi/search/type", {
+    const endpoint = id
+      ? "https://api.bilibili.com/x/web-interface/card"
+      : "https://api.bilibili.com/x/web-interface/wbi/search/type";
+    const encodedParams = id
+      ? `mid=${id}`
+      : new URL(await buildSignedBilibiliUrl(endpoint, {
         search_type: "bili_user", keyword: query, page, page_size: 20,
-      }, config);
-    const { data } = await axios.get(url, { ...config, headers: buildBilibiliApiHeaders(url) });
+      }, config)).search.slice(1);
+    const { data } = await axios.get(endpoint, {
+      ...config,
+      params: new URLSearchParams(encodedParams),
+      // WBI signatures depend on the original query encoding (including %20 for spaces).
+      paramsSerializer: { serialize: () => encodedParams },
+      headers: buildBilibiliApiHeaders(endpoint),
+    });
     if (id && data?.code === -404) return { results: [], page: 1, hasMore: false, mode };
     if (data?.code !== 0) throw new AuthorSearchUnavailableError();
     if (id) {

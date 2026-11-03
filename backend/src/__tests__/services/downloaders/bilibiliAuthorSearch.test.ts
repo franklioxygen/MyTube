@@ -52,7 +52,27 @@ describe('searchBilibiliAuthors', () => {
     expect(result.results[0].authorId).toBe('123');
     expect(result.hasMore).toBe(false);
     expect(mocks.sign).not.toHaveBeenCalled();
-    expect(mocks.get).toHaveBeenCalledWith('https://api.bilibili.com/x/web-interface/card?mid=123', expect.objectContaining({ maxRedirects: 0 }));
+    expect(mocks.get).toHaveBeenCalledWith('https://api.bilibili.com/x/web-interface/card', expect.objectContaining({ maxRedirects: 0 }));
+    const { default: axios } = await vi.importActual<typeof import('axios')>('axios');
+    const [endpoint, config] = mocks.get.mock.calls[0];
+    expect(axios.getUri({ ...config, url: endpoint })).toBe('https://api.bilibili.com/x/web-interface/card?mid=123');
+  });
+  it('keeps URL-like keywords in query parameters and preserves the signed query encoding', async () => {
+    const keyword = '极客 湾 + & https://127.0.0.1/private?admin=true#fragment';
+    const signedQuery = `keyword=${encodeURIComponent(keyword)}&page=1&page_size=20&search_type=bili_user&w_rid=signature&wts=123`;
+    const endpoint = 'https://api.bilibili.com/x/web-interface/wbi/search/type';
+    mocks.sign.mockResolvedValue(`${endpoint}?${signedQuery}`);
+    mocks.get.mockResolvedValue({ data: { code: 0, data: { numResults: 0 } } });
+
+    await searchBilibiliAuthors(keyword, 1);
+
+    const { default: axios } = await vi.importActual<typeof import('axios')>('axios');
+    const [requestEndpoint, config] = mocks.get.mock.calls[0];
+    expect(requestEndpoint).toBe(endpoint);
+    const requestUrl = axios.getUri({ ...config, url: requestEndpoint });
+    expect(requestUrl).toBe(`${endpoint}?${signedQuery}`);
+    expect(new URL(requestUrl).searchParams.get('keyword')).toBe(keyword);
+    expect(config.maxRedirects).toBe(0);
   });
   it('returns no match for an explicitly missing UID', async () => {
     mocks.get.mockResolvedValue({ data: { code: -404 } });
