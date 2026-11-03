@@ -272,6 +272,9 @@ describe("searchVideos", () => {
     respondWith([anEntry()], -352);
 
     await expect(searchVideos("python")).rejects.toMatchObject({ code: "BILIBILI_SEARCH_RISK_CONTROLLED" });
+    expect(mocks.logger.warn).toHaveBeenCalledWith("Bilibili video search was blocked by upstream risk control", {
+      page: 1, httpStatus: undefined, apiCode: -352,
+    });
   });
 
   it("skips the request rather than exposing the real IP when the proxy is unusable", async () => {
@@ -320,6 +323,8 @@ describe("searchVideos", () => {
     mocks.axiosGet.mockResolvedValue({ data: { code: 0, data: { v_voucher: "challenge" } } });
     await expect(searchVideos("python")).rejects.toMatchObject({ code: "BILIBILI_SEARCH_RISK_CONTROLLED" });
     expect(mocks.axiosGet).toHaveBeenCalledTimes(withCookie ? 2 : 1);
+    expect(mocks.logger.warn.mock.calls.filter(([message]) => message === "Bilibili video search was blocked by upstream risk control")).toHaveLength(1);
+    expect(JSON.stringify(mocks.logger.warn.mock.calls)).not.toContain("challenge");
   });
   it("allows only one additional anonymous request across the bounded page walk", async () => {
     mocks.headers.mockReturnValue({ Cookie: "stored-cookie" });
@@ -336,6 +341,10 @@ describe("searchVideos", () => {
     mocks.axiosGet.mockResolvedValue({ data });
     await expect(searchVideos("python")).rejects.toMatchObject({ code: "BILIBILI_SEARCH_UNAVAILABLE" });
     expect(mocks.axiosGet).toHaveBeenCalledTimes(1);
+    expect(mocks.logger.warn).toHaveBeenCalledWith(
+      data?.code === 0 ? "Bilibili video search response had no result array" : "Bilibili video search returned an unexpected API response",
+      expect.objectContaining({ page: 1 }),
+    );
   });
   it("accepts an explicitly empty result without a result array", async () => {
     mocks.axiosGet.mockResolvedValue({ data: { code: 0, data: { numResults: 0 } } });
@@ -356,5 +365,18 @@ describe("searchVideos", () => {
     mocks.axiosGet.mockRejectedValue(new Error("timeout"));
     await expect(searchVideos("python")).rejects.toMatchObject({ code: "BILIBILI_SEARCH_UNAVAILABLE" });
     expect(mocks.axiosGet).toHaveBeenCalledTimes(1);
+  });
+  it.each([
+    ["ECONNABORTED", undefined], ["ERR_BAD_RESPONSE", 503], ["ERR_BAD_RESPONSE", 302],
+  ])("logs safe transport diagnostics for %s/%s without exception contents", async (code, status) => {
+    mocks.axiosGet.mockRejectedValue({
+      isAxiosError: true, code, message: "sensitive-exception-message",
+      config: { headers: { Cookie: "private-cookie" }, proxy: { auth: { password: "proxy-password" } } },
+      response: status ? { status, data: { message: "private-response" } } : undefined,
+    });
+    await expect(searchVideos("private-query")).rejects.toMatchObject({ code: "BILIBILI_SEARCH_UNAVAILABLE" });
+    expect(mocks.logger.warn).toHaveBeenCalledExactlyOnceWith("Bilibili video search request failed", {
+      page: 1, errorCode: code, httpStatus: status,
+    });
   });
 });

@@ -10,6 +10,7 @@ export const authorSearchLimiter = rateLimit({
   keyGenerator: (req) => ipKeyGenerator(getClientIp(req)), validate: { trustProxy: false },
 });
 
+/** Validate one bounded Bilibili author query and distinguish unavailable searches from empty results. */
 export async function searchAuthors(req: Request, res: Response): Promise<void> {
   const query = typeof req.query.query === "string" ? req.query.query.trim() : "";
   if (!query || query.length > 100) throw new ValidationError("Author query must contain 1 to 100 characters", "query");

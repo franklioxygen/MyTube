@@ -29,6 +29,7 @@ export class AuthorSearchUnavailableError extends Error {
   }
 }
 
+/** Accept only public Bilibili image hosts and normalize safe avatar URLs to HTTPS. */
 function avatarUrl(value: unknown): string {
   if (typeof value !== "string") return "";
   try {
@@ -42,6 +43,7 @@ function avatarUrl(value: unknown): string {
   }
 }
 
+/** Map a verified UID and display name to a canonical profile, rejecting incomplete entries. */
 function formatAuthor(entry: Record<string, unknown>): AuthorSearchResult | null {
   const rawId = entry.mid;
   const id = typeof rawId === "string" || (typeof rawId === "number" && Number.isSafeInteger(rawId))

@@ -188,19 +188,33 @@ async function fetchSearchPage(
       response = await fetchPage();
     }
     if (isRiskControlled(response)) {
+      logger.warn("Bilibili video search was blocked by upstream risk control", {
+        page, httpStatus: response.status,
+        apiCode: typeof response.data?.code === "number" ? response.data.code : undefined,
+      });
       throw new BilibiliSearchUnavailableError("BILIBILI_SEARCH_RISK_CONTROLLED");
     }
 
     const data = response.data;
     if (!data || data.code !== 0) {
+      logger.warn("Bilibili video search returned an unexpected API response", {
+        page, httpStatus: response.status,
+        apiCode: typeof data?.code === "number" ? data.code : undefined,
+      });
       throw new BilibiliSearchUnavailableError();
     }
 
     if (Array.isArray(data.data?.result)) return data.data.result;
     if (data.data?.numResults === 0) return [];
+    logger.warn("Bilibili video search response had no result array", { page });
     throw new BilibiliSearchUnavailableError();
   } catch (error) {
     if (error instanceof BilibiliSearchUnavailableError) throw error;
+    // Exception messages/configs can contain proxy credentials, cookies or URLs.
+    const axiosError = axios.isAxiosError(error) ? error : undefined;
+    logger.warn("Bilibili video search request failed", {
+      page, errorCode: axiosError?.code, httpStatus: axiosError?.response?.status,
+    });
     throw new BilibiliSearchUnavailableError();
   }
 }
