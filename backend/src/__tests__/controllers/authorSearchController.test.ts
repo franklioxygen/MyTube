@@ -48,3 +48,34 @@ it('limits upstream amplification separately from general API traffic', async ()
   expect((await request(limitedApp).get('/search/authors?source=bilibili&query=author')).status).toBe(429);
   expect(search).toHaveBeenCalledTimes(30);
 });
+
+it('shares an IPv6 prefix limit across rotating addresses while keeping other prefixes independent', async () => {
+  const limitedApp = express();
+  limitedApp.set('trust proxy', 1);
+  limitedApp.get('/search/authors', authorSearchLimiter, asyncHandler(searchAuthors));
+  for (let i = 0; i < 30; i++) {
+    const ip = `2001:0db8:1234:${(0x5600 + i).toString(16)}:0000:0000:0000:0001`;
+    const response = await request(limitedApp).get('/search/authors?source=bilibili&query=author').set('X-Forwarded-For', ip);
+    expect(response.status).toBe(200);
+  }
+  const blocked = await request(limitedApp).get('/search/authors?source=bilibili&query=author').set('X-Forwarded-For', '2001:0db8:1234:56ff:0000:0000:0000:0002');
+  expect(blocked.status).toBe(429);
+  expect(search).toHaveBeenCalledTimes(30);
+  const otherPrefix = await request(limitedApp).get('/search/authors?source=bilibili&query=author').set('X-Forwarded-For', '2001:0db8:1234:5700:0000:0000:0000:0001');
+  expect(otherPrefix.status).toBe(200);
+});
+
+it('keeps distinct IPv4 clients in separate rate-limit buckets', async () => {
+  const limitedApp = express();
+  limitedApp.set('trust proxy', 1);
+  limitedApp.get('/search/authors', authorSearchLimiter, asyncHandler(searchAuthors));
+  for (let i = 0; i < 30; i++) {
+    const response = await request(limitedApp).get('/search/authors?source=bilibili&query=author').set('X-Forwarded-For', '203.0.113.10');
+    expect(response.status).toBe(200);
+  }
+  const blocked = await request(limitedApp).get('/search/authors?source=bilibili&query=author').set('X-Forwarded-For', '203.0.113.10');
+  expect(blocked.status).toBe(429);
+  const otherClient = await request(limitedApp).get('/search/authors?source=bilibili&query=author').set('X-Forwarded-For', '203.0.113.11');
+  expect(otherClient.status).toBe(200);
+  expect(search).toHaveBeenCalledTimes(31);
+});

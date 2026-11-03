@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import rateLimit from "express-rate-limit";
+import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import { ValidationError } from "../errors/DownloadErrors";
 import { searchBilibiliAuthors, AuthorSearchUnavailableError } from "../services/downloaders/bilibili/bilibiliAuthorSearch";
 import { getBilibiliAuthorId } from "../utils/bilibiliAuthor";
@@ -7,7 +7,7 @@ import { getClientIp } from "../utils/security";
 
 export const authorSearchLimiter = rateLimit({
   windowMs: 60_000, limit: 30, standardHeaders: true, legacyHeaders: false,
-  keyGenerator: (req) => getClientIp(req), validate: { trustProxy: false },
+  keyGenerator: (req) => ipKeyGenerator(getClientIp(req)), validate: { trustProxy: false },
 });
 
 export async function searchAuthors(req: Request, res: Response): Promise<void> {
