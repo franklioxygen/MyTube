@@ -9,7 +9,7 @@ import {
     useTheme,
 } from '@mui/material';
 import { Computer, Pause, PlayArrow } from '@mui/icons-material';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLanguage } from '../../../contexts/LanguageContext';
 import { useCompatibilityStatisticsWatchTracker } from '../../../hooks/useCompatibilityStatisticsWatchTracker';
 import { modeColors, neutral, overlay } from '../../../theme/colors';
@@ -18,6 +18,7 @@ import {
     PlayerSeekIntervals,
 } from '../../../utils/playerSeekIntervals';
 import FullscreenControl from '../VideoControls/FullscreenControl';
+const DanmakuPlayer = lazy(() => import('../DanmakuPlayer'));
 import ProgressBar from '../VideoControls/ProgressBar';
 import SeekButton from '../VideoControls/SeekButton';
 import { viewportHeight, viewportWidth } from '../../../utils/viewportUnits';
@@ -37,6 +38,8 @@ import {
 } from './playbackEngine';
 
 interface CompatibilityPlayerProps {
+    danmakuVideoId?: string;
+    danmakuCanRefresh?: boolean;
     src: string | null;
     poster?: string;
     autoPlay?: boolean;
@@ -85,6 +88,8 @@ const INITIAL_SNAPSHOT: PlaybackSnapshot = {
  * minimum needed to demonstrate playback.
  */
 const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
+    danmakuVideoId,
+    danmakuCanRefresh = false,
     src,
     poster,
     autoPlay = false,
@@ -104,6 +109,7 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
     // so the guard cannot live only in the parent.
     const supported = useMemo(() => isCompatibilityModeSupported(), []);
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
+    const [danmakuContainer, setDanmakuContainer] = useState<HTMLDivElement | null>(null);
     const containerRef = useRef<HTMLDivElement | null>(null);
     const engineRef = useRef<CompatibilityPlaybackEngine | null>(null);
     const onTimeUpdateRef = useRef(onTimeUpdate);
@@ -528,15 +534,9 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
                 boxShadow: 4,
                 position: 'relative',
                 ...(isFullscreen && {
-                    // Deliberately keeps the in-car zoom, unlike the standard
-                    // player's fullscreen container. This one renders only
-                    // FullscreenControl, ProgressBar and SeekButton - nothing
-                    // that portals a menu into the fullscreen element - so
-                    // there are no coordinates to realign, and cancelling the
-                    // zoom would only inflate its px-sized controls by 1/zoom
-                    // and drop its layout width from the compensated desktop
-                    // one to the raw viewport. Revisit if it ever gains a
-                    // control that portals here.
+                    // Keep the car's compensated transport dimensions. DanmakuPlayer
+                    // cancels this zoom only around its fullscreen popover, whose
+                    // anchor positioning uses viewport coordinates.
                     width: viewportWidth(),
                     height: viewportHeight(),
                     display: 'flex',
@@ -546,6 +546,7 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
             }}
         >
             <Box
+                ref={setDanmakuContainer}
                 sx={{
                     position: 'relative',
                     width: '100%',
@@ -737,6 +738,9 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
                     {isPlaying ? <Pause /> : <PlayArrow />}
                 </IconButton>
 
+                {danmakuVideoId && !hasFailed && <Suspense fallback={null}><DanmakuPlayer key={danmakuVideoId} videoId={danmakuVideoId}
+                    getTime={() => engineRef.current?.getCurrentTime?.() ?? positionRef.current}
+                    overlayContainer={danmakuContainer} canRefresh={danmakuCanRefresh} fullscreenKeepsZoom /></Suspense>}
                 <ProgressBar
                     currentTime={displayTime}
                     duration={snapshot.duration ?? 0}

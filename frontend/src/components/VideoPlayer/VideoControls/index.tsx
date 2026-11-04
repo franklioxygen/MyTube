@@ -1,5 +1,5 @@
 import { Box } from '@mui/material';
-import React, { useCallback, useEffect } from 'react';
+import React, { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { useLiveTranslationControl } from '../../../contexts/LiveTranslationContext';
 import { neutral } from '../../../theme/colors';
 import { useStatisticsWatchTracker } from '../../../hooks/useStatisticsWatchTracker';
@@ -18,8 +18,11 @@ import { useVideoPlayer } from './hooks/useVideoPlayer';
 import { useVolume } from './hooks/useVolume';
 import VideoElement from './VideoElement';
 import { cancelAutomotiveZoom } from '../../../utils/viewportUnits';
+const DanmakuPlayer = lazy(() => import('../DanmakuPlayer'));
 
 interface VideoControlsProps {
+    danmakuVideoId?: string;
+    danmakuCanRefresh?: boolean;
     src: string;
     mediaPath?: string | null;
     autoPlay?: boolean;
@@ -54,6 +57,8 @@ interface VideoControlsProps {
 }
 
 const VideoControls: React.FC<VideoControlsProps> = ({
+    danmakuVideoId,
+    danmakuCanRefresh = false,
     src,
     mediaPath,
     autoPlay = false,
@@ -84,6 +89,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
     onNextVideo,
     onPreviousVideo,
 }) => {
+    const [danmakuContainer, setDanmakuContainer] = useState<HTMLDivElement | null>(null);
     // Core video player logic
     const videoPlayer = useVideoPlayer({
         src,
@@ -339,9 +345,9 @@ const VideoControls: React.FC<VideoControlsProps> = ({
                     // The cost is that px-sized controls render at 1/zoom, i.e.
                     // their unshrunk size. That is the right trade in
                     // fullscreen - bigger touch targets, and no desktop layout
-                    // to preserve - but it is why CompatibilityPlayer, which
-                    // portals nothing here, keeps the compensated dimensions
-                    // instead.
+                    // to preserve. CompatibilityPlayer keeps the compensated
+                    // transport dimensions and cancels zoom only for its
+                    // danmaku menu.
                     zoom: cancelAutomotiveZoom,
                     width: '100vw',
                     height: '100vh',
@@ -352,35 +358,36 @@ const VideoControls: React.FC<VideoControlsProps> = ({
             }}
         >
             <Box sx={{ position: 'relative', flex: isFullscreen ? 1 : undefined, minHeight: isFullscreen ? 0 : undefined }}>
-                <VideoElement
-                    videoRef={videoPlayer.videoRef}
-                    src={src}
-                    mediaPath={mediaPath}
-                    poster={poster}
-                    isLoading={loading.isLoading}
-                    loadError={loading.loadError}
-                    isFullscreen={isFullscreen}
-                    subtitles={subtitles}
-                    onClick={videoPlayer.handlePlayPause}
-                    onPlay={videoPlayer.handlePlay}
-                    onPause={videoPlayer.handlePause}
-                    onEnded={onEnded}
-                    onTimeUpdate={videoPlayer.handleTimeUpdate}
-                    onLoadedMetadata={handleLoadedMetadata}
-                    onError={loading.handleVideoError}
-                    onLoadStart={handleLoadStart}
-                    onCanPlay={handleCanPlay}
-                    onLoadedData={handleLoadedData}
-                    onProgress={handleProgress}
-                    onWaiting={handleWaiting}
-                    onCanPlayThrough={handleCanPlayThrough}
-                    onSeeking={videoPlayer.handleSeeking}
-                    onSeeked={videoPlayer.handleSeeked}
-                    onSubtitleInit={subtitlesHook.initializeSubtitles}
-                    audioMode={audioMode}
-                    isPlaying={videoPlayer.isPlaying}
-                />
-
+                <Box ref={setDanmakuContainer} sx={{ position: 'relative', height: isFullscreen ? '100%' : undefined }}>
+                    <VideoElement
+                        videoRef={videoPlayer.videoRef}
+                        src={src}
+                        mediaPath={mediaPath}
+                        poster={poster}
+                        isLoading={loading.isLoading}
+                        loadError={loading.loadError}
+                        isFullscreen={isFullscreen}
+                        subtitles={subtitles}
+                        onClick={videoPlayer.handlePlayPause}
+                        onPlay={videoPlayer.handlePlay}
+                        onPause={videoPlayer.handlePause}
+                        onEnded={onEnded}
+                        onTimeUpdate={videoPlayer.handleTimeUpdate}
+                        onLoadedMetadata={handleLoadedMetadata}
+                        onError={loading.handleVideoError}
+                        onLoadStart={handleLoadStart}
+                        onCanPlay={handleCanPlay}
+                        onLoadedData={handleLoadedData}
+                        onProgress={handleProgress}
+                        onWaiting={handleWaiting}
+                        onCanPlayThrough={handleCanPlayThrough}
+                        onSeeking={videoPlayer.handleSeeking}
+                        onSeeked={videoPlayer.handleSeeked}
+                        onSubtitleInit={subtitlesHook.initializeSubtitles}
+                        audioMode={audioMode}
+                        isPlaying={videoPlayer.isPlaying}
+                    />
+                </Box>
                 <Box
                     sx={{
                         ...(isFullscreen
@@ -395,6 +402,11 @@ const VideoControls: React.FC<VideoControlsProps> = ({
                     }}
                 >
                     <ControlsOverlay
+                        danmakuControl={danmakuVideoId && !audioMode ? <Suspense fallback={null}>
+                            <DanmakuPlayer key={danmakuVideoId} videoId={danmakuVideoId}
+                                getTime={() => videoPlayer.videoRef.current?.currentTime ?? 0}
+                                overlayContainer={danmakuContainer} canRefresh={danmakuCanRefresh} />
+                        </Suspense> : undefined}
                         isFullscreen={isFullscreen}
                         controlsVisible={controlsVisible}
                         isPlaying={videoPlayer.isPlaying}

@@ -614,6 +614,11 @@ export class CompatibilityPlaybackEngine {
         return Math.max(0, (performance.now() - this.wallBaseMs) / 1000);
     }
 
+    /** Content clock shared with overlays; it freezes during pause, seek and buffering. */
+    getCurrentTime(): number {
+        return this.mediaTime;
+    }
+
     // -------------------------------------------------------------------- pump
 
     private pump(): Promise<void> {

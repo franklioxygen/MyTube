@@ -66,6 +66,12 @@ const DownloadSettings: React.FC<DownloadSettingsProps> = ({
 
     return (
         <Box>
+            <Box sx={{ mb: 3 }} id="downloadBilibiliDanmaku-setting">
+                <FormControlLabel control={<Switch checked={settings.downloadBilibiliDanmaku === true}
+                    onChange={event => onChange('downloadBilibiliDanmaku', event.target.checked)} />}
+                    label={t('downloadBilibiliDanmaku')} />
+                <Typography variant="body2" color="text.secondary">{t('downloadBilibiliDanmakuDescription')}</Typography>
+            </Box>
             <Typography gutterBottom>
                 {t('maxConcurrent')}: {settings.maxConcurrentDownloads}
             </Typography>

@@ -669,6 +669,9 @@ const VideoPlayer: React.FC = () => {
             video.progressUpdatedAt ?? video.lastPlayedAt
         );
 
+    // Danmaku only exists for Bilibili videos, so other sources get no control at all.
+    const danmakuVideoId = video.source === 'bilibili' ? video.id : undefined;
+
     return (
         <Container maxWidth={false} disableGutters sx={{ py: { xs: 2, md: 4 }, px: { xs: 0, md: 2 } }}>
             {/* Grid layout: xs = stacked; lg + cinema = stacked; lg + normal = main column + sidebar */}
@@ -709,6 +712,8 @@ const VideoPlayer: React.FC = () => {
                         }}
                     >
                     {showCompatibilityPlayer ? <CompatibilityPlayer
+                        danmakuVideoId={danmakuVideoId}
+                        danmakuCanRefresh={!!video.sourceUrl?.includes('bilibili.com/video/')}
                         src={(videoUrl || video?.sourceUrl) || null}
                         poster={posterUrl || localPosterUrl || video?.thumbnailUrl}
                         autoPlay={autoPlay}
@@ -767,6 +772,8 @@ const VideoPlayer: React.FC = () => {
                         onNextVideo={relatedVideos.length > 0 ? handleNextVideo : undefined}
                         onPreviousVideo={previousVideoId ? handlePreviousVideo : undefined}
                     /> : <VideoControls
+                        danmakuVideoId={danmakuVideoId}
+                        danmakuCanRefresh={!!video.sourceUrl?.includes('bilibili.com/video/')}
                         src={(videoUrl || video?.sourceUrl) || null}
                         mediaPath={video.videoPath}
                         poster={posterUrl || localPosterUrl || video?.thumbnailUrl}
