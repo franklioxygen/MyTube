@@ -20,6 +20,8 @@ import {
     Typography
 } from '@mui/material';
 import { Link as RouterLink } from 'react-router';
+import { DownloadMediaDetails, DownloadSourceInfo } from './DownloadMediaDetails';
+import type { DownloadMediaInfo } from '../../utils/downloadMediaInfo';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { getBilibiliRetryGapSummary } from '../../utils/bilibiliRetryMetadata';
 import { getDownloadErrorKey } from '../../utils/downloadErrorMessage';
@@ -33,6 +35,7 @@ export interface DownloadHistoryItem {
     id: string;
     title: string;
     author?: string;
+    mediaInfo?: DownloadMediaInfo;
     sourceUrl?: string;
     finishedAt: number;
     status: 'success' | 'failed' | 'partial' | 'skipped' | 'deleted' | 'pending_retry';
@@ -175,7 +178,7 @@ export function HistoryItem({
                 disableGutters
                 sx={{
                     display: 'grid',
-                    gridTemplateColumns: { xs: 'minmax(0, 1fr)', md: 'minmax(0, 1fr) auto' },
+                    gridTemplateColumns: { xs: 'minmax(0, 1fr)', md: 'minmax(0, 1fr) minmax(140px, auto) auto' },
                     alignItems: { xs: 'stretch', md: 'flex-start' },
                     columnGap: { xs: 0, md: 2 },
                     rowGap: 2,
@@ -191,6 +194,7 @@ export function HistoryItem({
                     }}
                     secondary={
                         <Box component="div" sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                            <DownloadSourceInfo author={item.author} sourceCollectionName={item.mediaInfo?.sourceCollectionName} />
                             {item.sourceUrl && (
                                 <Typography
                                     variant="caption"
@@ -303,9 +307,11 @@ export function HistoryItem({
                         </Box>
                     }
                 />
+                <DownloadMediaDetails item={item} />
                 <Box
                     sx={{
                         display: 'flex',
+                        gridColumn: { xs: '1', md: '3' },
                         flexDirection: { xs: 'row', md: 'column' },
                         gap: 1,
                         width: { xs: '100%', md: 'fit-content' },

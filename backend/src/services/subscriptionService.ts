@@ -893,8 +893,10 @@ export class SubscriptionService {
             thumbnailPath: videoData.thumbnailPath,
             videoId: videoData.id,
             incompleteDownloadNote: videoData.incompleteDownloadNote,
+            mediaInfo: videoData.downloadMediaInfo,
             mediaType: videoData.mediaType === "audio" ? "audio" : "video",
             subscriptionId: sub.id,
+            sourceCollectionName: sub.subscriptionType === "playlist" ? sub.playlistTitle : undefined,
             platform:
               typeof sub.platform === "string"
                 ? sub.platform.toLowerCase()
@@ -1010,6 +1012,7 @@ export class SubscriptionService {
               status: "failed",
               error: errorMessage,
               subscriptionId: sub.id,
+              sourceCollectionName: sub.subscriptionType === "playlist" ? sub.playlistTitle : undefined,
               platform:
                 typeof sub.platform === "string"
                   ? sub.platform.toLowerCase()
@@ -1095,8 +1098,10 @@ export class SubscriptionService {
               thumbnailPath: videoData.thumbnailPath,
               videoId: videoData.id,
               incompleteDownloadNote: videoData.incompleteDownloadNote,
+              mediaInfo: videoData.downloadMediaInfo,
               mediaType: videoData.mediaType === "audio" ? "audio" : "video",
               subscriptionId: sub.id,
+              sourceCollectionName: sub.subscriptionType === "playlist" ? sub.playlistTitle : undefined,
               platform:
                 typeof sub.platform === "string"
                   ? sub.platform.toLowerCase()
@@ -1192,6 +1197,7 @@ export class SubscriptionService {
               status: "failed",
               error: errorMessage,
               subscriptionId: sub.id,
+              sourceCollectionName: sub.subscriptionType === "playlist" ? sub.playlistTitle : undefined,
               platform:
                 typeof sub.platform === "string"
                   ? sub.platform.toLowerCase()
@@ -1452,6 +1458,7 @@ export class SubscriptionService {
       status: "skipped",
       error: `Skipped ${reason} content`,
       subscriptionId: sub.id,
+      sourceCollectionName: sub.subscriptionType === "playlist" ? sub.playlistTitle : undefined,
       platform:
         typeof sub.platform === "string"
           ? sub.platform.toLowerCase()
@@ -1513,6 +1520,8 @@ export class SubscriptionService {
         suppressHistory: true,
         suppressCompletionNotification: true,
         disableAutoRetry: true,
+        author: sub.author,
+        sourceCollectionName: sub.subscriptionType === "playlist" ? sub.playlistTitle : undefined,
       }
     );
   }

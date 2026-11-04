@@ -790,6 +790,12 @@ export function migrateColumnsAndTables(): void {
       .prepare("PRAGMA table_info(downloads)")
       .all();
     const downloadsColumns = columnNames(downloadsTableInfo);
+    if (!downloadsColumns.includes("author")) {
+      sqlite.prepare("ALTER TABLE downloads ADD COLUMN author TEXT").run();
+    }
+    if (!downloadsColumns.includes("source_collection_name")) {
+      sqlite.prepare("ALTER TABLE downloads ADD COLUMN source_collection_name TEXT").run();
+    }
 
     if (!downloadsColumns.includes("source_url")) {
       logger.info(
@@ -965,6 +971,9 @@ export function migrateColumnsAndTables(): void {
       .prepare("PRAGMA table_info(download_history)")
       .all();
     const downloadHistoryColumns = columnNames(downloadHistoryTableInfo);
+    if (!downloadHistoryColumns.includes("media_info")) {
+      sqlite.prepare("ALTER TABLE download_history ADD COLUMN media_info TEXT").run();
+    }
 
     if (!downloadHistoryColumns.includes("video_id")) {
       logger.info(

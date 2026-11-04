@@ -362,6 +362,7 @@ export class TaskProcessor {
           sourceUrl: videoUrl,
           finishedAt: Date.now(),
           status: "failed",
+          sourceCollectionName: task.playlistName,
           error: downloadErrorMessage || "Download failed",
           taskId: task.id,
           subscriptionId: task.subscriptionId,
@@ -582,6 +583,8 @@ export class TaskProcessor {
     storageService.updateActiveDownload(downloadId, {
       sourceUrl: videoUrl,
       type: task.platform.toLowerCase(),
+      author: task.author,
+      sourceCollectionName: task.playlistName,
     });
 
     const filenameTemplateSourceOptions =
@@ -644,6 +647,7 @@ export class TaskProcessor {
         thumbnailPath: videoData.thumbnailPath ?? undefined,
         videoId: videoData.id,
         incompleteDownloadNote: videoData.incompleteDownloadNote,
+        mediaInfo: videoData.downloadMediaInfo,
         mediaType: videoData.mediaType === "audio" ? "audio" : "video",
         taskId: task.id,
         subscriptionId: task.subscriptionId,

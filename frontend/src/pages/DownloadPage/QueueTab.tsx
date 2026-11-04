@@ -12,12 +12,15 @@ import {
 } from '@mui/material';
 import React, { useState } from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { DownloadSourceInfo } from './DownloadMediaDetails';
 import { usePaginationSwipeNavigation } from '../../hooks/usePaginationSwipeNavigation';
 import { useMediaQuery, useTheme } from '@mui/material';
 
 interface Download {
     id: string;
     title: string;
+    author?: string;
+    sourceCollectionName?: string;
 }
 
 interface QueueTabProps {
@@ -76,7 +79,8 @@ export function QueueTab({ downloads, onRemove, onClear, removingId = null, clea
                                     >
                                         <ListItemText
                                             primary={download.title}
-                                            secondary={t('queued') || 'Queued'}
+                                            slotProps={{ secondary: { component: 'div' } }}
+                                            secondary={<><DownloadSourceInfo author={download.author} sourceCollectionName={download.sourceCollectionName} />{t('queued') || 'Queued'}</>}
                                         />
                                     </ListItem>
                                 </Paper>

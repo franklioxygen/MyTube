@@ -1,0 +1,71 @@
+import { render, screen } from '@testing-library/react';
+import { BrowserRouter } from 'react-router';
+import { describe, expect, it, vi } from 'vitest';
+import { HistoryItem, type DownloadHistoryItem } from '../HistoryItem';
+import { ActiveDownloadsTab } from '../ActiveDownloadsTab';
+import { QueueTab } from '../QueueTab';
+import { formatMediaBytes, formatMediaCodec } from '../../../utils/downloadMediaInfo';
+vi.mock('../../../contexts/LanguageContext', () => ({ useLanguage: () => ({ t: (key: string) => key, language: 'en' }) }));
+const item: DownloadHistoryItem = {
+    id: 'history', title: 'Downloaded media', author: 'Creator', status: 'success', finishedAt: 100,
+    mediaInfo: { version: 1, state: 'measured', capturedAt: 100, sizeBytes: '1073741824', width: 3840, height: 2160,
+        videoCodec: 'hevc', audioCodec: 'aac', container: 'matroska,webm', bitrateBps: 2500000, sourceCollectionName: 'Source playlist' },
+};
+const show = (overrides: Partial<DownloadHistoryItem> = {}) => render(<BrowserRouter><HistoryItem item={{ ...item, ...overrides }}
+    onRemove={vi.fn()} onCancelRetry={vi.fn()} onRetry={vi.fn()} onReDownload={vi.fn()} onViewVideo={vi.fn()} isDownloadInProgress={() => false} /></BrowserRouter>);
+
+describe('download output information', () => {
+    it.each(['success', 'deleted'] as const)('shows the %s output snapshot with source and separate bitrate units', status => {
+        show({ status });
+        expect(screen.getByText('author: Creator')).toBeInTheDocument();
+        expect(screen.getByText('downloadSourceCollection: Source playlist')).toBeInTheDocument();
+        expect(screen.getByText('downloadFinalFile')).toBeInTheDocument();
+        expect(screen.getByText('1 GiB · 3840 × 2160 · HEVC')).toBeInTheDocument();
+        expect(screen.getByText('Matroska / WebM · AAC · 2500 kbps')).toBeInTheDocument();
+    });
+    it('omits video dimensions and cover-art codecs for audio-only media', () => {
+        show({ mediaType: 'audio', mediaInfo: { ...item.mediaInfo!, videoCodec: 'mjpeg', audioCodec: 'flac' } });
+        expect(screen.getByText('1 GiB · FLAC')).toBeInTheDocument();
+        expect(screen.queryByText(/3840 × 2160/)).not.toBeInTheDocument();
+        expect(screen.queryByText(/mjpeg/i)).not.toBeInTheDocument();
+    });
+    it.each(['failed', 'partial', 'pending_retry'] as const)('does not show final parameters on a %s row', status => {
+        show({ status });
+        expect(screen.queryByLabelText('downloadMediaInfo')).not.toBeInTheDocument();
+        expect(screen.getByText('downloadSourceCollection: Source playlist')).toBeInTheDocument();
+    });
+    it('labels legacy size without suggesting current file metadata was measured', () => {
+        show({ mediaInfo: undefined, totalSize: '1048576' });
+        expect(screen.getByText('downloadRecordedSize')).toBeInTheDocument();
+        expect(screen.getByText('1 MiB')).toBeInTheDocument();
+        expect(screen.queryByText('downloadFinalFile')).not.toBeInTheDocument();
+    });
+    it('keeps a successful row successful when the technical probe failed', () => {
+        show({ mediaInfo: { version: 1, state: 'unavailable', capturedAt: 100, sizeBytes: '1048576' } });
+        expect(screen.getByText('success')).toBeInTheDocument();
+        expect(screen.getByText('downloadMediaInfoUnknown')).toBeInTheDocument();
+        expect(screen.getByText('1 MiB')).toBeInTheDocument();
+    });
+    it('identifies skipped output as an existing file', () => {
+        show({ status: 'skipped' });
+        expect(screen.getByText('downloadExistingFile')).toBeInTheDocument();
+        expect(screen.queryByText('downloadFinalFile')).not.toBeInTheDocument();
+    });
+    it('formats known codecs, retains unknown codecs and never invents a zero size', () => {
+        expect(['h264','hevc','av1','future'].map(formatMediaCodec)).toEqual(['H.264','HEVC','AV1','future']);
+        expect(formatMediaBytes('0')).toBeUndefined();
+        expect(formatMediaBytes(undefined)).toBeUndefined();
+    });
+    it('shows only known source fields and estimated sizes for active downloads', () => {
+        render(<ActiveDownloadsTab downloads={[{ id: 'active', title: 'Running', author: 'Creator', sourceCollectionName: 'Source playlist', totalSize: '20 MiB' }]} onCancel={vi.fn()} />);
+        expect(screen.getByText('author: Creator')).toBeInTheDocument();
+        expect(screen.getByText(/20 MiB.*downloadEstimatedSize/)).toBeInTheDocument();
+        expect(screen.queryByText('downloadFinalFile')).not.toBeInTheDocument();
+    });
+    it('shows known queued sources without inventing a media format', () => {
+        render(<QueueTab downloads={[{ id: 'queued', title: 'Waiting', author: 'Creator', sourceCollectionName: 'Source playlist' }]} onRemove={vi.fn()} onClear={vi.fn()} />);
+        expect(screen.getByText('author: Creator')).toBeInTheDocument();
+        expect(screen.getByText('downloadSourceCollection: Source playlist')).toBeInTheDocument();
+        expect(screen.queryByLabelText('downloadMediaInfo')).not.toBeInTheDocument();
+    });
+});

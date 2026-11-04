@@ -90,6 +90,8 @@ describe('DownloadManager', () => {
         {
           id: 'restore-1',
           title: 'Restored Task',
+          author: 'Queued creator',
+          sourceCollectionName: 'Original playlist',
           sourceUrl: 'https://www.youtube.com/watch?v=abc123',
           type: 'youtube',
         },
@@ -752,6 +754,8 @@ describe('DownloadManager', () => {
         {
           sourceUrl: 'https://www.youtube.com/watch?v=abc123',
           type: 'youtube',
+          author: 'Queued creator',
+          sourceCollectionName: 'Original playlist',
         },
       );
       expect(HookService.executeHook).toHaveBeenCalledWith(
@@ -804,6 +808,8 @@ describe('DownloadManager', () => {
         {
           id: 'retry-bili',
           title: 'Bilibili multipart',
+          author: 'Retry creator',
+          mediaInfo: { version: 1, state: 'unavailable', capturedAt: 1, sourceCollectionName: 'Series' },
           status: 'pending_retry',
           sourceUrl: 'https://www.bilibili.com/video/BV1xx',
           downloadType: 'bilibili',
@@ -820,6 +826,10 @@ describe('DownloadManager', () => {
         'https://www.bilibili.com/video/BV1xx',
         'retry-bili',
         expect.objectContaining({ shape: 'bilibili_all_parts' }),
+      );
+      expect(storageService.updateActiveDownload).toHaveBeenCalledWith(
+        'retry-bili',
+        expect.objectContaining({ author: 'Retry creator', sourceCollectionName: 'Series' }),
       );
     });
 

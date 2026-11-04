@@ -10,10 +10,13 @@ import {
     Typography
 } from '@mui/material';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { DownloadSourceInfo } from './DownloadMediaDetails';
 
 interface Download {
     id: string;
     title: string;
+    author?: string;
+    sourceCollectionName?: string;
     progress?: number;
     speed?: string;
     downloadedSize?: string;
@@ -55,6 +58,7 @@ export function ActiveDownloadsTab({ downloads, onCancel, cancellingId = null }:
                             slotProps={{ secondary: { component: 'div' } }}
                             secondary={
                                 <Box sx={{ mt: 1 }}>
+                                    <DownloadSourceInfo author={download.author} sourceCollectionName={download.sourceCollectionName} />
                                     <LinearProgress variant="determinate" value={download.progress || 0} sx={{ mb: 1 }} />
                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
                                         <Typography variant="body2" fontWeight="bold" color="primary">
@@ -70,7 +74,7 @@ export function ActiveDownloadsTab({ downloads, onCancel, cancellingId = null }:
                                             •
                                         </Typography>
                                         <Typography variant="caption" color="textSecondary">
-                                            {download.downloadedSize || '0'} / {download.totalSize || '?'}
+                                            {download.downloadedSize || '0'} / {download.totalSize || '?'} ({t('downloadEstimatedSize')})
                                         </Typography>
                                     </Box>
                                 </Box>

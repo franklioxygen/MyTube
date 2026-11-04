@@ -15,6 +15,20 @@ export function isSubtitleArray(value: unknown): boolean {
   });
 }
 
+export interface DownloadMediaInfo {
+  version: 1;
+  state: "measured" | "unavailable";
+  capturedAt: number;
+  sizeBytes?: string;
+  width?: number;
+  height?: number;
+  videoCodec?: string;
+  audioCodec?: string;
+  container?: string;
+  bitrateBps?: number;
+  sourceCollectionName?: string;
+}
+
 export interface Video {
   id: string;
   title: string;
@@ -34,6 +48,8 @@ export interface Video {
   mediaType?: MediaType;
   /** Transient result metadata for this download attempt; never saved with the video. */
   incompleteDownloadNote?: IncompleteDownloadNote;
+  /** Transient, attempt-specific published file snapshot; persisted only in download history. */
+  downloadMediaInfo?: DownloadMediaInfo;
   description?: string;
   // null/0 = auto-delete eligible (unlocked), 1 = locked (protected from all
   // automatic deletion). See db/schema.ts videos.auto_delete_locked.
@@ -62,6 +78,8 @@ export interface Collection {
 export interface DownloadInfo {
   id: string;
   title: string;
+  author?: string;
+  sourceCollectionName?: string;
   timestamp: number;
   filename?: string;
   totalSize?: string;
@@ -97,6 +115,9 @@ export interface DownloadHistoryItem {
   id: string;
   title: string;
   author?: string;
+  mediaInfo?: DownloadMediaInfo;
+  /** Known download origin, serialized with mediaInfo even when no output was saved. */
+  sourceCollectionName?: string;
   sourceUrl?: string;
   finishedAt: number;
   status: "success" | "failed" | "partial" | "skipped" | "deleted" | "pending_retry";
