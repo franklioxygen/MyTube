@@ -22,6 +22,12 @@ describe("exact-part Bilibili XML adapter", () => {
     expect(await fetchBilibiliDanmaku(item, new AbortController().signal)).toMatchObject({ cid: "222" });
     expect(axios.get).toHaveBeenLastCalledWith("https://comment.bilibili.com/222.xml", expect.objectContaining({ maxRedirects: 0, timeout: 15000 }));
   });
+  it("uses page one for a collection episode, whose partNumber is its ordinal in the collection", async () => {
+    const episode = { ...item, sourceUrl: "https://www.bilibili.com/video/BV1episode", partNumber: 3 };
+    vi.mocked(axios.get).mockResolvedValueOnce(response(JSON.stringify({ code: 0, data: { pages: [{ page: 1, cid: 111 }] } })))
+      .mockResolvedValueOnce(response("<i><chatid>111</chatid></i>"));
+    expect(await fetchBilibiliDanmaku(episode, new AbortController().signal)).toMatchObject({ cid: "111" });
+  });
   it("uses a validated metadata hint without requesting video metadata again", async () => {
     vi.mocked(axios.get).mockResolvedValueOnce(response("<i><chatid>222</chatid></i>"));
     await fetchBilibiliDanmaku(item, new AbortController().signal, { cid: "222", subscriptionConfig: "--proxy http://proxy:8080" });
@@ -70,7 +76,9 @@ describe("exact-part Bilibili XML adapter", () => {
   it("rejects unsupported sources and invalid part numbers", () => {
     expect(bilibiliDanmakuIdentity(item)).toEqual({ id: "BV1test", part: 2 });
     expect(() => bilibiliDanmakuIdentity({ sourceUrl: "https://evil.test/video/BV1test" })).toThrow();
-    expect(() => bilibiliDanmakuIdentity({ ...item, partNumber: -1 })).toThrow();
+    expect(bilibiliDanmakuIdentity({ sourceUrl: "https://www.bilibili.com/video/BV1test" })).toEqual({ id: "BV1test", part: 1 });
+    expect(() => bilibiliDanmakuIdentity({ sourceUrl: "https://www.bilibili.com/video/BV1test?p=-1" })).toThrow();
+    expect(() => bilibiliDanmakuIdentity({ sourceUrl: "https://www.bilibili.com/video/BV1test?p=x" })).toThrow();
   });
   it("accepts only exact CID or trusted extractor XML hints", () => {
     expect(extractDanmakuCid({ cid: 123 })).toBe("123");

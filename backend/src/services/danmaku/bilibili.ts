@@ -11,10 +11,11 @@ function validCid(value: unknown): string | undefined {
   return /^[1-9]\d{0,19}$/.test(text) ? text : undefined;
 }
 
-export function bilibiliDanmakuIdentity(video: Pick<Video, "sourceUrl"> & { partNumber?: unknown }): { id: string; part: number } {
+/** The page comes from the URL: a video's partNumber can be its ordinal within a collection instead. */
+export function bilibiliDanmakuIdentity(video: Pick<Video, "sourceUrl">): { id: string; part: number } {
   const url = new URL(video.sourceUrl ?? "");
   const id = url.pathname.match(/^\/video\/(BV[a-zA-Z0-9]+|av\d+)(?:\/|$)/)?.[1];
-  const part = video.partNumber !== undefined ? Number(video.partNumber) : Number(url.searchParams.get("p") ?? "1");
+  const part = Number(url.searchParams.get("p") ?? "1");
   if (!(url.hostname === "bilibili.com" || url.hostname.endsWith(".bilibili.com")) ||
       !id || !Number.isSafeInteger(part) || part < 1) throw new Error("danmakuUnsupportedSource");
   return { id, part };
