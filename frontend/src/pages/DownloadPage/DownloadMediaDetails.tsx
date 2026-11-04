@@ -27,10 +27,10 @@ export function DownloadMediaDetails({ item }: { item: DownloadHistoryItem }) {
         info.bitrateBps && info.bitrateBps > 0 ? `${Number((info.bitrateBps / 1000).toFixed(1))} kbps` : undefined,
     ].filter(Boolean).join(' · ') : '';
     if (!info && !size) return null;
-    return <Box aria-label={t('downloadMediaInfo')} sx={{ minWidth: 0, maxWidth: { md: 300 }, textAlign: { xs: 'left', md: 'right' }, overflowWrap: 'anywhere' }}>
-        <Typography variant="caption" color="text.secondary" display="block">{item.status === 'skipped' ? t('downloadExistingFile') : info ? t('downloadFinalFile') : t('downloadRecordedSize')}</Typography>
-        <Typography variant="body2">{[size, resolution, codec].filter(Boolean).join(' · ') || t('downloadMediaInfoUnknown')}</Typography>
-        {details && <Typography variant="caption" color="text.secondary" display="block">{details}</Typography>}
-        {info?.state === 'unavailable' && size && <Typography variant="caption" color="text.secondary" display="block">{t('downloadMediaInfoUnknown')}</Typography>}
+    return <Box aria-label={t('downloadMediaInfo')} sx={{ display: 'flex', flexWrap: 'wrap', columnGap: 2, overflowWrap: 'anywhere' }}>
+        {item.status === 'skipped' && <Typography variant="caption" color="text.secondary">{t('downloadExistingFile')}</Typography>}
+        <Typography variant="caption" color="text.primary">{[size, resolution, codec].filter(Boolean).join(' · ') || t('downloadMediaInfoUnknown')}</Typography>
+        {details && <Typography variant="caption" color="text.secondary">{details}</Typography>}
+        {info?.state === 'unavailable' && size && <Typography variant="caption" color="text.secondary">{t('downloadMediaInfoUnknown')}</Typography>}
     </Box>;
 }

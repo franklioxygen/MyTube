@@ -178,7 +178,7 @@ export function HistoryItem({
                 disableGutters
                 sx={{
                     display: 'grid',
-                    gridTemplateColumns: { xs: 'minmax(0, 1fr)', md: 'minmax(0, 1fr) minmax(140px, auto) auto' },
+                    gridTemplateColumns: { xs: 'minmax(0, 1fr)', md: 'minmax(0, 1fr) auto' },
                     alignItems: { xs: 'stretch', md: 'flex-start' },
                     columnGap: { xs: 0, md: 2 },
                     rowGap: 2,
@@ -195,6 +195,7 @@ export function HistoryItem({
                     secondary={
                         <Box component="div" sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                             <DownloadSourceInfo author={item.author} sourceCollectionName={item.mediaInfo?.sourceCollectionName} />
+                            <DownloadMediaDetails item={item} />
                             {item.sourceUrl && (
                                 <Typography
                                     variant="caption"
@@ -307,11 +308,9 @@ export function HistoryItem({
                         </Box>
                     }
                 />
-                <DownloadMediaDetails item={item} />
                 <Box
                     sx={{
                         display: 'flex',
-                        gridColumn: { xs: '1', md: '3' },
                         flexDirection: { xs: 'row', md: 'column' },
                         gap: 1,
                         width: { xs: '100%', md: 'fit-content' },

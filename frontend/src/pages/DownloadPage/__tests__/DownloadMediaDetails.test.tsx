@@ -19,9 +19,16 @@ describe('download output information', () => {
         show({ status });
         expect(screen.getByText('author: Creator')).toBeInTheDocument();
         expect(screen.getByText('downloadSourceCollection: Source playlist')).toBeInTheDocument();
-        expect(screen.getByText('downloadFinalFile')).toBeInTheDocument();
+        expect(screen.queryByText('downloadFinalFile')).not.toBeInTheDocument();
         expect(screen.getByText('1 GiB · 3840 × 2160 · HEVC')).toBeInTheDocument();
         expect(screen.getByText('Matroska / WebM · AAC · 2500 kbps')).toBeInTheDocument();
+    });
+    it('keeps output facts in the metadata stack between the source and its link', () => {
+        show({ sourceUrl: 'https://example.com/watch' });
+        const facts = screen.getByLabelText('downloadMediaInfo');
+        expect(facts.closest('.MuiListItemText-root')).not.toBeNull();
+        expect(screen.getByText('author: Creator').compareDocumentPosition(facts)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+        expect(facts.compareDocumentPosition(screen.getByRole('link', { name: 'https://example.com/watch' }))).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
     });
     it('omits video dimensions and cover-art codecs for audio-only media', () => {
         show({ mediaType: 'audio', mediaInfo: { ...item.mediaInfo!, videoCodec: 'mjpeg', audioCodec: 'flac' } });
@@ -34,9 +41,9 @@ describe('download output information', () => {
         expect(screen.queryByLabelText('downloadMediaInfo')).not.toBeInTheDocument();
         expect(screen.getByText('downloadSourceCollection: Source playlist')).toBeInTheDocument();
     });
-    it('labels legacy size without suggesting current file metadata was measured', () => {
+    it('shows legacy size without an extra label or invented technical metadata', () => {
         show({ mediaInfo: undefined, totalSize: '1048576' });
-        expect(screen.getByText('downloadRecordedSize')).toBeInTheDocument();
+        expect(screen.queryByText('downloadRecordedSize')).not.toBeInTheDocument();
         expect(screen.getByText('1 MiB')).toBeInTheDocument();
         expect(screen.queryByText('downloadFinalFile')).not.toBeInTheDocument();
     });
