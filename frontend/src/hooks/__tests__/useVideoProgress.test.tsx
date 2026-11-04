@@ -46,6 +46,19 @@ const createWrapper = () => {
   };
 };
 
+// Feed one tick per played second: a single large step looks like a seek.
+const playThrough = (
+  result: { current: ReturnType<typeof useVideoProgress> },
+  from: number,
+  to: number,
+) => {
+  for (let time = from; time <= to; time += 1) {
+    act(() => {
+      result.current.handleTimeUpdate(time);
+    });
+  }
+};
+
 describe("useVideoProgress", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -138,6 +151,8 @@ describe("useVideoProgress", () => {
       { wrapper },
     );
 
+    playThrough(result, 1, 4);
+
     now = 7000;
     act(() => {
       result.current.handleTimeUpdate(5);
@@ -168,9 +183,7 @@ describe("useVideoProgress", () => {
       }),
     ]);
 
-    act(() => {
-      result.current.handleTimeUpdate(10);
-    });
+    playThrough(result, 6, 10);
 
     await waitFor(() => {
       expect(mockApiPost).toHaveBeenCalledWith("/videos/video-2/view");
@@ -224,9 +237,7 @@ describe("useVideoProgress", () => {
       },
     );
 
-    act(() => {
-      result.current.handleTimeUpdate(10);
-    });
+    playThrough(result, 1, 10);
     await waitFor(() => {
       expect(mockApiPost).toHaveBeenCalledWith("/videos/video-repeat-a/view");
     });
@@ -237,15 +248,359 @@ describe("useVideoProgress", () => {
     });
     expect(mockApiPost).toHaveBeenCalledTimes(1);
 
+    // The return visit resumes at 10s, so landing there must not count again.
     rerender({ video: videoA });
     act(() => {
       result.current.handleTimeUpdate(10);
     });
+    expect(mockApiPost).toHaveBeenCalledTimes(1);
+
+    playThrough(result, 11, 20);
 
     await waitFor(() => {
       expect(mockApiPost).toHaveBeenCalledTimes(2);
     });
     expect(mockApiPost).toHaveBeenLastCalledWith("/videos/video-repeat-a/view");
+  });
+
+  it("does not carry played time from an earlier visit into the next one", () => {
+    const videoA = {
+      id: "video-carry-a",
+      duration: "120",
+      progress: 0,
+      viewCount: 0,
+    } as any;
+    const videoB = {
+      id: "video-carry-b",
+      duration: "120",
+      progress: 0,
+      viewCount: 0,
+    } as any;
+    const { wrapper } = createWrapper();
+
+    const { result, rerender } = renderHook(
+      ({ video }) => useVideoProgress({ videoId: video.id, video }),
+      {
+        wrapper,
+        initialProps: { video: videoA },
+      },
+    );
+
+    playThrough(result, 1, 9);
+    rerender({ video: videoB });
+    rerender({ video: videoA });
+
+    playThrough(result, 10, 18);
+    expect(mockApiPost).not.toHaveBeenCalled();
+
+    playThrough(result, 19, 19);
+    expect(mockApiPost).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    ["long", "1776", 826],
+    ["short", "0:18", 15],
+  ])(
+    "does not count a %s video restored past the threshold without playback",
+    async (_label, duration, progress) => {
+      const video = {
+        id: "video-restored-paused",
+        duration,
+        progress,
+        lastPlayedAt: 900,
+        viewCount: 5,
+      } as any;
+      const { queryClient, wrapper } = createWrapper();
+      queryClient.setQueryData(["video", "video-restored-paused"], video);
+
+      const { result } = renderHook(
+        () => useVideoProgress({ videoId: "video-restored-paused", video }),
+        { wrapper },
+      );
+
+      // The player reports the restored position once its seek settles, and the
+      // browser's own timeupdate can repeat it while the video stays paused.
+      act(() => {
+        result.current.handleTimeUpdate(progress);
+      });
+      act(() => {
+        result.current.handleTimeUpdate(progress);
+      });
+
+      expect(mockApiPost).not.toHaveBeenCalled();
+      expect(queryClient.getQueryData(["video", "video-restored-paused"])).toEqual(
+        expect.objectContaining({ lastPlayedAt: 900, viewCount: 5 })
+      );
+    }
+  );
+
+  it("does not count a restore that local progress reports ahead of the server", () => {
+    writeVideoResumeProgress("video-restored-local", 300);
+    const video = {
+      id: "video-restored-local",
+      duration: "1776",
+      progress: 0,
+      viewCount: 5,
+    } as any;
+    const { wrapper } = createWrapper();
+
+    const { result } = renderHook(
+      () => useVideoProgress({ videoId: "video-restored-local", video }),
+      { wrapper },
+    );
+
+    act(() => {
+      result.current.handleTimeUpdate(300);
+    });
+
+    expect(mockApiPost).not.toHaveBeenCalled();
+  });
+
+  it("does not credit a small restored position as played time", () => {
+    const video = {
+      id: "video-restored-small",
+      duration: "0:15",
+      progress: 3,
+      viewCount: 0,
+    } as any;
+    const { wrapper } = createWrapper();
+
+    const { result } = renderHook(
+      () => useVideoProgress({ videoId: "video-restored-small", video }),
+      { wrapper },
+    );
+
+    // 3s is within the playback step limit, so only the baseline keeps it out.
+    playThrough(result, 3, 6);
+    expect(mockApiPost).not.toHaveBeenCalled();
+
+    playThrough(result, 7, 7);
+    expect(mockApiPost).toHaveBeenCalledTimes(1);
+  });
+
+  it("counts one view after playing the threshold from a restored position", async () => {
+    let now = 1000;
+    const dateNowSpy = vi.spyOn(Date, "now").mockImplementation(() => now);
+    const video = {
+      id: "video-restored-played",
+      duration: "1776",
+      progress: 826,
+      lastPlayedAt: 900,
+      viewCount: 5,
+    } as any;
+    const { queryClient, wrapper } = createWrapper();
+    queryClient.setQueryData(["video", "video-restored-played"], video);
+
+    const { result } = renderHook(
+      () => useVideoProgress({ videoId: "video-restored-played", video }),
+      { wrapper },
+    );
+
+    playThrough(result, 826, 835);
+    expect(mockApiPost).not.toHaveBeenCalled();
+
+    now = 2000;
+    playThrough(result, 836, 836);
+    expect(mockApiPost).toHaveBeenCalledTimes(1);
+    expect(mockApiPost).toHaveBeenCalledWith("/videos/video-restored-played/view");
+
+    await waitFor(() => {
+      expect(queryClient.getQueryData(["video", "video-restored-played"])).toEqual(
+        expect.objectContaining({ lastPlayedAt: 2000, viewCount: 1 })
+      );
+    });
+
+    playThrough(result, 837, 860);
+    expect(mockApiPost).toHaveBeenCalledTimes(1);
+
+    dateNowSpy.mockRestore();
+  });
+
+  it("does not treat large seeks as playback", () => {
+    const video = {
+      id: "video-large-seek",
+      duration: "1776",
+      progress: 0,
+      viewCount: 0,
+    } as any;
+    const { wrapper } = createWrapper();
+
+    const { result } = renderHook(
+      () => useVideoProgress({ videoId: "video-large-seek", video }),
+      { wrapper },
+    );
+
+    playThrough(result, 1, 2);
+
+    // Dragged forward, then back: neither direction adds played time.
+    act(() => {
+      result.current.handleTimeUpdate(300);
+    });
+    act(() => {
+      result.current.handleTimeUpdate(50);
+    });
+    expect(mockApiPost).not.toHaveBeenCalled();
+
+    playThrough(result, 51, 57);
+    expect(mockApiPost).not.toHaveBeenCalled();
+
+    playThrough(result, 58, 58);
+    expect(mockApiPost).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not let a single jump reach the short video threshold", () => {
+    const video = {
+      id: "video-short-jump",
+      duration: "0:15",
+      progress: 0,
+      viewCount: 0,
+    } as any;
+    const { wrapper } = createWrapper();
+
+    const { result } = renderHook(
+      () => useVideoProgress({ videoId: "video-short-jump", video }),
+      { wrapper },
+    );
+
+    act(() => {
+      result.current.handleTimeUpdate(4);
+    });
+
+    expect(mockApiPost).not.toHaveBeenCalled();
+  });
+
+  it("does not count small seeks reported by the media element", () => {
+    const video = {
+      id: "video-small-seek",
+      duration: "0:15",
+      progress: 0,
+      viewCount: 0,
+    } as any;
+    const videoElement = document.createElement("video");
+    Object.defineProperty(videoElement, "currentTime", {
+      configurable: true,
+      writable: true,
+      value: 0,
+    });
+    const { wrapper } = createWrapper();
+
+    const { result } = renderHook(
+      () => useVideoProgress({ videoId: "video-small-seek", video, videoElement }),
+      { wrapper },
+    );
+
+    const seekTo = (time: number) => {
+      videoElement.currentTime = time;
+      act(() => {
+        videoElement.dispatchEvent(new Event("seeking"));
+        result.current.handleTimeUpdate(time);
+      });
+    };
+
+    playThrough(result, 1, 1);
+    seekTo(3);
+    seekTo(5);
+    seekTo(7);
+    expect(mockApiPost).not.toHaveBeenCalled();
+
+    playThrough(result, 8, 9);
+    expect(mockApiPost).not.toHaveBeenCalled();
+
+    playThrough(result, 10, 10);
+    expect(mockApiPost).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not count a sample taken before the seeking event is delivered", () => {
+    const video = {
+      id: "video-seek-gap",
+      duration: "0:15",
+      progress: 0,
+      viewCount: 0,
+    } as any;
+    const videoElement = document.createElement("video");
+    Object.defineProperty(videoElement, "currentTime", {
+      configurable: true,
+      writable: true,
+      value: 0,
+    });
+    Object.defineProperty(videoElement, "seeking", {
+      configurable: true,
+      writable: true,
+      value: false,
+    });
+    const { wrapper } = createWrapper();
+
+    const { result } = renderHook(
+      () => useVideoProgress({ videoId: "video-seek-gap", video, videoElement }),
+      { wrapper },
+    );
+
+    // Writing currentTime flips `seeking` at once, but the event is queued, so
+    // a sample can read the new position before the event arrives.
+    const seekTo = (time: number) => {
+      videoElement.currentTime = time;
+      (videoElement as any).seeking = true;
+      act(() => {
+        videoElement.dispatchEvent(new Event("playing"));
+        videoElement.dispatchEvent(new Event("seeking"));
+      });
+      (videoElement as any).seeking = false;
+      act(() => {
+        result.current.handleTimeUpdate(time);
+      });
+    };
+
+    playThrough(result, 1, 1);
+    seekTo(3);
+    seekTo(5);
+    seekTo(7);
+
+    playThrough(result, 8, 9);
+    expect(mockApiPost).not.toHaveBeenCalled();
+
+    playThrough(result, 10, 10);
+    expect(mockApiPost).toHaveBeenCalledTimes(1);
+  });
+
+  it("counts playback sampled at the fastest speed while timeupdate is deferred", () => {
+    vi.useFakeTimers();
+    try {
+      const video = {
+        id: "video-deferred-ticks",
+        duration: "1776",
+        progress: 0,
+        viewCount: 0,
+      } as any;
+      const videoElement = document.createElement("video");
+      Object.defineProperty(videoElement, "currentTime", {
+        configurable: true,
+        writable: true,
+        value: 0,
+      });
+      const { wrapper } = createWrapper();
+
+      const { result } = renderHook(
+        () => useVideoProgress({ videoId: "video-deferred-ticks", video, videoElement }),
+        { wrapper },
+      );
+
+      // 3x speed sampled once a second, with no timeupdate delivered meanwhile.
+      for (let time = 3; time <= 12; time += 3) {
+        videoElement.currentTime = time;
+        act(() => {
+          vi.advanceTimersByTime(1000);
+        });
+      }
+      expect(mockApiPost).not.toHaveBeenCalled();
+
+      // The deferred tick finally arrives, already at the last sampled position.
+      act(() => {
+        result.current.handleTimeUpdate(12);
+      });
+      expect(mockApiPost).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("sends progress on unmount and keeps the cache resume point fresh", () => {
