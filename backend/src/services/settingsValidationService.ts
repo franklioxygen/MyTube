@@ -104,6 +104,10 @@ export function validateSettings(newSettings: Partial<Settings>): void {
     throw new ValidationError("API key enabled flag must be a boolean.", "apiKeyEnabled");
   }
 
+  if (newSettings.downloadBilibiliDanmaku !== undefined && typeof newSettings.downloadBilibiliDanmaku !== "boolean") {
+    throw new ValidationError("Bilibili danmaku download flag must be a boolean.", "downloadBilibiliDanmaku");
+  }
+
   if (
     newSettings.apiKey !== undefined &&
     typeof newSettings.apiKey !== "string"

@@ -70,6 +70,17 @@ export const videos = sqliteTable(
   })
 );
 
+export const danmakuTracks = sqliteTable("danmaku_tracks", {
+  videoId: text("video_id").primaryKey().references(() => videos.id, { onDelete: "cascade" }),
+  source: text("source").notNull(),
+  cid: text("cid"),
+  revision: text("revision"),
+  eventCount: integer("event_count").notNull().default(0),
+  ignoredCount: integer("ignored_count").notNull().default(0),
+  updatedAt: integer("updated_at").notNull(),
+  lastError: text("last_error"),
+});
+
 export const collections = sqliteTable(
   "collections",
   {

@@ -1,4 +1,5 @@
 import path from "path";
+import { extractDanmakuCid } from "../../danmaku/bilibili";
 import { getErrorMessage } from "../../../utils/errors";
 import { VIDEOS_DIR } from "../../../config/paths";
 import { DownloadCancelledError } from "../../../errors/DownloadErrors";
@@ -597,6 +598,7 @@ export async function downloadVideo(
       downloadedVideoPath: downloadedVideoDestination.path,
       downloadedVideoExtension: downloadedVideoDestination.extension,
       skippedFragments: progressTracker.skippedFragments,
+      cid: extractDanmakuCid(metaSource),
     };
   } catch (error: unknown) {
     logger.error("Error in downloadBilibiliVideo:", error);

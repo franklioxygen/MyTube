@@ -9,6 +9,8 @@ import {
 } from "../../config/paths";
 import { db } from "../../db";
 import { videos } from "../../db/schema";
+import { cancelDanmakuRefresh } from "../danmaku/service";
+import { removeVideoDanmakuFiles } from "../danmaku/files";
 import { DatabaseError } from "../../errors/DownloadErrors";
 import { resolveManagedWebPath } from "../filenameTemplate/pathHelpers";
 import { removeMediaServerArtifactsForVideo } from "../mediaServerExport";
@@ -67,7 +69,10 @@ export function deleteVideo(
     markDownloadHistoryDeletedByVideoId(id, deletedAt);
 
     // Delete from DB
+    cancelDanmakuRefresh(id);
     db.delete(videos).where(eq(videos.id, id)).run();
+    try { removeVideoDanmakuFiles(id); }
+    catch { logger.warn("Could not clean deleted video's danmaku files", { videoId: id }); }
     bumpVideosListRevision();
     try {
       const { invalidateRecommendationSignalsCache } = require("../recommendationSignalsService") as {

@@ -617,6 +617,12 @@ export function ensureFavoritesTables(): void {
 // favorites and download_history, plus the file-size/video_id data backfills.
 export function migrateColumnsAndTables(): void {
   try {
+    sqlite.prepare(`CREATE TABLE IF NOT EXISTS danmaku_tracks (
+    video_id TEXT PRIMARY KEY NOT NULL REFERENCES videos(id) ON DELETE CASCADE,
+    source TEXT NOT NULL, cid TEXT, revision TEXT,
+    event_count INTEGER NOT NULL DEFAULT 0, ignored_count INTEGER NOT NULL DEFAULT 0,
+    updated_at INTEGER NOT NULL, last_error TEXT
+    )`).run();
     const tableInfo = sqlite.prepare("PRAGMA table_info(videos)").all();
     const columns = columnNames(tableInfo);
 
