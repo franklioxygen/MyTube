@@ -11,8 +11,15 @@ interface Props {
 /** Paint plain text against the player's live clock; pausing, seeking and rate changes share that clock. */
 export default function DanmakuOverlay({ events, getTime, opacity, offset }: Props) {
     const ref = useRef<HTMLCanvasElement>(null);
+    // Read through refs so adjusting these never repeats the track layout, which can cover 100,000 comments.
     const timeRef = useRef(getTime);
-    useEffect(() => { timeRef.current = getTime; }, [getTime]);
+    const opacityRef = useRef(opacity);
+    const offsetRef = useRef(offset);
+    useEffect(() => {
+        timeRef.current = getTime;
+        opacityRef.current = opacity;
+        offsetRef.current = offset;
+    }, [getTime, opacity, offset]);
     useEffect(() => {
         const canvas = ref.current;
         const context = canvas?.getContext('2d');
@@ -20,6 +27,7 @@ export default function DanmakuOverlay({ events, getTime, opacity, offset }: Pro
         let frame = 0;
         let width = 0, height = 0;
         let previousTime = NaN;
+        let previousOpacity = NaN;
         let placed: ReturnType<typeof layoutDanmaku> = [];
         const resize = () => {
             const bounds = canvas.getBoundingClientRect();
@@ -38,11 +46,14 @@ export default function DanmakuOverlay({ events, getTime, opacity, offset }: Pro
         if (!observer) window.addEventListener('resize', resize);
         resize();
         const draw = () => {
-            const time = timeRef.current() - offset;
-            if (time === previousTime) { frame = requestAnimationFrame(draw); return; }
+            const time = timeRef.current() - offsetRef.current;
+            const alpha = opacityRef.current;
+            // A paused player's clock stands still, but a new opacity must still repaint.
+            if (time === previousTime && alpha === previousOpacity) { frame = requestAnimationFrame(draw); return; }
             previousTime = time;
+            previousOpacity = alpha;
             context.clearRect(0, 0, width, height);
-            context.globalAlpha = opacity;
+            context.globalAlpha = alpha;
             context.textBaseline = 'top';
             context.textAlign = 'left';
             context.direction = 'ltr';
@@ -60,6 +71,6 @@ export default function DanmakuOverlay({ events, getTime, opacity, offset }: Pro
         };
         frame = requestAnimationFrame(draw);
         return () => { cancelAnimationFrame(frame); observer?.disconnect(); window.removeEventListener('resize', resize); context.clearRect(0, 0, width, height); };
-    }, [events, opacity, offset]);
+    }, [events]);
     return <canvas ref={ref} aria-hidden="true" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 2 }} />;
 }
