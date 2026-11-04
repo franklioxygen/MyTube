@@ -602,6 +602,8 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
                         sx={{
                             position: 'absolute',
                             inset: 0,
+                            // Above the danmaku canvas portaled into this box.
+                            zIndex: 3,
                             display: 'flex',
                             flexDirection: 'column',
                             alignItems: 'center',
@@ -626,6 +628,8 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
                             sx={{
                                 position: 'absolute',
                                 inset: 0,
+                                // Above the danmaku canvas portaled into this box.
+                                zIndex: 3,
                                 color: neutral.white,
                                 gap: 'clamp(8px, 2cqw, 24px)',
                                 // Hidden controls must not swallow the tap that

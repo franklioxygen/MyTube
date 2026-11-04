@@ -537,3 +537,23 @@ describe('D Mode progress bar seeking', () => {
         expect(screen.getByTestId('seek-slider')).toBeDisabled();
     });
 });
+
+describe('D Mode picture overlays', () => {
+    beforeEach(() => {
+        harness.engines.length = 0;
+    });
+
+    it('stacks the busy indicator and transport above the danmaku canvas', async () => {
+        render(<CompatibilityPlayer src="clip.webm" />);
+        await act(async () => {
+            harness.engines[0].options.onChange(snapshotOf({ buffering: true }));
+        });
+
+        const danmakuCanvasZIndex = 2;
+        const busyIndicator = screen.getByText('loadingVideo').parentElement as HTMLElement;
+        const transport = document.querySelector('.compat-primary')?.parentElement?.parentElement as HTMLElement;
+
+        expect(Number(getComputedStyle(busyIndicator).zIndex)).toBeGreaterThan(danmakuCanvasZIndex);
+        expect(Number(getComputedStyle(transport).zIndex)).toBeGreaterThan(danmakuCanvasZIndex);
+    });
+});
