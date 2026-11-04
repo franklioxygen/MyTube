@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import path from "node:path";
 import fs from "fs-extra";
 import { DATA_DIR } from "../../config/paths";
-import { ensureDirSafeSync, resolveSafeChildPath, statSafeSync, writeFileSafeSync } from "../../utils/security";
+import { ensureDirSafeSync, pathExistsSafeSync, resolveSafeChildPath, unlinkSafeSync, writeFileSafeSync } from "../../utils/security";
 
 export const DANMAKU_DIR = path.join(DATA_DIR, "danmaku");
 export function danmakuDirectory(videoId: string): string {
@@ -20,13 +20,12 @@ export function writeDanmakuFile(videoId: string, revision: string, extension: "
 export function removeDanmakuRevision(videoId: string, revision: string): void {
   for (const extension of ["xml", "json"] as const) {
     const file = danmakuPath(videoId, revision, extension);
-    if (fs.existsSync(file)) { statSafeSync(file, DANMAKU_DIR); fs.unlinkSync(file); }
+    if (pathExistsSafeSync(file, DANMAKU_DIR)) unlinkSafeSync(file, DANMAKU_DIR);
   }
 }
 /** Attachments use content identity, so media renames/author moves never change their paths. */
 export function removeVideoDanmakuFiles(videoId: string): void {
   const directory = danmakuDirectory(videoId);
-  if (!fs.existsSync(directory)) return;
-  statSafeSync(directory, DANMAKU_DIR);
+  if (!pathExistsSafeSync(directory, DANMAKU_DIR)) return;
   fs.removeSync(directory);
 }

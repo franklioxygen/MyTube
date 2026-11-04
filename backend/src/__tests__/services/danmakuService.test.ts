@@ -5,7 +5,7 @@ import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 import { initializeStorage } from "../../services/storageService/initialization";
 import { danmakuTracks, videos } from "../../db/schema";
 import { deleteDanmaku, downloadAutomaticDanmaku, getDanmaku, getDanmakuEvents, importDanmaku, refreshDanmaku } from "../../services/danmaku/service";
-import { danmakuDirectory, danmakuPath } from "../../services/danmaku/files";
+import { DANMAKU_DIR, danmakuDirectory, danmakuPath, removeDanmakuRevision, removeVideoDanmakuFiles } from "../../services/danmaku/files";
 import { deleteVideo } from "../../services/storageService/videoDeletion";
 import { fetchBilibiliDanmaku } from "../../services/danmaku/bilibili";
 import type { Video } from "../../services/storageService/types";
@@ -90,5 +90,18 @@ describe("danmaku publication and lifecycle", () => {
     const item = create(); importDanmaku(item.id, xml); deleteDanmaku(item.id);
     expect(getDanmaku(item.id).status).toBe("none");
     expect(sqlite.prepare('SELECT id FROM videos WHERE id = ?').get(item.id)).toBeTruthy();
+  });
+  it("treats missing attachments as nothing to clean up, even before any track was stored", () => {
+    fs.rmSync(DANMAKU_DIR, { recursive: true, force: true });
+    expect(() => removeVideoDanmakuFiles("never-had-danmaku")).not.toThrow();
+    expect(() => removeDanmakuRevision("never-had-danmaku", "00000000-0000-4000-8000-000000000000")).not.toThrow();
+    expect(fs.existsSync(DANMAKU_DIR)).toBe(false);
+  });
+  it("removes only the requested revision's files", () => {
+    const item = create(); const { revision } = importDanmaku(item.id, xml);
+    removeDanmakuRevision(item.id, revision!);
+    expect(fs.existsSync(danmakuPath(item.id, revision!, "xml"))).toBe(false);
+    expect(fs.existsSync(danmakuPath(item.id, revision!, "json"))).toBe(false);
+    expect(fs.existsSync(danmakuDirectory(item.id))).toBe(true);
   });
 });
