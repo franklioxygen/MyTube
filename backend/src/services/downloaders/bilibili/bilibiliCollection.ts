@@ -756,6 +756,10 @@ export async function downloadCollection(
 
     // Download each video sequentially
     for (let i = 0; i < videos.length; i++) {
+      // A cancel between parts (post-processing, the delay below) has no yt-dlp
+      // process to kill, so stop before fetching a whole part only to discard it.
+      throwIfCancelled(downloadId);
+
       const video = videos[i];
       const videoNumber = i + 1;
 
@@ -1023,6 +1027,9 @@ export async function downloadRemainingParts(
     let firstVideo: BilibiliAggregateDownloadResult["firstVideo"];
 
     for (let part = startPart; part <= totalParts; part++) {
+      // A cancel between parts has no yt-dlp process to kill; see downloadCollection.
+      throwIfCancelled(downloadId);
+
       // Construct URL for this part
       const partUrl = `${baseUrl}?p=${part}`;
 
