@@ -17,7 +17,7 @@ export function DownloadMediaDetails({ item }: { item: DownloadHistoryItem }) {
     const { t } = useLanguage();
     if (!['success', 'deleted', 'skipped'].includes(item.status)) return null;
     const info = item.mediaInfo;
-    const size = info ? formatMediaBytes(info.sizeBytes) : formatMediaBytes(item.totalSize) ?? item.totalSize;
+    const size = formatMediaBytes(info?.sizeBytes) ?? formatMediaBytes(item.totalSize) ?? item.totalSize;
     const measured = info?.state === 'measured';
     const resolution = measured && item.mediaType !== 'audio' && (info.width ?? 0) > 0 && (info.height ?? 0) > 0 ? `${info.width} × ${info.height}` : undefined;
     const codec = measured ? formatMediaCodec(item.mediaType === 'audio' ? info.audioCodec : info.videoCodec ?? info.audioCodec) : undefined;
@@ -26,7 +26,7 @@ export function DownloadMediaDetails({ item }: { item: DownloadHistoryItem }) {
         item.mediaType !== 'audio' && info.videoCodec && info.audioCodec ? formatMediaCodec(info.audioCodec) : undefined,
         info.bitrateBps && info.bitrateBps > 0 ? `${Number((info.bitrateBps / 1000).toFixed(1))} kbps` : undefined,
     ].filter(Boolean).join(' · ') : '';
-    if (!info && !size) return null;
+    if (!info && !size && !(item.status === 'skipped' && item.videoPath)) return null;
     // A source-only snapshot, e.g. a members-only skip, is no evidence of an existing file.
     if (item.status === 'skipped' && !item.videoPath && !item.totalSize && !size && !measured) return null;
     return <Box aria-label={t('downloadMediaInfo')} sx={{ display: 'flex', flexWrap: 'wrap', columnGap: 2, overflowWrap: 'anywhere' }}>

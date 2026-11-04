@@ -833,6 +833,39 @@ describe('DownloadManager', () => {
       );
     });
 
+    it.each(['queue', 'retry'])('preserves a restored %s collection on every completed multipart history row', async kind => {
+      const id = `restored-${kind}-parts`;
+      const retryMetadata = JSON.stringify({ shape: 'bilibili_all_parts' });
+      const sourceUrl = 'https://www.bilibili.com/video/BV1xx';
+      const knownCollection = 'Original playlist';
+      if (kind === 'queue') {
+        (storageService.getDownloadStatus as any).mockReturnValue({
+          queuedDownloads: [{ id, title: 'Multipart task', sourceUrl, type: 'bilibili', retryMetadata, sourceCollectionName: knownCollection }],
+        });
+      } else {
+        (storageService.getPendingRetryHistoryItems as any).mockReturnValue([{
+          id, title: 'Multipart task', sourceUrl, downloadType: 'bilibili', retryMetadata,
+          status: 'pending_retry', nextRetryAt: Date.now(),
+          mediaInfo: { version: 1, state: 'unavailable', capturedAt: 1, sourceCollectionName: knownCollection },
+        }]);
+      }
+      const parts = [1, 2].map(partNumber => ({
+        id: `part-${partNumber}`, title: `Part ${partNumber}`, partNumber,
+        videoPath: `/videos/part-${partNumber}.mp4`, sourceUrl: `${sourceUrl}?p=${partNumber}`,
+        downloadMediaInfo: { version: 1, state: 'measured', capturedAt: 1, videoCodec: 'h264', sourceCollectionName: 'Multipart task' },
+      }));
+      (createDownloadTask as any).mockReturnValue(vi.fn().mockResolvedValue({ success: true, videoData: parts[0], downloadedVideos: parts }));
+
+      downloadManager.initialize();
+
+      await vi.waitFor(() => expect(storageService.addDownloadHistoryItem).toHaveBeenCalledWith(
+        expect.objectContaining({ id: `${id}:part-2`, status: 'success', videoId: 'part-2', sourceCollectionName: knownCollection }),
+      ));
+      expect(storageService.addDownloadHistoryItem).toHaveBeenCalledWith(
+        expect.objectContaining({ id, status: 'success', videoId: 'part-1', sourceCollectionName: knownCollection }),
+      );
+    });
+
     it('should finalize unrestorable Bilibili pending retries on startup', () => {
       (storageService.getPendingRetryHistoryItems as any).mockReturnValue([
         {

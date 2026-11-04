@@ -53,10 +53,30 @@ describe('download output information', () => {
         expect(screen.getByText('downloadMediaInfoUnknown')).toBeInTheDocument();
         expect(screen.getByText('1 MiB')).toBeInTheDocument();
     });
+    it.each([undefined, 'invalid'])('uses the recorded size when the snapshot size is %s', sizeBytes => {
+        show({ totalSize: '1048576', mediaInfo: { version: 1, state: 'unavailable', capturedAt: 100, sizeBytes } });
+        expect(screen.getByText('1 MiB')).toBeInTheDocument();
+        expect(screen.getByText('downloadMediaInfoUnknown')).toBeInTheDocument();
+    });
+    it('prefers the captured size over an older recorded size', () => {
+        show({ totalSize: '1048576' });
+        expect(screen.getByText('1 GiB · 3840 × 2160 · HEVC')).toBeInTheDocument();
+        expect(screen.queryByText('1 MiB')).not.toBeInTheDocument();
+    });
+    it('retains a previously formatted recorded size when no snapshot size is available', () => {
+        show({ totalSize: '1.5 MiB', mediaInfo: { version: 1, state: 'unavailable', capturedAt: 100 } });
+        expect(screen.getByText('1.5 MiB')).toBeInTheDocument();
+    });
     it('identifies skipped output as an existing file', () => {
         show({ status: 'skipped' });
         expect(screen.getByText('downloadExistingFile')).toBeInTheDocument();
         expect(screen.queryByText('downloadFinalFile')).not.toBeInTheDocument();
+    });
+    it('identifies a duplicate skip with only a saved path without inventing media facts', () => {
+        show({ status: 'skipped', videoPath: '/videos/existing.mp4', mediaInfo: undefined, totalSize: undefined });
+        expect(screen.getByText('downloadExistingFile')).toBeInTheDocument();
+        expect(screen.getByText('downloadMediaInfoUnknown')).toBeInTheDocument();
+        expect(screen.queryByText(/3840 × 2160|HEVC|GiB/)).not.toBeInTheDocument();
     });
     it('does not claim an existing file for a skip with only a source snapshot', () => {
         show({ status: 'skipped', error: 'Skipped members-only content', mediaInfo: { version: 1, state: 'unavailable', capturedAt: 100, sourceCollectionName: 'Source playlist' } });
