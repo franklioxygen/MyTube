@@ -606,8 +606,9 @@ describe("useVideoProgress", () => {
         { wrapper },
       );
       // 3x speed sampled once a second, with no timeupdate delivered meanwhile.
-      const sampleAt = (time: number) => {
+      const sampleAt = (time: number, lateByMs = 0) => {
         videoElement.currentTime = time;
+        vi.setSystemTime(Date.now() + lateByMs);
         act(() => {
           vi.advanceTimersByTime(1000);
         });
@@ -640,6 +641,34 @@ describe("useVideoProgress", () => {
         result.current.handleTimeUpdate(12);
       });
       sampleAt(15);
+      expect(mockApiPost).toHaveBeenCalledTimes(1);
+    });
+
+    it("counts samples that run late at the fastest speed", () => {
+      const { sampleAt } = renderWithElement("video-deferred-late");
+
+      // Half a second late at 3x covers 4.5s, past the on-time step limit.
+      sampleAt(4.5, 500);
+      sampleAt(9, 500);
+      expect(mockApiPost).not.toHaveBeenCalled();
+
+      sampleAt(13.5, 500);
+      expect(mockApiPost).toHaveBeenCalledTimes(1);
+    });
+
+    it("still treats a jump beyond the time since the last sample as a seek", () => {
+      const { sampleAt } = renderWithElement("video-deferred-jump");
+
+      sampleAt(3);
+      sampleAt(6);
+      sampleAt(9);
+
+      // On time, then half a second late: neither could have played this far.
+      sampleAt(15);
+      sampleAt(45, 500);
+      expect(mockApiPost).not.toHaveBeenCalled();
+
+      sampleAt(46);
       expect(mockApiPost).toHaveBeenCalledTimes(1);
     });
 

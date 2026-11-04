@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { Video } from "../types";
 import { api, sendVideoProgressWithKeepalive } from "../utils/apiClient";
+import { SPEED_OPTIONS } from "../utils/constants";
 import { parseDuration } from "../utils/formatUtils";
 import {
   getBestVideoResumeProgress,
@@ -20,10 +21,11 @@ const PROGRESS_SAVE_INTERVAL_MS = 5000;
 const LOCAL_PROGRESS_SAMPLE_INTERVAL_MS = 1000;
 const RESTORE_GUARD_MIN_PROGRESS_SECONDS = 30;
 const RESTORE_GUARD_TOLERANCE_SECONDS = 2;
-// Largest position step between two samples still treated as playback: one
-// sampling interval at the fastest speed (3x) plus jitter. Keeping it below the
-// smallest view threshold means no single jump can earn a view on its own.
-const MAX_PLAYBACK_STEP_SECONDS = 3.5;
+const FASTEST_PLAYBACK_RATE = Math.max(...SPEED_OPTIONS);
+// Position step always accepted as playback: one on-time sample at the fastest
+// speed, plus jitter. It stays below the smallest view threshold, so a jump with
+// no seek signal cannot earn a view while samples arrive on time.
+const BASE_PLAYBACK_STEP_SECONDS = 3.5;
 
 function getViewThreshold(duration: string | undefined): number {
   const durationSeconds = parseDuration(duration);
@@ -85,6 +87,7 @@ export function useVideoProgress({ videoId, video, videoElement }: UseVideoProgr
   const resumeGuardObservedRef = useRef<boolean>(true);
   const playedSecondsRef = useRef<number>(0);
   const lastPlaybackTimeRef = useRef<number>(0);
+  const lastPlaybackSampleAtRef = useRef<number>(0);
   const seekPendingRef = useRef<boolean>(false);
   const viewCountedRef = useRef<boolean>(false);
   const videoDuration = video?.duration;
@@ -93,6 +96,7 @@ export function useVideoProgress({ videoId, video, videoElement }: UseVideoProgr
     const storedProgress = readVideoResumeProgress(videoId)?.progress ?? 0;
     currentTimeRef.current = storedProgress;
     lastPlaybackTimeRef.current = storedProgress;
+    lastPlaybackSampleAtRef.current = Date.now();
     playedSecondsRef.current = 0;
     seekPendingRef.current = false;
     viewCountedRef.current = false;
@@ -198,10 +202,17 @@ export function useVideoProgress({ videoId, video, videoElement }: UseVideoProgr
   const recordPlaybackStep = useCallback((playbackTime: number) => {
     const isSeek = seekPendingRef.current || videoElementRef.current?.seeking;
     const step = isSeek ? 0 : playbackTime - lastPlaybackTimeRef.current;
+    // Throttled timers can deliver a sample late, so it may cover more ground.
+    const now = Date.now();
+    const maxStep = Math.max(
+      BASE_PLAYBACK_STEP_SECONDS,
+      ((now - lastPlaybackSampleAtRef.current) / 1000) * FASTEST_PLAYBACK_RATE
+    );
     seekPendingRef.current = false;
     lastPlaybackTimeRef.current = playbackTime;
+    lastPlaybackSampleAtRef.current = now;
 
-    if (step > 0 && step <= MAX_PLAYBACK_STEP_SECONDS) {
+    if (step > 0 && step <= maxStep) {
       playedSecondsRef.current += step;
       countViewIfPlayed();
     }
