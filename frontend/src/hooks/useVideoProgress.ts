@@ -1,5 +1,5 @@
 import { QueryClient, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { Video } from "../types";
 import { api, sendVideoProgressWithKeepalive } from "../utils/apiClient";
@@ -14,12 +14,6 @@ interface UseVideoProgressProps {
   videoId: string | undefined;
   video: Video | undefined;
   videoElement?: HTMLVideoElement | null;
-}
-
-interface ViewedState {
-  videoId: string | undefined;
-  visitId: number;
-  viewedVisitId: number | null;
 }
 
 const PROGRESS_SAVE_INTERVAL_MS = 5000;
@@ -82,11 +76,6 @@ export function useVideoProgress({ videoId, video, videoElement }: UseVideoProgr
   const { userRole } = useAuth();
   const isVisitor = userRole === "visitor";
   const queryClient = useQueryClient();
-  const [viewedState, setViewedState] = useState<ViewedState>(() => ({
-    videoId,
-    visitId: 0,
-    viewedVisitId: null,
-  }));
   const lastProgressSave = useRef<number>(0);
   const currentTimeRef = useRef<number>(0);
   const isDeletingRef = useRef<boolean>(false);
@@ -97,16 +86,8 @@ export function useVideoProgress({ videoId, video, videoElement }: UseVideoProgr
   const playedSecondsRef = useRef<number>(0);
   const lastPlaybackTimeRef = useRef<number>(0);
   const seekPendingRef = useRef<boolean>(false);
+  const viewCountedRef = useRef<boolean>(false);
   const videoDuration = video?.duration;
-  let currentViewedState = viewedState;
-  if (currentViewedState.videoId !== videoId) {
-    currentViewedState = {
-      videoId,
-      visitId: currentViewedState.visitId + 1,
-      viewedVisitId: null,
-    };
-    setViewedState(currentViewedState);
-  }
 
   useEffect(() => {
     const storedProgress = readVideoResumeProgress(videoId)?.progress ?? 0;
@@ -114,6 +95,7 @@ export function useVideoProgress({ videoId, video, videoElement }: UseVideoProgr
     lastPlaybackTimeRef.current = storedProgress;
     playedSecondsRef.current = 0;
     seekPendingRef.current = false;
+    viewCountedRef.current = false;
     resumeGuardTargetRef.current =
       storedProgress > RESTORE_GUARD_MIN_PROGRESS_SECONDS ? storedProgress : 0;
     resumeGuardObservedRef.current =
@@ -177,10 +159,42 @@ export function useVideoProgress({ videoId, video, videoElement }: UseVideoProgr
     return safeTime;
   }, []);
 
+  // Increment views and refresh watch history at the same threshold. Compare
+  // time played this visit, not the position: restoring saved progress lands
+  // past the threshold without playing anything.
+  const countViewIfPlayed = useCallback(() => {
+    if (
+      !videoId ||
+      isVisitor ||
+      isDeletingRef.current ||
+      viewCountedRef.current ||
+      playedSecondsRef.current < getViewThreshold(durationRef.current)
+    ) {
+      return;
+    }
+
+    viewCountedRef.current = true;
+    const lastPlayedAt = Date.now();
+    api
+      .post(`/videos/${videoId}/view`)
+      .then((res) => {
+        if (res.data.success) {
+          syncVideoPlaybackCache(queryClient, videoId, {
+            viewCount: res.data.viewCount,
+            lastPlayedAt,
+          });
+        }
+      })
+      .catch((err) => {
+        console.error("Error incrementing view count:", err);
+      });
+  }, [isVisitor, queryClient, videoId]);
+
   // Add up what this visit actually played. Only small forward steps count, so
   // restoring saved progress, seeking and looping back add nothing. `seeking` is
   // checked alongside the event because it flips as soon as currentTime is
-  // written, while the event is queued and a sample can land in between.
+  // written, while the event is queued and a sample can land in between. Every
+  // sampling path lands here, so a deferred timeupdate cannot hold back a view.
   const recordPlaybackStep = useCallback((playbackTime: number) => {
     const isSeek = seekPendingRef.current || videoElementRef.current?.seeking;
     const step = isSeek ? 0 : playbackTime - lastPlaybackTimeRef.current;
@@ -189,8 +203,9 @@ export function useVideoProgress({ videoId, video, videoElement }: UseVideoProgr
 
     if (step > 0 && step <= MAX_PLAYBACK_STEP_SECONDS) {
       playedSecondsRef.current += step;
+      countViewIfPlayed();
     }
-  }, []);
+  }, [countViewIfPlayed]);
 
   const samplePlaybackTime = useCallback(() => {
     const mediaElement = videoElementRef.current;
@@ -361,7 +376,10 @@ export function useVideoProgress({ videoId, video, videoElement }: UseVideoProgr
     };
   }, [flushSampledProgress]);
 
-  const handleTimeUpdate = (currentTime: number) => {
+  const handleTimeUpdate = (
+    currentTime: number,
+    options: { seeked?: boolean } = {}
+  ) => {
     // The player suppresses onTimeUpdate while a saved-progress seek is still
     // pending, so any value delivered here is authoritative: the restore has
     // completed, or the user seeked/started somewhere else. Release the sampling
@@ -374,39 +392,14 @@ export function useVideoProgress({ videoId, video, videoElement }: UseVideoProgr
       return;
     }
 
+    // The compatibility player has no media element to hear "seeking" from, so
+    // it flags its seeks here instead.
+    if (options.seeked) {
+      seekPendingRef.current = true;
+    }
     recordPlaybackStep(trustedCurrentTime);
     currentTimeRef.current = trustedCurrentTime;
     cacheProgressLocally(trustedCurrentTime);
-
-    // Increment views and refresh watch history at the same threshold. Compare
-    // time played this visit, not the position: restoring saved progress lands
-    // past the threshold without playing anything.
-    const viewThreshold = getViewThreshold(videoDuration);
-    const visitId = currentViewedState.visitId;
-    const hasViewed =
-      currentViewedState.videoId === videoId &&
-      currentViewedState.viewedVisitId === visitId;
-    if (playedSecondsRef.current >= viewThreshold && !hasViewed && videoId && !isVisitor) {
-      setViewedState((state) =>
-        state.videoId === videoId && state.visitId === visitId
-          ? { ...state, viewedVisitId: visitId }
-          : state
-      );
-      const lastPlayedAt = Date.now();
-      api
-        .post(`/videos/${videoId}/view`)
-        .then((res) => {
-          if (res.data.success) {
-            syncVideoPlaybackCache(queryClient, videoId, {
-              viewCount: res.data.viewCount,
-              lastPlayedAt,
-            });
-          }
-        })
-        .catch((err) => {
-          console.error("Error incrementing view count:", err);
-        });
-    }
 
     // Save progress every 5 seconds
     const now = Date.now();

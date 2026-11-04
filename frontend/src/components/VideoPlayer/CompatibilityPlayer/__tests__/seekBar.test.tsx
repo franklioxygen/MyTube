@@ -528,6 +528,22 @@ describe('D Mode progress bar seeking', () => {
         expect(engine.seek).toHaveBeenCalledWith(10 + SHORT_SECONDS * 2);
     });
 
+    it('flags a completed seek in its time update', async () => {
+        const onTimeUpdate = vi.fn();
+        render(<CompatibilityPlayer src="clip.webm" onTimeUpdate={onTimeUpdate} />);
+        const engine = harness.engines[0];
+
+        await act(async () => {
+            engine.options.onChange(snapshotOf({ status: 'playing', currentTime: 11 }));
+        });
+        expect(onTimeUpdate).toHaveBeenLastCalledWith(11);
+
+        await act(async () => {
+            engine.options.onSeeked?.(13);
+        });
+        expect(onTimeUpdate).toHaveBeenLastCalledWith(13, { seeked: true });
+    });
+
     it('locks the bar for a source that cannot be repositioned', async () => {
         render(<CompatibilityPlayer src="clip.webm" />);
         await act(async () => {

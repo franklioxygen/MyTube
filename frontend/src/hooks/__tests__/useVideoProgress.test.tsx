@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import React from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useVideoProgress } from "../useVideoProgress";
 import {
   readVideoResumeProgress,
@@ -562,15 +562,38 @@ describe("useVideoProgress", () => {
     expect(mockApiPost).toHaveBeenCalledTimes(1);
   });
 
-  it("counts playback sampled at the fastest speed while timeupdate is deferred", () => {
-    vi.useFakeTimers();
-    try {
-      const video = {
-        id: "video-deferred-ticks",
-        duration: "1776",
-        progress: 0,
-        viewCount: 0,
-      } as any;
+  it("does not count seeks the player flags as seeked", () => {
+    const video = {
+      id: "video-flagged-seek",
+      duration: "1776",
+      progress: 0,
+      viewCount: 0,
+    } as any;
+    const { wrapper } = createWrapper();
+
+    const { result } = renderHook(
+      () => useVideoProgress({ videoId: "video-flagged-seek", video }),
+      { wrapper },
+    );
+
+    // The compatibility player has no media element, so this flag is all it has.
+    for (let time = 2; time <= 12; time += 2) {
+      act(() => {
+        result.current.handleTimeUpdate(time, { seeked: true });
+      });
+    }
+    expect(mockApiPost).not.toHaveBeenCalled();
+
+    playThrough(result, 13, 21);
+    expect(mockApiPost).not.toHaveBeenCalled();
+
+    playThrough(result, 22, 22);
+    expect(mockApiPost).toHaveBeenCalledTimes(1);
+  });
+
+  describe("while timeupdate is deferred", () => {
+    const renderWithElement = (id: string) => {
+      const video = { id, duration: "1776", progress: 0, viewCount: 0 } as any;
       const videoElement = document.createElement("video");
       Object.defineProperty(videoElement, "currentTime", {
         configurable: true,
@@ -578,29 +601,78 @@ describe("useVideoProgress", () => {
         value: 0,
       });
       const { wrapper } = createWrapper();
-
-      const { result } = renderHook(
-        () => useVideoProgress({ videoId: "video-deferred-ticks", video, videoElement }),
+      const view = renderHook(
+        () => useVideoProgress({ videoId: id, video, videoElement }),
         { wrapper },
       );
-
       // 3x speed sampled once a second, with no timeupdate delivered meanwhile.
-      for (let time = 3; time <= 12; time += 3) {
+      const sampleAt = (time: number) => {
         videoElement.currentTime = time;
         act(() => {
           vi.advanceTimersByTime(1000);
         });
-      }
+      };
+      return { ...view, sampleAt, videoElement };
+    };
+
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("counts one view when samples cross the threshold", () => {
+      const { result, sampleAt } = renderWithElement("video-deferred-ticks");
+
+      sampleAt(3);
+      sampleAt(6);
+      sampleAt(9);
       expect(mockApiPost).not.toHaveBeenCalled();
 
-      // The deferred tick finally arrives, already at the last sampled position.
+      sampleAt(12);
+      expect(mockApiPost).toHaveBeenCalledTimes(1);
+      expect(mockApiPost).toHaveBeenCalledWith("/videos/video-deferred-ticks/view");
+
+      // The deferred tick finally arrives and must not count the visit again.
       act(() => {
         result.current.handleTimeUpdate(12);
       });
+      sampleAt(15);
       expect(mockApiPost).toHaveBeenCalledTimes(1);
-    } finally {
-      vi.useRealTimers();
-    }
+    });
+
+    it("counts the view when leaving crosses the threshold", () => {
+      const { sampleAt, unmount, videoElement } = renderWithElement("video-deferred-leave");
+
+      sampleAt(3);
+      sampleAt(6);
+      sampleAt(9);
+      expect(mockApiPost).not.toHaveBeenCalled();
+
+      videoElement.currentTime = 10.5;
+      act(() => {
+        unmount();
+      });
+
+      expect(mockApiPost).toHaveBeenCalledTimes(1);
+      expect(mockApiPost).toHaveBeenCalledWith("/videos/video-deferred-leave/view");
+    });
+
+    it("does not count a view for a video being deleted", () => {
+      const { result, sampleAt } = renderWithElement("video-deferred-deleting");
+
+      sampleAt(3);
+      act(() => {
+        result.current.setIsDeleting(true);
+      });
+      sampleAt(6);
+      sampleAt(9);
+      sampleAt(12);
+
+      expect(mockApiPost).not.toHaveBeenCalled();
+    });
   });
 
   it("sends progress on unmount and keeps the cache resume point fresh", () => {
