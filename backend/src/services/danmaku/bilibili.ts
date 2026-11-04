@@ -4,7 +4,6 @@ import { buildBilibiliApiHeaders } from "../downloaders/bilibili/bilibiliHeaders
 import { resolveProxiedAxiosConfigForUrl } from "../downloaders/bilibili/bilibiliConfig";
 import type { Video } from "../storageService/types";
 import { MAX_DANMAKU_BYTES } from "./parser";
-import { getProxyBypassHosts } from "../../utils/ytDlpUtils";
 
 function validCid(value: unknown): string | undefined {
   if (typeof value === "number" && !Number.isSafeInteger(value)) return undefined;
@@ -47,9 +46,7 @@ function releaseRequest(): void {
 }
 
 async function requestText(url: string, signal: AbortSignal, subscriptionConfig?: string | null): Promise<string> {
-  const host = new URL(url).hostname;
-  const bypass = getProxyBypassHosts().some(entry => host === entry || host.endsWith(`.${entry}`));
-  const proxy = bypass ? { proxy: false } : resolveProxiedAxiosConfigForUrl(url, subscriptionConfig);
+  const proxy = resolveProxiedAxiosConfigForUrl(url, subscriptionConfig);
   if (proxy === null) throw new Error("danmakuProxyUnavailable");
   const deadline = AbortSignal.any([signal, AbortSignal.timeout(15_000)]);
   if (activeRequests >= 2) {

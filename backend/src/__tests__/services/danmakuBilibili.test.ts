@@ -48,12 +48,13 @@ describe("exact-part Bilibili XML adapter", () => {
     await expect(fetchBilibiliDanmaku(item, new AbortController().signal, { cid: "222" })).rejects.toThrow("danmakuProxyUnavailable");
     expect(axios.get).not.toHaveBeenCalled();
   });
-  it("resolves an explicit host bypass against the real endpoint", async () => {
+  it("keeps yt-dlp's proxy bypass list out of its Axios requests", async () => {
+    const proxy = { host: "proxy", port: 8080 };
     vi.mocked(getProxyBypassHosts).mockReturnValue(["comment.bilibili.com"]);
+    vi.mocked(resolveProxiedAxiosConfigForUrl).mockReturnValue({ proxy });
     vi.mocked(axios.get).mockResolvedValueOnce(response("<i><chatid>222</chatid></i>"));
     await fetchBilibiliDanmaku(item, new AbortController().signal, { cid: "222" });
-    expect(resolveProxiedAxiosConfigForUrl).not.toHaveBeenCalled();
-    expect(axios.get).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ proxy: false }));
+    expect(axios.get).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ proxy }));
   });
   it.each([404, 412, 429])("propagates HTTP %s without repeated retries", async status => {
     vi.mocked(axios.get).mockRejectedValueOnce(new Error(`HTTP ${status}`));
