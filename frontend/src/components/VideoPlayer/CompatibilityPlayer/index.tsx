@@ -42,7 +42,8 @@ interface CompatibilityPlayerProps {
     autoPlay?: boolean;
     /** Saved playback position to resume from, in seconds. */
     startTime?: number;
-    onTimeUpdate?: (currentTime: number) => void;
+    /** `seeked` marks a position reached by a seek rather than by playing. */
+    onTimeUpdate?: (currentTime: number, options?: { seeked?: boolean }) => void;
     onEnded?: () => void;
     /**
      * False on the in-car display, where no `<video>` player exists to return
@@ -293,7 +294,7 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
             // authoritative position even while paused or back at zero.
             onSeeked: (currentTime) => {
                 if (!restoringInitialPosition) {
-                    onTimeUpdateRef.current?.(currentTime);
+                    onTimeUpdateRef.current?.(currentTime, { seeked: true });
                 }
             },
             onEnded: () => {
