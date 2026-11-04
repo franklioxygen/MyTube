@@ -20,6 +20,8 @@ import {
     Typography
 } from '@mui/material';
 import { Link as RouterLink } from 'react-router';
+import { DownloadMediaDetails, DownloadSourceInfo } from './DownloadMediaDetails';
+import type { DownloadMediaInfo } from '../../utils/downloadMediaInfo';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { getBilibiliRetryGapSummary } from '../../utils/bilibiliRetryMetadata';
 import { getDownloadErrorKey } from '../../utils/downloadErrorMessage';
@@ -33,6 +35,7 @@ export interface DownloadHistoryItem {
     id: string;
     title: string;
     author?: string;
+    mediaInfo?: DownloadMediaInfo;
     sourceUrl?: string;
     finishedAt: number;
     status: 'success' | 'failed' | 'partial' | 'skipped' | 'deleted' | 'pending_retry';
@@ -191,6 +194,8 @@ export function HistoryItem({
                     }}
                     secondary={
                         <Box component="div" sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                            <DownloadSourceInfo author={item.author} sourceCollectionName={item.mediaInfo?.sourceCollectionName} />
+                            <DownloadMediaDetails item={item} />
                             {item.sourceUrl && (
                                 <Typography
                                     variant="caption"

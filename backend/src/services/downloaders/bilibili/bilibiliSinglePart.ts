@@ -1,3 +1,4 @@
+import { captureDownloadMediaInfo } from "../../mediaInfoService";
 import { IMAGES_DIR, VIDEOS_DIR } from "../../../config/paths";
 import { getErrorMessage } from "../../../utils/errors";
 import { DownloadCancelledError } from "../../../errors/DownloadErrors";
@@ -263,6 +264,10 @@ export async function downloadSinglePart(
     );
 
     videoAuthor = bilibiliInfo.author || "Bilibili User";
+    if (downloadId) storageService.updateActiveDownload(downloadId, {
+      author: videoAuthor,
+      sourceCollectionName: filenameTemplateSourceOptions?.sourceCollectionType === "playlist" ? filenameTemplateSourceOptions.sourceCollectionName : undefined,
+    });
     videoDate =
       bilibiliInfo.date ||
       new Date().toISOString().slice(0, 10).replace(/-/g, "");
@@ -588,7 +593,7 @@ export async function downloadSinglePart(
           });
           return {
             success: true,
-            videoData: storageService.withIncompleteDownloadNote(finalVideoData, incompleteNote),
+            videoData: await captureDownloadMediaInfo(storageService.withIncompleteDownloadNote(finalVideoData, incompleteNote), filenameTemplateSourceOptions),
           };
         }
       }
@@ -634,7 +639,7 @@ export async function downloadSinglePart(
         });
         return {
           success: true,
-          videoData: storageService.withIncompleteDownloadNote(updatedVideo, incompleteNote),
+          videoData: await captureDownloadMediaInfo(storageService.withIncompleteDownloadNote(updatedVideo, incompleteNote), filenameTemplateSourceOptions),
         };
       }
     }
@@ -644,7 +649,7 @@ export async function downloadSinglePart(
     });
     return {
       success: true,
-      videoData: storageService.withIncompleteDownloadNote(videoData, incompleteNote),
+      videoData: await captureDownloadMediaInfo(storageService.withIncompleteDownloadNote(videoData, incompleteNote), filenameTemplateSourceOptions),
     };
   } catch (error: unknown) {
     // A cancelled part must abort the whole download, not be recorded as a

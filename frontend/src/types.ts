@@ -80,6 +80,8 @@ export interface FavoriteAuthorItem {
 }
 
 export interface DownloadInfo {
+  author?: string;
+  sourceCollectionName?: string;
   id: string;
   title: string;
   timestamp?: number;

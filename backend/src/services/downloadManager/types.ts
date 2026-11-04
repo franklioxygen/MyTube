@@ -45,6 +45,8 @@ export interface AddDownloadStatisticsOptions {
  * upload, and video-download dedupe tracking always run.
  */
 export interface AddDownloadTaskOptions {
+  author?: string;
+  sourceCollectionName?: string;
   /** Skip the manager's success/failed/cancelled download_history rows. */
   suppressHistory?: boolean;
   /** Skip the manager's Telegram completion/failure notification. */

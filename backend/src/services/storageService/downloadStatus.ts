@@ -12,6 +12,8 @@ let lastActiveCleanupAt = 0;
 type DownloadRow = {
   id: string;
   title: string;
+  author?: string | null;
+  sourceCollectionName?: string | null;
   timestamp: number | null;
   filename: string | null;
   totalSize: string | null;
@@ -35,6 +37,8 @@ const MUTABLE_DOWNLOAD_FIELDS: Array<
   "type",
   "title",
   "retryMetadata",
+  "author",
+  "sourceCollectionName",
 ];
 
 function toOptionalValue<T>(value: T | null): T | undefined {
@@ -45,6 +49,8 @@ function mapDownloadRow(download: DownloadRow): DownloadInfo {
   return {
     id: download.id,
     title: download.title,
+    author: download.author ?? undefined,
+    sourceCollectionName: download.sourceCollectionName ?? undefined,
     timestamp: download.timestamp ?? 0,
     filename: toOptionalValue(download.filename),
     totalSize: toOptionalValue(download.totalSize),
@@ -151,6 +157,8 @@ export function setQueuedDownloads(queuedDownloads: DownloadInfo[]): void {
           .values({
             id: download.id,
             title: download.title,
+            author: download.author,
+            sourceCollectionName: download.sourceCollectionName,
             timestamp: download.timestamp,
             status: "queued",
             sourceUrl: download.sourceUrl,
@@ -161,6 +169,8 @@ export function setQueuedDownloads(queuedDownloads: DownloadInfo[]): void {
             target: downloads.id,
             set: {
               title: download.title,
+              author: download.author,
+              sourceCollectionName: download.sourceCollectionName,
               timestamp: download.timestamp,
               status: "queued",
               sourceUrl: download.sourceUrl,

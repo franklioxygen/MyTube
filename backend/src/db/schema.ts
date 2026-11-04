@@ -211,6 +211,8 @@ export const users = sqliteTable(
 export const downloads = sqliteTable("downloads", {
   id: text("id").primaryKey(),
   title: text("title").notNull(),
+  author: text("author"),
+  sourceCollectionName: text("source_collection_name"),
   timestamp: integer("timestamp"),
   filename: text("filename"),
   totalSize: text("total_size"),
@@ -229,6 +231,7 @@ export const downloadHistory = sqliteTable(
     id: text("id").primaryKey(),
     title: text("title").notNull(),
     author: text("author"),
+    mediaInfo: text("media_info"),
     sourceUrl: text("source_url"),
     finishedAt: integer("finished_at").notNull(), // Timestamp
     status: text("status").notNull(), // 'success', 'failed', 'partial', 'skipped', 'deleted', or 'pending_retry'

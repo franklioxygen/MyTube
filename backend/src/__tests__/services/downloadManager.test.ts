@@ -90,6 +90,8 @@ describe('DownloadManager', () => {
         {
           id: 'restore-1',
           title: 'Restored Task',
+          author: 'Queued creator',
+          sourceCollectionName: 'Original playlist',
           sourceUrl: 'https://www.youtube.com/watch?v=abc123',
           type: 'youtube',
         },
@@ -752,6 +754,8 @@ describe('DownloadManager', () => {
         {
           sourceUrl: 'https://www.youtube.com/watch?v=abc123',
           type: 'youtube',
+          author: 'Queued creator',
+          sourceCollectionName: 'Original playlist',
         },
       );
       expect(HookService.executeHook).toHaveBeenCalledWith(
@@ -804,6 +808,8 @@ describe('DownloadManager', () => {
         {
           id: 'retry-bili',
           title: 'Bilibili multipart',
+          author: 'Retry creator',
+          mediaInfo: { version: 1, state: 'unavailable', capturedAt: 1, sourceCollectionName: 'Series' },
           status: 'pending_retry',
           sourceUrl: 'https://www.bilibili.com/video/BV1xx',
           downloadType: 'bilibili',
@@ -820,6 +826,43 @@ describe('DownloadManager', () => {
         'https://www.bilibili.com/video/BV1xx',
         'retry-bili',
         expect.objectContaining({ shape: 'bilibili_all_parts' }),
+      );
+      expect(storageService.updateActiveDownload).toHaveBeenCalledWith(
+        'retry-bili',
+        expect.objectContaining({ author: 'Retry creator', sourceCollectionName: 'Series' }),
+      );
+    });
+
+    it.each(['queue', 'retry'])('preserves a restored %s collection on every completed multipart history row', async kind => {
+      const id = `restored-${kind}-parts`;
+      const retryMetadata = JSON.stringify({ shape: 'bilibili_all_parts' });
+      const sourceUrl = 'https://www.bilibili.com/video/BV1xx';
+      const knownCollection = 'Original playlist';
+      if (kind === 'queue') {
+        (storageService.getDownloadStatus as any).mockReturnValue({
+          queuedDownloads: [{ id, title: 'Multipart task', sourceUrl, type: 'bilibili', retryMetadata, sourceCollectionName: knownCollection }],
+        });
+      } else {
+        (storageService.getPendingRetryHistoryItems as any).mockReturnValue([{
+          id, title: 'Multipart task', sourceUrl, downloadType: 'bilibili', retryMetadata,
+          status: 'pending_retry', nextRetryAt: Date.now(),
+          mediaInfo: { version: 1, state: 'unavailable', capturedAt: 1, sourceCollectionName: knownCollection },
+        }]);
+      }
+      const parts = [1, 2].map(partNumber => ({
+        id: `part-${partNumber}`, title: `Part ${partNumber}`, partNumber,
+        videoPath: `/videos/part-${partNumber}.mp4`, sourceUrl: `${sourceUrl}?p=${partNumber}`,
+        downloadMediaInfo: { version: 1, state: 'measured', capturedAt: 1, videoCodec: 'h264', sourceCollectionName: 'Multipart task' },
+      }));
+      (createDownloadTask as any).mockReturnValue(vi.fn().mockResolvedValue({ success: true, videoData: parts[0], downloadedVideos: parts }));
+
+      downloadManager.initialize();
+
+      await vi.waitFor(() => expect(storageService.addDownloadHistoryItem).toHaveBeenCalledWith(
+        expect.objectContaining({ id: `${id}:part-2`, status: 'success', videoId: 'part-2', sourceCollectionName: knownCollection }),
+      ));
+      expect(storageService.addDownloadHistoryItem).toHaveBeenCalledWith(
+        expect.objectContaining({ id, status: 'success', videoId: 'part-1', sourceCollectionName: knownCollection }),
       );
     });
 

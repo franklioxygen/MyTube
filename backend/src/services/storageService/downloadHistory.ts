@@ -3,6 +3,8 @@ import { DatabaseError } from "../../errors/DownloadErrors";
 import { db } from "../../db";
 import { downloadHistory, subscriptions, videos } from "../../db/schema";
 import { logger } from "../../utils/logger";
+import { parseStoredMediaInfo } from "../mediaInfoService";
+import { parseRetryMetadata } from "../downloadRetryMetadata";
 import { getSettings } from "./settings";
 import {
   DownloadHistoryItem,
@@ -16,6 +18,7 @@ function mapDownloadHistoryRow(row: typeof downloadHistory.$inferSelect): Downlo
     ...row,
     status: row.status as DownloadHistoryItem["status"],
     author: row.author || undefined,
+    mediaInfo: parseStoredMediaInfo(row.mediaInfo),
     sourceUrl: row.sourceUrl || undefined,
     error: row.error || undefined,
     videoPath: row.videoPath || undefined,
@@ -40,6 +43,12 @@ function mapDownloadHistoryRow(row: typeof downloadHistory.$inferSelect): Downlo
 
 export function addDownloadHistoryItem(item: DownloadHistoryItem): void {
   try {
+    const retry = parseRetryMetadata(item.retryMetadata);
+    const sourceCollectionName = item.sourceCollectionName ?? item.mediaInfo?.sourceCollectionName ?? (retry?.shape !== "download_mode" ? retry?.collectionName : undefined);
+    const mediaInfo = ["success", "deleted", "skipped"].includes(item.status) ? item.mediaInfo : undefined;
+    const snapshot = mediaInfo ?? (sourceCollectionName ? {
+      version: 1, state: "unavailable", capturedAt: item.finishedAt, sourceCollectionName,
+    } : undefined);
     // The row stays "success": retention, renames and deletion tombstones all
     // key on that status, and the video is in the library. The note rides in
     // `error` as JSON, which the history view renders, localized, as an
@@ -48,6 +57,7 @@ export function addDownloadHistoryItem(item: DownloadHistoryItem): void {
       id: item.id,
       title: item.title,
       author: item.author ?? null,
+      mediaInfo: snapshot ? JSON.stringify({ ...snapshot, sourceCollectionName }) : null,
       sourceUrl: item.sourceUrl ?? null,
       finishedAt: item.finishedAt,
       status: item.status,

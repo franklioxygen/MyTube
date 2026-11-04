@@ -80,6 +80,8 @@ export function buildRetryHistoryItem({
   return {
     id: task.id,
     title: task.title,
+    author: task.options?.author ?? existingHistory?.author,
+    sourceCollectionName: task.options?.sourceCollectionName ?? existingHistory?.mediaInfo?.sourceCollectionName,
     finishedAt: Date.now(),
     status: PENDING_RETRY_STATUS,
     error: getErrorMessage(error),

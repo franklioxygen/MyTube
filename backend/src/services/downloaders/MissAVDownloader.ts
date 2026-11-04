@@ -1,3 +1,4 @@
+import { captureDownloadMediaInfo } from "../mediaInfoService";
 import * as cheerio from "cheerio";
 import fs from "fs-extra";
 import puppeteer from "puppeteer";
@@ -695,6 +696,8 @@ export class MissAVDownloader extends BaseDownloader {
       if (downloadId) {
         storageService.updateActiveDownload(downloadId, {
           title: videoTitle,
+          author: videoAuthor,
+          sourceCollectionName: filenameTemplateSourceOptions?.sourceCollectionType === "playlist" ? filenameTemplateSourceOptions.sourceCollectionName : undefined,
           filename: videoTitle,
           progress: 0,
         });
@@ -1202,7 +1205,7 @@ export class MissAVDownloader extends BaseDownloader {
               extractor: "missav",
             },
           });
-          return storageService.withIncompleteDownloadNote(updatedVideo, incompleteNote);
+          return await captureDownloadMediaInfo(storageService.withIncompleteDownloadNote(updatedVideo, incompleteNote), filenameTemplateSourceOptions);
         }
       }
 
@@ -1216,7 +1219,7 @@ export class MissAVDownloader extends BaseDownloader {
           extractor: "missav",
         },
       });
-      return storageService.withIncompleteDownloadNote(persistedVideoData, incompleteNote);
+      return await captureDownloadMediaInfo(storageService.withIncompleteDownloadNote(persistedVideoData, incompleteNote), filenameTemplateSourceOptions);
     } catch (error: unknown) {
       if (isCancelledError(error)) {
         logger.info("MissAV-family download cancelled:", { downloadId });

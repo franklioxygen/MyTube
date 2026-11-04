@@ -104,8 +104,10 @@ function addAggregatePartHistory(
       thumbnailPath: video.thumbnailPath,
       sourceUrl,
       author: video.author,
+      sourceCollectionName: task.options?.sourceCollectionName,
       videoId: video.id,
       incompleteDownloadNote: video.incompleteDownloadNote,
+      mediaInfo: video.downloadMediaInfo,
       totalSize,
       mediaType: video.mediaType === "audio" ? "audio" : "video",
       platform: platformFromUrl(sourceUrl),
@@ -244,6 +246,11 @@ class DownloadManager {
         );
         continue;
       }
+      task.options = {
+        ...task.options,
+        author: item.author,
+        sourceCollectionName: item.mediaInfo?.sourceCollectionName,
+      };
       this.scheduleRetryTask(task, item);
     }
   }
@@ -330,7 +337,11 @@ class DownloadManager {
               );
               continue;
             }
-
+            restoredTask.options = {
+              ...restoredTask.options,
+              author: download.author,
+              sourceCollectionName: download.sourceCollectionName,
+            };
             this.queue.push(restoredTask);
           } else {
             logger.warn(
@@ -444,6 +455,7 @@ class DownloadManager {
     error: DownloadCancelledError = DownloadCancelledError.create(),
   ): void {
     if (!task.cancellationFinalized) {
+      const active = storageService.getActiveDownload(task.id);
       task.cancellationFinalized = true;
       this.clearRetryTimer(task.id);
       storageService.removeActiveDownload(task.id);
@@ -454,6 +466,8 @@ class DownloadManager {
           finishedAt: Date.now(),
           status: "failed",
           error: "Download cancelled by user",
+          author: active?.author ?? task.options?.author,
+          sourceCollectionName: active?.sourceCollectionName ?? task.options?.sourceCollectionName,
           sourceUrl: task.sourceUrl,
           platform: platformFromUrl(task.sourceUrl),
           sourceKind: task.statistics?.sourceKind ?? "unknown",
@@ -590,6 +604,8 @@ class DownloadManager {
       id: task.id,
       title: task.title,
       timestamp: Date.now(),
+      author: task.options?.author,
+      sourceCollectionName: task.options?.sourceCollectionName ?? (task.retryMetadata?.shape !== "download_mode" ? task.retryMetadata?.collectionName : undefined),
       sourceUrl: task.sourceUrl,
       type: task.type,
       retryMetadata:
@@ -625,6 +641,8 @@ class DownloadManager {
       storageService.updateActiveDownload(task.id, {
         sourceUrl: task.sourceUrl,
         type: task.type,
+        author: task.options?.author,
+        sourceCollectionName: task.options?.sourceCollectionName ?? (task.retryMetadata?.shape !== "download_mode" ? task.retryMetadata?.collectionName : undefined),
       });
     }
 
@@ -729,8 +747,10 @@ class DownloadManager {
             thumbnailPath: videoData.thumbnailPath,
             sourceUrl: historySourceUrl,
             author: videoData.author,
+            sourceCollectionName: task.options?.sourceCollectionName,
             videoId: videoData.id,
             incompleteDownloadNote: videoData.incompleteDownloadNote,
+            mediaInfo: videoData.downloadMediaInfo,
             totalSize: historyTotalSize,
             // Carried so a later deletion leaves a tombstone that says which of
             // audio/video went away, which the shared source-level tracking row
@@ -856,6 +876,8 @@ class DownloadManager {
       }
 
       // Download failed
+      const active = storageService.getActiveDownload(task.id);
+      task.options = { ...task.options, author: active?.author ?? task.options?.author, sourceCollectionName: active?.sourceCollectionName ?? task.options?.sourceCollectionName };
       storageService.removeActiveDownload(task.id);
       const structuredResult = getStructuredDownloadResult(error);
       // The task-level history row is partial/failed here, so it cannot later
@@ -886,6 +908,8 @@ class DownloadManager {
               ? "Skipped members-only content"
               : getErrorMessage(error),
             sourceUrl: task.sourceUrl,
+            author: task.options?.author,
+            sourceCollectionName: task.options?.sourceCollectionName,
             platform: platformFromUrl(task.sourceUrl),
             sourceKind: task.statistics?.sourceKind ?? "unknown",
             downloadType: task.type,
