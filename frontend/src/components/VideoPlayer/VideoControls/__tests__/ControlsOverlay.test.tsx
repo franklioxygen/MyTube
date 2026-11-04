@@ -3,6 +3,8 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import ControlsOverlay from '../ControlsOverlay';
 
+const viewport = vi.hoisted(() => ({ mobile: false }));
+
 // Mock dependencies
 vi.mock('../../../../contexts/LanguageContext', () => ({
     useLanguage: () => ({ t: (key: string) => key }),
@@ -12,7 +14,7 @@ vi.mock('@mui/material', async () => {
     const actual = await vi.importActual('@mui/material');
     return {
         ...actual,
-        useMediaQuery: () => false,
+        useMediaQuery: (query: string) => query.includes('max-width') && viewport.mobile,
     };
 });
 
@@ -35,7 +37,10 @@ vi.mock('../LoopControl', () => ({
     default: () => <div data-testid="LoopControl" />,
 }));
 vi.mock('../PlaybackControls', () => ({
-    default: () => <div data-testid="PlaybackControls" />,
+    default: ({ danmakuControl }: { danmakuControl?: React.ReactNode }) => <div data-testid="PlaybackControls">{danmakuControl}</div>,
+}));
+vi.mock('../LiveTranslationControlButton', () => ({
+    default: () => <button>Live translation</button>,
 }));
 vi.mock('../SpeedControl', () => ({
     default: () => <div data-testid="SpeedControl" />,
@@ -85,6 +90,7 @@ describe('ControlsOverlay', () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
+        viewport.mobile = false;
     });
 
     it('should render all controls when visible', () => {
@@ -93,7 +99,27 @@ describe('ControlsOverlay', () => {
         expect(screen.getByTestId('ProgressBar')).toBeInTheDocument();
         expect(screen.getByTestId('VolumeControl')).toBeInTheDocument();
         expect(screen.getByTestId('PlaybackControls')).toBeInTheDocument();
-        expect(screen.getByRole('button')).toBeInTheDocument(); // Play/Pause button
+        expect(screen.getByTestId('PlayArrowIcon').closest('button')).toBeInTheDocument();
+    });
+
+    it('mounts one danmaku control in the desktop playback row', () => {
+        render(<ControlsOverlay {...defaultProps} danmakuControl={<button>Danmaku</button>} />);
+        expect(screen.getAllByRole('button', { name: 'Danmaku' })).toHaveLength(1);
+        expect(screen.getByTestId('PlaybackControls')).toContainElement(screen.getByRole('button', { name: 'Danmaku' }));
+    });
+
+    it('places the mobile danmaku control immediately before live translation', () => {
+        viewport.mobile = true;
+        render(<ControlsOverlay {...defaultProps} danmakuControl={<button>Danmaku</button>} />);
+        const button = screen.getByRole('button', { name: 'Danmaku' });
+        expect(button.nextElementSibling).toBe(screen.getByRole('button', { name: 'Live translation' }));
+        expect(screen.getByTestId('PlaybackControls')).not.toContainElement(button);
+    });
+
+    it('omits danmaku in audio mode', () => {
+        viewport.mobile = true;
+        render(<ControlsOverlay {...defaultProps} isAudio danmakuControl={<button>Danmaku</button>} />);
+        expect(screen.queryByRole('button', { name: 'Danmaku' })).not.toBeInTheDocument();
     });
 
     it('should render SpeedControl in the mobile row', () => {

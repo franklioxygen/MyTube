@@ -1,5 +1,5 @@
 import { render, screen, act } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import VideoPlayer from '../VideoPlayer';
 import type { MockVideoMutationsReturn, CapturedVideoControlsProps, CapturedVideoInfoProps, CapturedCommentsSectionProps, CapturedUpNextSidebarProps, CapturedCollectionModalProps, CapturedConfirmationModalProps, CapturedSubscribeModalProps } from './videoPlayerTestTypes';
 
@@ -143,6 +143,14 @@ vi.mock('../../components/VideoPlayer/VideoControls', () => ({
     default: (props: Record<string, unknown>) => {
         capturedVideoControlsProps = props as CapturedVideoControlsProps;
         return <div data-testid="video-controls" />;
+    },
+}));
+
+let capturedCompatibilityPlayerProps: Record<string, unknown> = {};
+vi.mock('../../components/VideoPlayer/CompatibilityPlayer', () => ({
+    default: (props: Record<string, unknown>) => {
+        capturedCompatibilityPlayerProps = props;
+        return <div data-testid="compatibility-player" />;
     },
 }));
 
@@ -403,6 +411,48 @@ describe('VideoPlayer', () => {
             mockVideoQueryReturn.video = { ...mockVideo, source: 'twitch' };
             render(<VideoPlayer />);
             expect(screen.queryByTestId('comments-section')).toBeNull();
+        });
+    });
+
+    // ------ Danmaku availability ------
+
+    describe('Danmaku availability', () => {
+        afterEach(() => {
+            vi.unstubAllEnvs();
+        });
+
+        it('offers danmaku for a bilibili video', () => {
+            mockVideoQueryReturn.video = { ...mockVideo, source: 'bilibili' };
+            render(<VideoPlayer />);
+            expect(capturedVideoControlsProps.danmakuVideoId).toBe('v1');
+        });
+
+        it.each(['youtube', 'twitch', 'local', 'missav'])('offers no danmaku for a %s video', (source) => {
+            mockVideoQueryReturn.video = { ...mockVideo, source };
+            render(<VideoPlayer />);
+            expect(screen.getByTestId('video-controls')).toBeTruthy();
+            expect(capturedVideoControlsProps.danmakuVideoId).toBeUndefined();
+        });
+
+        it('offers no danmaku for a video with a bilibili link but another source', () => {
+            mockVideoQueryReturn.video = {
+                ...mockVideo,
+                source: 'local',
+                sourceUrl: 'https://www.bilibili.com/video/BV1xx411c7mD',
+            };
+            render(<VideoPlayer />);
+            expect(capturedVideoControlsProps.danmakuVideoId).toBeUndefined();
+        });
+
+        it.each([
+            ['bilibili', 'v1'],
+            ['youtube', undefined],
+        ])('applies the same rule in the compatibility player for a %s video', (source, expected) => {
+            vi.stubEnv('VITE_FORCE_COMPATIBILITY_MODE', 'true');
+            mockVideoQueryReturn.video = { ...mockVideo, source };
+            render(<VideoPlayer />);
+            expect(screen.getByTestId('compatibility-player')).toBeTruthy();
+            expect(capturedCompatibilityPlayerProps.danmakuVideoId).toBe(expected);
         });
     });
 

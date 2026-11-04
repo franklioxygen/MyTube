@@ -11,7 +11,7 @@ UPDATE_KEY_LIST=1 npx vitest run src/utils/locales/__tests__/localeParity.test.t
 
 This list is intentionally unnumbered. When new keys are inserted, only the local section order changes.
 
-Total keys: 1449
+Total keys: 1469
 
 ## Summary
 
@@ -63,7 +63,7 @@ Total keys: 1449
 | Filename template | 37 | `filenameTemplate` | `filenameBatchRenameError` |
 | Filename template reference (information panel) | 45 | `filenameRefInformationTitle` | `filenameRefItemNestedPathDesc` |
 | Statistics | 87 | `statisticsTitle` | `openCollection` |
-| Gesture Login (admin only) | 31 | `or` | `gestureLoginRetryStatus` |
+| Gesture Login (admin only) | 51 | `or` | `danmakuDelete` |
 
 ### Bulk video organization
 
@@ -1748,3 +1748,23 @@ Total keys: 1449
 | `gestureLoginResetRequired` |
 | `gestureLoginStatusFailed` |
 | `gestureLoginRetryStatus` |
+| `downloadBilibiliDanmaku` |
+| `downloadBilibiliDanmakuDescription` |
+| `danmaku` |
+| `danmakuLoading` |
+| `danmakuReady` |
+| `danmakuEmpty` |
+| `danmakuNone` |
+| `danmakuLoadFailed` |
+| `danmakuIgnored` |
+| `danmakuOperationFailed` |
+| `danmakuOpacity` |
+| `danmakuOffset` |
+| `danmakuExternalNotice` |
+| `danmakuImport` |
+| `danmakuInvalidFile` |
+| `danmakuReplaceConfirm` |
+| `danmakuLoad` |
+| `danmakuRefresh` |
+| `danmakuDeleteConfirm` |
+| `danmakuDelete` |

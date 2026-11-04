@@ -87,6 +87,7 @@ export interface Settings {
   cloudDriveScanPaths?: string;
   homeSidebarOpen?: boolean;
   subtitlesEnabled?: boolean;
+  downloadBilibiliDanmaku?: boolean;
   playerSeekShortSeconds?: number;
   playerSeekMediumSeconds?: number;
   playerSeekLongSeconds?: number;
@@ -191,6 +192,7 @@ export const defaultSettings: Settings = {
   cloudDriveScanPaths: "",
   homeSidebarOpen: true,
   subtitlesEnabled: true,
+  downloadBilibiliDanmaku: false,
   playerSeekShortSeconds: DEFAULT_PLAYER_SEEK_SHORT_SECONDS,
   playerSeekMediumSeconds: DEFAULT_PLAYER_SEEK_MEDIUM_SECONDS,
   playerSeekLongSeconds: DEFAULT_PLAYER_SEEK_LONG_SECONDS,

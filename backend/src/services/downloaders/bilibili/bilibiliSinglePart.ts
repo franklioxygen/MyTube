@@ -1,4 +1,5 @@
 import { captureDownloadMediaInfo } from "../../mediaInfoService";
+import { downloadAutomaticDanmaku } from "../../danmaku/service";
 import { IMAGES_DIR, VIDEOS_DIR } from "../../../config/paths";
 import { getErrorMessage } from "../../../utils/errors";
 import { DownloadCancelledError } from "../../../errors/DownloadErrors";
@@ -116,6 +117,12 @@ export async function downloadSinglePart(
   filenameTemplateSourceOptions?: FilenameTemplateSourceOptions,
   modeOptions?: DownloadModeOptions
 ): Promise<DownloadResult> {
+  const finish = async (video: Video, info: BilibiliVideoInfo): Promise<Video> => {
+    const result = await captureDownloadMediaInfo(video, filenameTemplateSourceOptions);
+    await downloadAutomaticDanmaku(result, storageService.getSettings().downloadBilibiliDanmaku === true,
+      { cid: info.cid, subscriptionConfig: modeOptions?.subscriptionYtdlpConfig, onCancel: onStart });
+    return result;
+  };
   try {
     logger.info(
       `Downloading Bilibili part ${partNumber}/${totalParts}: ${url}`
@@ -593,7 +600,7 @@ export async function downloadSinglePart(
           });
           return {
             success: true,
-            videoData: await captureDownloadMediaInfo(storageService.withIncompleteDownloadNote(finalVideoData, incompleteNote), filenameTemplateSourceOptions),
+            videoData: await finish(storageService.withIncompleteDownloadNote(finalVideoData, incompleteNote), bilibiliInfo),
           };
         }
       }
@@ -639,7 +646,7 @@ export async function downloadSinglePart(
         });
         return {
           success: true,
-          videoData: await captureDownloadMediaInfo(storageService.withIncompleteDownloadNote(updatedVideo, incompleteNote), filenameTemplateSourceOptions),
+          videoData: await finish(storageService.withIncompleteDownloadNote(updatedVideo, incompleteNote), bilibiliInfo),
         };
       }
     }
@@ -649,7 +656,7 @@ export async function downloadSinglePart(
     });
     return {
       success: true,
-      videoData: await captureDownloadMediaInfo(storageService.withIncompleteDownloadNote(videoData, incompleteNote), filenameTemplateSourceOptions),
+      videoData: await finish(storageService.withIncompleteDownloadNote(videoData, incompleteNote), bilibiliInfo),
     };
   } catch (error: unknown) {
     // A cancelled part must abort the whole download, not be recorded as a

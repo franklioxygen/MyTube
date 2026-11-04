@@ -217,6 +217,7 @@ export interface Settings {
   cloudDriveScanPaths?: string;
   homeSidebarOpen?: boolean;
   subtitlesEnabled?: boolean;
+  downloadBilibiliDanmaku?: boolean;
   playerSeekShortSeconds?: number;
   playerSeekMediumSeconds?: number;
   playerSeekLongSeconds?: number;

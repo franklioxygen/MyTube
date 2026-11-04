@@ -16,6 +16,9 @@ vi.mock('../../../../contexts/LanguageContext', () => ({
 vi.mock('../SpeedControl', () => ({
     default: () => <div data-testid="SpeedControl" />,
 }));
+vi.mock('../LiveTranslationControlButton', () => ({
+    default: () => <button>Live translation</button>,
+}));
 
 describe('PlaybackControls', () => {
     const defaultProps = {
@@ -39,7 +42,7 @@ describe('PlaybackControls', () => {
         render(<PlaybackControls {...defaultProps} />);
 
         // Three backward and three forward seek buttons.
-        const buttons = screen.getAllByRole('button');
+        const buttons = screen.getAllByRole('button', { name: /^seek/ });
         expect(buttons).toHaveLength(6);
     });
 
@@ -51,7 +54,7 @@ describe('PlaybackControls', () => {
     it('should call onSeek with all configured signed values', () => {
         render(<PlaybackControls {...defaultProps} />);
 
-        screen.getAllByRole('button').forEach((button) => fireEvent.click(button));
+        screen.getAllByRole('button', { name: /^seek/ }).forEach((button) => fireEvent.click(button));
 
         expect(defaultProps.onSeek.mock.calls.map(([seconds]) => seconds)).toEqual([
             -900,
@@ -69,6 +72,12 @@ describe('PlaybackControls', () => {
         expect(screen.queryByText('15s')).not.toBeInTheDocument();
         expect(screen.queryByText('2m')).not.toBeInTheDocument();
         expect(screen.queryByText('15m')).not.toBeInTheDocument();
+    });
+
+    it('places danmaku immediately before live translation in the desktop row', () => {
+        render(<PlaybackControls {...defaultProps} danmakuControl={<button>Danmaku</button>} />);
+        expect(screen.getByRole('button', { name: 'Danmaku' }).nextElementSibling)
+            .toBe(screen.getByRole('button', { name: 'Live translation' }));
     });
 
     it('provides translated direction and duration accessible names', () => {

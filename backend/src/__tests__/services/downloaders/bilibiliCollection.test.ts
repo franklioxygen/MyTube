@@ -56,6 +56,7 @@ vi.mock("../../../utils/logger", () => ({
 
 import {
   downloadCollection,
+  downloadRemainingParts,
   getCollectionVideos,
   getSeriesVideos,
 } from "../../../services/downloaders/bilibili/bilibiliCollection";
@@ -86,9 +87,16 @@ describe("bilibiliCollection.downloadCollection", () => {
     mocks.getCollectionsByVideoId.mockReturnValue([]);
     mocks.getDownloadStatus.mockReturnValue({
       activeDownloads: [
+        { id: "download-1" },
+        { id: "download-2" },
+        { id: "download-3" },
+        { id: "download-same-name-conflict" },
+        { id: "download-cleanup" },
+        { id: "download-no-cleanup" },
         { id: "download-riskretry" },
         { id: "download-riskhint" },
         { id: "download-riskthengeneric" },
+        { id: "download-generic-fail" },
       ],
     });
     mocks.saveCollection.mockImplementation((collection: any) => collection);
@@ -843,7 +851,10 @@ describe("bilibiliCollection.downloadCollection", () => {
       });
       mocks.getCollectionById.mockReturnValue(undefined);
       mocks.getVideoBySourceUrl.mockReturnValue(undefined);
+      // Active for the check before this episode and the one entering backoff,
+      // then cancelled by the time backoff ends.
       mocks.getDownloadStatus
+        .mockReturnValueOnce({ activeDownloads: [{ id: "download-cancel" }] })
         .mockReturnValueOnce({ activeDownloads: [{ id: "download-cancel" }] })
         .mockReturnValueOnce({ activeDownloads: [] });
       mocks.downloadSinglePart.mockResolvedValue({
@@ -894,5 +905,65 @@ describe("bilibiliCollection.downloadCollection", () => {
     expect(mocks.downloadSinglePart).toHaveBeenCalledTimes(1);
     expect(result.success).toBe(false);
     expect(result.error ?? "").not.toContain("refresh");
+  });
+
+  it("keeps a finished episode but fetches no more once cancelled between episodes", async () => {
+    vi.useFakeTimers();
+    try {
+      mocks.getCollectionById.mockReturnValue(undefined);
+      mocks.getVideoBySourceUrl.mockReturnValue(undefined);
+      // Active for the first episode, cancelled while it was post-processing.
+      mocks.getDownloadStatus
+        .mockReturnValueOnce({ activeDownloads: [{ id: "download-between" }] })
+        .mockReturnValue({ activeDownloads: [] });
+
+      const promise = downloadCollection(
+        { success: true, type: "collection", id: 42, mid: 9, title: "Series" },
+        "Series",
+        "download-between",
+      );
+      const cancellationExpectation = expect(promise).rejects.toBeInstanceOf(
+        DownloadCancelledError,
+      );
+      await vi.runAllTimersAsync();
+
+      await cancellationExpectation;
+      expect(mocks.downloadSinglePart).toHaveBeenCalledTimes(1);
+      expect(mocks.linkVideoToCollection).toHaveBeenCalledTimes(1);
+      expect(mocks.linkVideoToCollection).toHaveBeenCalledWith(
+        expect.any(String),
+        "video-2",
+        expect.objectContaining({ order: 1 }),
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("fetches no more remaining parts once cancelled between parts", async () => {
+    vi.useFakeTimers();
+    try {
+      mocks.getVideoBySourceUrl.mockReturnValue(undefined);
+      mocks.getDownloadStatus
+        .mockReturnValueOnce({ activeDownloads: [{ id: "download-between" }] })
+        .mockReturnValue({ activeDownloads: [] });
+
+      const promise = downloadRemainingParts(
+        "https://www.bilibili.com/video/BV1",
+        2,
+        4,
+        "Series",
+        null,
+        "download-between",
+      );
+      await vi.runAllTimersAsync();
+      const result = await promise;
+
+      expect(mocks.downloadSinglePart).toHaveBeenCalledTimes(1);
+      expect(result.success).toBe(false);
+      expect(result.error).toBe(DownloadCancelledError.create().message);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

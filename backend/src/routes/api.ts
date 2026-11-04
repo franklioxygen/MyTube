@@ -20,6 +20,7 @@ import * as videoMetadataController from "../controllers/videoMetadataController
 import { authorSearchLimiter, searchAuthors } from "../controllers/authorSearchController";
 import { asyncHandler } from "../middleware/errorHandler";
 import { requireAdmin } from "../middleware/requireAdmin";
+import * as danmakuController from "../controllers/danmakuController";
 
 type ApiRouteMethod = "delete" | "get" | "patch" | "post" | "put";
 
@@ -44,6 +45,11 @@ const apiRouteDefinitions: ApiRouteDefinition[] = [
     handlers: [requireAdmin, asyncHandler(bulkVideoOrganizationController.addToCollection)],
   },
   // Video routes
+  { method: "get", path: "/videos/:id/danmaku", handlers: [asyncHandler(danmakuController.read)] },
+  { method: "get", path: "/videos/:id/danmaku/events", handlers: [asyncHandler(danmakuController.events)] },
+  { method: "post", path: "/videos/:id/danmaku", handlers: [requireAdmin, danmakuController.uploadDanmaku, asyncHandler(danmakuController.importXml)] },
+  { method: "post", path: "/videos/:id/danmaku/refresh", handlers: [requireAdmin, asyncHandler(danmakuController.refresh)] },
+  { method: "delete", path: "/videos/:id/danmaku", handlers: [requireAdmin, asyncHandler(danmakuController.remove)] },
   {
     method: "get",
     path: "/search/authors",

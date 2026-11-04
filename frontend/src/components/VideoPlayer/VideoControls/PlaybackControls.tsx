@@ -7,6 +7,7 @@ import SeekButton, { SeekDirection, SeekTier } from './SeekButton';
 import SpeedControl from './SpeedControl';
 
 interface PlaybackControlsProps {
+    danmakuControl?: React.ReactNode;
     isPlaying: boolean;
     onPlayPause: () => void;
     onSeek: (seconds: number) => void;
@@ -19,6 +20,7 @@ interface PlaybackControlsProps {
 }
 
 const PlaybackControls: React.FC<PlaybackControlsProps> = ({
+    danmakuControl,
     onSeek,
     playbackRate,
     onPlaybackRateChange,
@@ -49,6 +51,7 @@ const PlaybackControls: React.FC<PlaybackControlsProps> = ({
             sx={{ width: '100%', flexWrap: 'wrap' }}
         >
             {/* Live Translate trigger (desktop only; mobile shows it in the bottom row) */}
+            {danmakuControl}
             <LiveTranslationControlButton
                 sx={{ display: { xs: 'none', sm: 'inline-flex' }, padding: '8px' }}
             />

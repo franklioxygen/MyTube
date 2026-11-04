@@ -146,6 +146,7 @@ export const WHITELISTED_SETTINGS = [
   "cloudDriveScanPaths",
   "homeSidebarOpen",
   "subtitlesEnabled",
+  "downloadBilibiliDanmaku",
   "playerSeekShortSeconds",
   "playerSeekMediumSeconds",
   "playerSeekLongSeconds",

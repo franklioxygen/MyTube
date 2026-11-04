@@ -16,6 +16,7 @@ import SubtitleControl from './SubtitleControl';
 import VolumeControl from './VolumeControl';
 
 interface ControlsOverlayProps {
+    danmakuControl?: React.ReactNode;
     isFullscreen: boolean;
     controlsVisible: boolean;
     isPlaying: boolean;
@@ -63,6 +64,7 @@ interface ControlsOverlayProps {
 }
 
 const ControlsOverlay: React.FC<ControlsOverlayProps> = ({
+    danmakuControl,
     isFullscreen,
     controlsVisible,
     isPlaying,
@@ -111,6 +113,7 @@ const ControlsOverlay: React.FC<ControlsOverlayProps> = ({
     const theme = useTheme();
     const { t } = useLanguage();
     const isTouch = useMediaQuery('(hover: none), (pointer: coarse)');
+    const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
     const fullscreenIconColor = overlay.white92;
     const fullscreenActiveColor = brand.primaryDark;
     const modePalette = modeColors(theme.palette.mode);
@@ -256,6 +259,7 @@ const ControlsOverlay: React.FC<ControlsOverlayProps> = ({
 
             {/* Seek Controls */}
             <PlaybackControls
+                danmakuControl={!isAudio && !isMobile ? danmakuControl : undefined}
                 isPlaying={isPlaying}
                 onPlayPause={onPlayPause}
                 onSeek={onSeek}
@@ -268,6 +272,7 @@ const ControlsOverlay: React.FC<ControlsOverlayProps> = ({
 
             {/* Mobile: Live Translate, Fullscreen, Loop, Speed */}
             <Stack direction="row" spacing={0.5} alignItems="center" sx={{ display: { xs: 'flex', sm: 'none' }, ml: 1, justifyContent: 'center', mt: 1 }}>
+                {!isAudio && isMobile && danmakuControl}
                 {!isAudio && <LiveTranslationControlButton />}
 
                 {!isAudio && <FullscreenControl

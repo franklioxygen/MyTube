@@ -15,6 +15,7 @@ export interface BilibiliVideoInfo {
   downloadedVideoExtension?: string;
   /** Fragments yt-dlp gave up on and left out of the downloaded file. */
   skippedFragments?: number;
+  cid?: string;
   error?: string;
 }
 
