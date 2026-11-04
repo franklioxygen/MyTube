@@ -58,6 +58,19 @@ describe('download output information', () => {
         expect(screen.getByText('downloadExistingFile')).toBeInTheDocument();
         expect(screen.queryByText('downloadFinalFile')).not.toBeInTheDocument();
     });
+    it('does not claim an existing file for a skip with only a source snapshot', () => {
+        show({ status: 'skipped', error: 'Skipped members-only content', mediaInfo: { version: 1, state: 'unavailable', capturedAt: 100, sourceCollectionName: 'Source playlist' } });
+        expect(screen.queryByLabelText('downloadMediaInfo')).not.toBeInTheDocument();
+        expect(screen.queryByText('downloadExistingFile')).not.toBeInTheDocument();
+        expect(screen.getByText('downloadSourceCollection: Source playlist')).toBeInTheDocument();
+    });
+    it.each([
+        ['a saved path', { videoPath: '/videos/existing.mp4' }],
+        ['a recorded size', { totalSize: '1048576' }],
+    ])('keeps the existing-file label for a source snapshot skip with %s', (_evidence, overrides) => {
+        show({ status: 'skipped', mediaInfo: { version: 1, state: 'unavailable', capturedAt: 100, sourceCollectionName: 'Source playlist' }, ...overrides });
+        expect(screen.getByText('downloadExistingFile')).toBeInTheDocument();
+    });
     it('formats known codecs, retains unknown codecs and never invents a zero size', () => {
         expect(['h264','hevc','av1','future'].map(formatMediaCodec)).toEqual(['H.264','HEVC','AV1','future']);
         expect(formatMediaBytes('0')).toBeUndefined();

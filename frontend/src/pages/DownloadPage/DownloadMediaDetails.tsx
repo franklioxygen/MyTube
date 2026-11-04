@@ -27,6 +27,8 @@ export function DownloadMediaDetails({ item }: { item: DownloadHistoryItem }) {
         info.bitrateBps && info.bitrateBps > 0 ? `${Number((info.bitrateBps / 1000).toFixed(1))} kbps` : undefined,
     ].filter(Boolean).join(' · ') : '';
     if (!info && !size) return null;
+    // A source-only snapshot, e.g. a members-only skip, is no evidence of an existing file.
+    if (item.status === 'skipped' && !item.videoPath && !item.totalSize && !size && !measured) return null;
     return <Box aria-label={t('downloadMediaInfo')} sx={{ display: 'flex', flexWrap: 'wrap', columnGap: 2, overflowWrap: 'anywhere' }}>
         {item.status === 'skipped' && <Typography variant="caption" color="text.secondary">{t('downloadExistingFile')}</Typography>}
         <Typography variant="caption" color="text.primary">{[size, resolution, codec].filter(Boolean).join(' · ') || t('downloadMediaInfoUnknown')}</Typography>
