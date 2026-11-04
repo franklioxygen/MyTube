@@ -562,6 +562,55 @@ describe("useVideoProgress", () => {
     expect(mockApiPost).toHaveBeenCalledTimes(1);
   });
 
+  it("does not count a seek that keeps reporting the old position until it ends", () => {
+    const video = {
+      id: "video-slow-seek",
+      duration: "0:15",
+      progress: 0,
+      viewCount: 0,
+    } as any;
+    const videoElement = document.createElement("video");
+    Object.defineProperty(videoElement, "currentTime", {
+      configurable: true,
+      writable: true,
+      value: 1,
+    });
+    Object.defineProperty(videoElement, "seeking", {
+      configurable: true,
+      writable: true,
+      value: false,
+    });
+    const { result } = renderHook(
+      () => useVideoProgress({ videoId: "video-slow-seek", video, videoElement }),
+      { wrapper: createWrapper().wrapper },
+    );
+
+    const slowSeekTo = (time: number) => {
+      (videoElement as any).seeking = true;
+      act(() => {
+        videoElement.dispatchEvent(new Event("seeking"));
+        // A sample lands mid-seek and still reads the old position.
+        videoElement.dispatchEvent(new Event("playing"));
+      });
+      videoElement.currentTime = time;
+      (videoElement as any).seeking = false;
+      act(() => {
+        videoElement.dispatchEvent(new Event("seeked"));
+      });
+    };
+
+    playThrough(result, 1, 1);
+    slowSeekTo(3);
+    slowSeekTo(5);
+    slowSeekTo(7);
+
+    playThrough(result, 8, 9);
+    expect(mockApiPost).not.toHaveBeenCalled();
+
+    playThrough(result, 10, 10);
+    expect(mockApiPost).toHaveBeenCalledTimes(1);
+  });
+
   it("does not count seeks the player flags as seeked", () => {
     const video = {
       id: "video-flagged-seek",

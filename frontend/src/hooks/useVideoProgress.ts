@@ -200,7 +200,8 @@ export function useVideoProgress({ videoId, video, videoElement }: UseVideoProgr
   // written, while the event is queued and a sample can land in between. Every
   // sampling path lands here, so a deferred timeupdate cannot hold back a view.
   const recordPlaybackStep = useCallback((playbackTime: number) => {
-    const isSeek = seekPendingRef.current || videoElementRef.current?.seeking;
+    const mediaIsSeeking = videoElementRef.current?.seeking;
+    const isSeek = seekPendingRef.current || mediaIsSeeking;
     const step = isSeek ? 0 : playbackTime - lastPlaybackTimeRef.current;
     // Throttled timers can deliver a sample late, so it may cover more ground.
     const now = Date.now();
@@ -208,7 +209,9 @@ export function useVideoProgress({ videoId, video, videoElement }: UseVideoProgr
       BASE_PLAYBACK_STEP_SECONDS,
       ((now - lastPlaybackSampleAtRef.current) / 1000) * FASTEST_PLAYBACK_RATE
     );
-    seekPendingRef.current = false;
+    // Safari can report the old position for a whole seek, so a sample taken
+    // mid-seek leaves the first sample after it to pick up the seek target.
+    seekPendingRef.current = Boolean(mediaIsSeeking);
     lastPlaybackTimeRef.current = playbackTime;
     lastPlaybackSampleAtRef.current = now;
 
