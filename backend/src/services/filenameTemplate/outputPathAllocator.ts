@@ -200,6 +200,10 @@ function findContainingRoot(candidatePath: string, roots: string | string[]): st
 }
 
 function lockPathForFamily(canonicalFamilyStem: string): string {
+  // SHA-256 makes a bounded, deterministic lock filename from a public media
+  // path (including creator metadata). This is not password storage: CodeQL
+  // alert #280 incorrectly classified videoAuthor as a password source.
+  // Keep the digest stable so separate processes contend on the same lock.
   const digest = crypto
     .createHash("sha256")
     .update(canonicalFamilyStem)
