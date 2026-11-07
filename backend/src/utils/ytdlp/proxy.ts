@@ -1,18 +1,68 @@
 import { SocksProxyAgent } from "socks-proxy-agent";
 import { logger } from "../logger";
 
+const REDACTED_PROXY_URL = "[redacted]";
+
 /**
- * Error thrown when proxy configuration is invalid
+ * Reduce a proxy URL to what is safe to log: scheme, host and port.
+ *
+ * Credentials can only be cut out of a URL that parses. Otherwise there is no
+ * telling where they end (`http://user:pa/ss@host` fails on its port, and
+ * `user:secret@host` parses as scheme `user:` with no host), so anything without
+ * a parsed host gets a placeholder rather than a best-effort guess.
+ */
+function redactProxyUrl(proxyUrl: string): string {
+  try {
+    const { protocol, host } = new URL(proxyUrl);
+    return host ? `${protocol}//${host}` : REDACTED_PROXY_URL;
+  } catch {
+    return REDACTED_PROXY_URL;
+  }
+}
+
+/**
+ * Keep only an error's name and message. Node's URL errors hold the raw URL in
+ * an enumerable `input` property, which JSON.stringify and util.inspect print.
+ */
+function withoutErrorDetails(error: Error): Error {
+  const safeError = new Error(error.message);
+  safeError.name = error.name;
+  return safeError;
+}
+
+/**
+ * Decode a URL credential like Python's urllib.parse.unquote, which is what
+ * yt-dlp's proxy handling uses for HTTP proxies.
+ *
+ * decodeURIComponent throws on a stray `%`, so a password such as `100%` that
+ * yt-dlp sends as-is would be rejected here. Instead, valid escapes are decoded
+ * and any other `%` is left alone. Runs of escapes decode together so multi-byte
+ * UTF-8 survives, and invalid UTF-8 becomes U+FFFD, matching unquote's default
+ * errors="replace". yt-dlp's SOCKS handling also turns `+` into a space
+ * (unquote_plus); that is not copied here, so `+` stays literal on both routes.
+ */
+function unquoteCredential(value: string): string {
+  return value.replace(/(?:%[0-9a-fA-F]{2})+/g, (escapes) =>
+    Buffer.from(escapes.replace(/%/g, ""), "hex").toString("utf8")
+  );
+}
+
+/**
+ * Error thrown when proxy configuration is invalid.
+ *
+ * The URL may hold credentials and this error's text ends up in logs, so the
+ * message and `proxyUrl` only ever carry the redacted form.
  */
 export class InvalidProxyError extends Error {
   readonly proxyUrl: string;
   readonly originalError?: Error;
 
   constructor(proxyUrl: string, originalError?: Error) {
-    super(`Invalid proxy URL: ${proxyUrl}`);
+    const redactedProxyUrl = redactProxyUrl(proxyUrl);
+    super(`Invalid proxy URL: ${redactedProxyUrl}`);
     this.name = "InvalidProxyError";
-    this.proxyUrl = proxyUrl;
-    this.originalError = originalError;
+    this.proxyUrl = redactedProxyUrl;
+    this.originalError = originalError && withoutErrorDetails(originalError);
   }
 }
 
@@ -52,12 +102,17 @@ export function getAxiosProxyConfig(proxyUrl: string): any {
       // - DNS pollution/poisoning on the client side
       // - DNS blocking by local network
       // - DNS resolution delays
-      let agentUrl = proxyUrl;
+      //
+      // socks-proxy-agent decodes credentials with decodeURIComponent, which
+      // throws on a stray `%`, so hand it a strictly encoded form of them.
+      url.username = encodeURIComponent(unquoteCredential(url.username));
+      url.password = encodeURIComponent(unquoteCredential(url.password));
+      let agentUrl = url.toString();
 
       // Convert socks5 to socks5h (remote DNS resolution)
       // If user already specified socks5h, keep it as-is
       if (protocol === "socks5") {
-        agentUrl = proxyUrl.replace("socks5://", "socks5h://");
+        agentUrl = agentUrl.replace("socks5://", "socks5h://");
         logger.info("Converted socks5 to socks5h for remote DNS resolution");
       } else if (protocol === "socks5h") {
         // Already using remote DNS, no conversion needed
@@ -95,8 +150,8 @@ export function getAxiosProxyConfig(proxyUrl: string): any {
 
     if (url.username || url.password) {
       proxyConfig.auth = {
-        username: decodeURIComponent(url.username),
-        password: decodeURIComponent(url.password),
+        username: unquoteCredential(url.username),
+        password: unquoteCredential(url.password),
       };
     }
 
@@ -108,10 +163,15 @@ export function getAxiosProxyConfig(proxyUrl: string): any {
     }
     // Wrap other errors (like URL parsing errors) in InvalidProxyError
     // This ensures we fail rather than silently falling back to direct connection
-    logger.error("Invalid proxy URL:", proxyUrl, error);
-    throw new InvalidProxyError(
+    const invalidProxyError = new InvalidProxyError(
       proxyUrl,
       error instanceof Error ? error : new Error(String(error))
     );
+    logger.error(
+      "Invalid proxy URL:",
+      invalidProxyError.proxyUrl,
+      invalidProxyError.originalError
+    );
+    throw invalidProxyError;
   }
 }
