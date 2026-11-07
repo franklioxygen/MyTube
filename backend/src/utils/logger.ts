@@ -114,8 +114,13 @@ export class Logger {
             return sanitizeObject(sanitized);
           }
         } catch {
-          // Its strings can't be sanitized, and console.debug would print them.
-          return String(arg);
+          // JSON can't represent it, and console.debug would print it raw. As a
+          // string an array still shows its items, so that needs redacting too.
+          try {
+            return redactSensitive(sanitizeLogMessage(String(arg)));
+          } catch {
+            return "[unserializable]";
+          }
         }
       }
       return arg;
@@ -239,30 +244,48 @@ export function sanitizeLogMessage(message: string): string {
  * `user:pa ss@host` and `http://us/er:pw@host`.
  *
  * The order matters: each pattern must see the raw text before a later one
- * replaces part of it. Quantifiers that could scan past a token are bounded to
- * keep this linear on long log lines.
+ * replaces part of it. Passwords can be any length, so no quantifier is bounded.
  */
 function redactUrlCredentials(message: string): string {
   return (
     message
       // A colon in the authority and an @ later in the token: `/`, `?` or `#`
       // in the password, or more than one @. Takes the last @.
-      .replace(/:\/\/[^\s/?#:[]*:\S{0,256}@/g, "://[REDACTED]@")
-      // A space in the password, unless what follows the colon reads as a port
-      // or the end of the URL: `http://host:8080/x seen by a@b` is left alone.
-      .replace(
-        /:\/\/[^\s/?#:[]*:(?!\d*(?:[\s,;)\]"'/?#]|$))[^@\r\n]{0,256}@/g,
-        "://[REDACTED]@",
+      .replace(/\S+/g, (token) =>
+        replaceUpToLastAt(token, /:\/\/[^\s/?#:[]*:\S*@/g, "://[REDACTED]@"),
+      )
+      // A space in the password, unless what follows the colon reads as a port:
+      // `http://host:8080/x seen by a@b` is left alone.
+      .replace(/[^\r\n]+/g, (line) =>
+        replaceUpToLastAt(
+          line,
+          /:\/\/[^\s/?#:[]*:(?!\d*[\s,;)\]"'/?#])[^@\r\n]*@/g,
+          "://[REDACTED]@",
+        ),
       )
       // The ordinary form, including a username with no password.
       .replace(/:\/\/[^\s/?#]*@/g, "://[REDACTED]@")
       // No scheme, or just `//`: yt-dlp assumes http. Must start a token and
       // must not be a URL, so `Referer:https://x.com/@user` is left alone.
       .replace(
-        /(^|\s)(?:\/\/)?[^\s:/@]+:(?!\/\/|[a-z][a-z0-9+.-]*:\/\/)\S{0,256}@/gi,
+        /(^|\s)(?:\/\/)?[^\s:/@]+:(?!\/\/|[a-z][a-z0-9+.-]*:\/\/)\S*@/gi,
         "$1[REDACTED]@",
       )
   );
+}
+
+/**
+ * Apply a pattern that always ends at an @ to the text up to the last @. Every
+ * attempt then finds its @, so a long line of `://x:` with no @ to end them can't
+ * make the pattern rescan the rest of the line from each one.
+ */
+function replaceUpToLastAt(
+  text: string,
+  pattern: RegExp,
+  replacement: string,
+): string {
+  const end = text.lastIndexOf("@") + 1;
+  return text.slice(0, end).replace(pattern, replacement) + text.slice(end);
 }
 
 /**

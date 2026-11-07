@@ -3,6 +3,7 @@ import { Logger, LogLevel, redactSensitive } from "../../utils/logger";
 import { InvalidProxyError } from "../../utils/ytdlp/proxy";
 
 const PASSWORD = "s3cr3t-pw";
+const LONG = "a".repeat(1000);
 
 // [form, input, redacted]
 const URLS_WITH_CREDENTIALS: Array<[string, string, string]> = [
@@ -83,6 +84,38 @@ const URLS_WITH_CREDENTIALS: Array<[string, string, string]> = [
     "https://a.com/?proxy=http://user:pw@host:1",
     "https://a.com/?proxy=http://[REDACTED]@host:1",
   ],
+  ["a long password", `http://user:${LONG}@host:1`, "http://[REDACTED]@host:1"],
+  [
+    "a long password with an unencoded /",
+    `http://user:${LONG}/w@host:1`,
+    "http://[REDACTED]@host:1",
+  ],
+  [
+    "a long password with an unencoded ?",
+    `http://user:${LONG}?w@host:1`,
+    "http://[REDACTED]@host:1",
+  ],
+  [
+    "a long password with an unencoded #",
+    `http://user:${LONG}#w@host:1`,
+    "http://[REDACTED]@host:1",
+  ],
+  [
+    "a long password with a space",
+    `http://user:${LONG} w@host:1`,
+    "http://[REDACTED]@host:1",
+  ],
+  ["no scheme and a long password", `user:${LONG}@host:1`, "[REDACTED]@host:1"],
+  [
+    "no scheme and a long password with an unencoded /",
+    `user:${LONG}/w@host:1`,
+    "[REDACTED]@host:1",
+  ],
+  [
+    "only slashes for a scheme and a long password",
+    `//user:${LONG}@host:1`,
+    "[REDACTED]@host:1",
+  ],
 ];
 
 const TEXT_LEFT_UNCHANGED = [
@@ -132,6 +165,19 @@ describe("redactSensitive URL credentials", () => {
     ["user:pw@host:1,https://other.com"],
   ])("should not leak when more text follows in the token: %s", (text) => {
     expect(redactSensitive(text)).not.toContain("pw");
+  });
+
+  it.each([
+    ["no @", "://:".repeat(50_000)],
+    ["an @ past the repeats", `x://y:z@${"://:".repeat(50_000)}`],
+    ["an @ in a later token", `${"://:".repeat(50_000)} a@b`],
+    ["spaces and no @", "://:a ".repeat(50_000)],
+    ["spaces and an @ on a later line", `${"://:a ".repeat(50_000)}\na@b`],
+  ])("should stay fast on a long line with %s", (_shape, text) => {
+    const start = performance.now();
+    redactSensitive(text);
+
+    expect(performance.now() - start).toBeLessThan(1000);
   });
 
   it("should accept over-redacting a link with a port and an @ in its path", () => {
@@ -218,6 +264,21 @@ describe("Logger output with URL credentials", () => {
     circular.self = circular;
 
     expect(logAtEveryLevel(circular)).not.toContain(PASSWORD);
+    expect(written).toHaveLength(4);
+  });
+
+  it("should not print the password from an array it cannot serialize", () => {
+    const output = logAtEveryLevel([PROXY_URL, BigInt(1)]);
+
+    expect(output).toContain("[REDACTED]@host:1");
+    expect(output).not.toContain(PASSWORD);
+    expect(written).toHaveLength(4);
+  });
+
+  it("should not throw on an object it cannot turn into a string", () => {
+    const value = Object.assign(Object.create(null), { big: BigInt(1) });
+
+    expect(logAtEveryLevel(value)).toContain("[unserializable]");
     expect(written).toHaveLength(4);
   });
 

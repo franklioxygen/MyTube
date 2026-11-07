@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { prepareBilibiliDownloadFlags } from "../../services/downloaders/bilibili/bilibiliConfig";
 import { prepareDownloadFlags } from "../../services/downloaders/ytdlp/ytdlpConfig";
 import * as storageService from "../../services/storageService";
+import { logger, LogLevel } from "../../utils/logger";
 import { parseYtDlpConfig } from "../../utils/ytdlp/config";
 import { getUserYtDlpConfig } from "../../utils/ytDlpUtils";
 
@@ -34,6 +35,8 @@ describe("proxy credentials at real log sites", () => {
 
   beforeEach(() => {
     written = [];
+    // The shared logger takes its level from the environment at import.
+    logger.setLevel(LogLevel.DEBUG);
     vi.spyOn(process.stdout, "write").mockImplementation(capture);
     vi.spyOn(process.stderr, "write").mockImplementation(capture);
     vi.spyOn(console, "debug").mockImplementation((...args: unknown[]) => {
