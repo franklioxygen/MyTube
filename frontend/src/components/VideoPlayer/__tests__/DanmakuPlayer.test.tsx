@@ -114,6 +114,7 @@ describe('danmaku controls', () => {
         matchViewport(NARROW, TOUCH);
         show(); await open();
         expect(screen.getByRole('dialog', { name: 'danmaku' })).toHaveClass('MuiDrawer-paperAnchorBottom');
+        expect(document.querySelector('.MuiBackdrop-root')).not.toHaveClass('MuiBackdrop-invisible');
         fireEvent.click(screen.getByRole('button', { name: 'close' }));
         await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     });
@@ -121,6 +122,7 @@ describe('danmaku controls', () => {
         matchViewport(SHORT, TOUCH);
         show(); await open();
         expect(screen.getByRole('dialog', { name: 'danmaku' })).toHaveClass('MuiDrawer-paperAnchorRight');
+        expect(document.querySelector('.MuiBackdrop-root')).not.toHaveClass('MuiBackdrop-invisible');
     });
     it('keeps a popover on a short window driven by a mouse', async () => {
         matchViewport(SHORT);
