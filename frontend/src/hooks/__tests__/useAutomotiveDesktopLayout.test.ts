@@ -137,4 +137,33 @@ describe('useAutomotiveDesktopLayout', () => {
         expect(result.current).toBeUndefined();
         expect(root.style.zoom).toBeFalsy();
     });
+
+    it('keeps desktop resizing responsive despite saved vehicle overrides', () => {
+        pretendToBeALaptop();
+        window.localStorage.setItem('forceAutomotiveDesktopViewport', 'true');
+        window.localStorage.setItem('automotiveDesktopZoom', '0.6');
+        const root = mountRoot();
+        const { result } = renderHook(() => useAutomotiveDesktopLayout());
+
+        for (const width of [1134, 900, 700, 390, 1440]) {
+            resizeTo(width);
+            expect(result.current).toBeUndefined();
+            expect(root.style.zoom).toBeFalsy();
+            expect(root.style.getPropertyValue('--automotive-zoom')).toBeFalsy();
+        }
+    });
+
+    it('retains the measured Tesla zoom while resizing its viewport', () => {
+        pretendToBeTheCar();
+        const root = mountRoot();
+        const { result } = renderHook(() => useAutomotiveDesktopLayout());
+
+        for (const width of [773, 900, 1200, 773]) {
+            resizeTo(width);
+            expect(result.current).toBeDefined();
+            expect(result.current!.zoom).toBeLessThanOrEqual(1 / window.devicePixelRatio);
+            expect(width).toBeGreaterThanOrEqual(result.current!.breakpoints.lg);
+            expect(Number(root.style.zoom)).toBe(result.current!.zoom);
+        }
+    });
 });

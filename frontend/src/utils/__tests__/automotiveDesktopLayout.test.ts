@@ -66,6 +66,11 @@ const MAC_DESKTOP = {
     outerWidth: 1440
 };
 
+const MAC_SAFARI = {
+    ...MAC_DESKTOP,
+    userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/27.0.1 Safari/605.1.15',
+};
+
 const ANDROID_PHONE = {
     userAgent: 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Mobile Safari/537.36',
     devicePixelRatio: 2.625,
@@ -143,8 +148,8 @@ describe('automotiveDesktopLayout', () => {
 
     it('remembers both choices on later visits', () => {
         const optedIn = createMemoryStorage();
-        resolve(MAC_DESKTOP, 'https://example.com/?vehicleDesktop=1', optedIn);
-        expect(resolve(MAC_DESKTOP, 'https://example.com/', optedIn)).not.toBeNull();
+        resolve(TESLA, 'https://example.com/?vehicleDesktop=1', optedIn);
+        expect(resolve(TESLA, 'https://example.com/', optedIn)).not.toBeNull();
 
         const optedOut = createMemoryStorage();
         resolve(TESLA, 'https://example.com/?vehicleDesktop=0', optedOut);
@@ -234,6 +239,50 @@ describe('automotiveDesktopLayout', () => {
 
     it('still lets that laptop opt in deliberately', () => {
         expect(resolve(LINUX_TOUCH_LAPTOP, 'https://example.com/?vehicleDesktop=1')).not.toBeNull();
+    });
+
+    it.each([MAC_DESKTOP, MAC_SAFARI, WINDOWS_TOUCH_LAPTOP, LINUX_TOUCH_LAPTOP])(
+        'ignores legacy vehicle overrides when a desktop window is resized ($userAgent)',
+        (device) => {
+            const storage = createMemoryStorage();
+            storage.setItem('forceAutomotiveDesktopViewport', 'true');
+            storage.setItem('automotiveDesktopZoom', '0.6');
+
+            for (const innerWidth of [1440, 1134, 900, 700, 390, 1440]) {
+                expect(resolve({ ...device, innerWidth }, 'https://example.com/', storage)).toBeNull();
+            }
+        }
+    );
+
+    it('keeps desktop URL overrides temporary without overwriting vehicle settings', () => {
+        const storage = createMemoryStorage();
+        const layout = resolve(MAC_DESKTOP, 'https://example.com/?vehicleDesktop=1&vehicleZoom=0.7', storage)!;
+
+        expect(layout.zoom).toBe(0.7);
+        expect(storage.length).toBe(0);
+        expect(resolve(MAC_DESKTOP, 'https://example.com/', storage)).toBeNull();
+    });
+
+    it('does not reuse an old saved zoom during an explicit desktop preview', () => {
+        const storage = createMemoryStorage();
+        storage.setItem('automotiveDesktopZoom', '0.5');
+        expect(resolve(MAC_DESKTOP, 'https://example.com/?vehicleDesktop=1', storage)!.zoom).toBe(1);
+    });
+
+    it('remembers manual overrides on an unidentified Linux kiosk head unit', () => {
+        const unknownCar = { ...TESLA, devicePixelRatio: 1, innerWidth: 900 };
+        const storage = createMemoryStorage();
+        expect(resolve(unknownCar)).toBeNull();
+
+        resolve(unknownCar, 'https://example.com/?vehicleDesktop=1&vehicleZoom=0.8', storage);
+        expect(resolve(unknownCar, 'https://example.com/', storage)!.zoom).toBe(0.8);
+    });
+
+    it('remembers overrides for an identified car even with a desktop platform token', () => {
+        const car = { ...WINDOWS_TOUCH_LAPTOP, userAgent: `${WINDOWS_TOUCH_LAPTOP.userAgent} CarBrowser` };
+        const storage = createMemoryStorage();
+        resolve(car, 'https://example.com/?vehicleZoom=0.8', storage);
+        expect(resolve(car, 'https://example.com/', storage)!.zoom).toBe(0.8);
     });
 
     it('honours ?vehicleDesktop=1 even when storage throws', () => {
