@@ -568,7 +568,7 @@ export async function downloadVideo(
 
     if (thumbnailUrl) {
       // Prepare axios config with proxy if available
-      let axiosConfig = {};
+      let axiosConfig: Record<string, unknown> | null = {};
 
       // An empty string is yt-dlp's "connect directly" value, so it must reach
       // axios too: it disables axios' own HTTP_PROXY handling, keeping this
@@ -578,19 +578,17 @@ export async function downloadVideo(
           axiosConfig = getAxiosProxyConfig(downloadUserConfig.proxy);
         } catch (error) {
           if (error instanceof InvalidProxyError) {
-            // Log the error but continue without proxy for thumbnail
-            // Video download already succeeded, don't fail for thumbnail proxy issues
             logger.warn(
-              "Invalid proxy configuration for thumbnail download, proceeding without proxy:",
-              error.message
+              "Invalid proxy configuration; skipping thumbnail download to avoid a direct connection."
             );
+            axiosConfig = null;
           } else {
             throw error;
           }
         }
       }
 
-      thumbnailSaved = await downloader.downloadThumbnailPublic(
+      thumbnailSaved = axiosConfig !== null && await downloader.downloadThumbnailPublic(
         thumbnailUrl,
         newThumbnailPath,
         axiosConfig

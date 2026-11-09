@@ -1,3 +1,10 @@
+// Transport behavior is exercised by the native guard integration tests.
+vi.mock("../../utils/ytdlp/release/networkGuard", () => ({
+  guardedYtDlpCommand: (release: { command: string; prefixArgs: string[]; spawnEnv: NodeJS.ProcessEnv }, args: string[]) => ({
+    command: release.command, args: [...release.prefixArgs, ...args], env: release.spawnEnv,
+  }),
+}));
+
 import { spawn } from "child_process";
 import { EventEmitter } from "events";
 import fs from "fs-extra";
@@ -1392,7 +1399,7 @@ describe("ytDlpUtils", () => {
       expect(secondArgs).toContain("https://example.com/video");
     });
 
-    it("should retry with --ignore-config when format error comes from config", async () => {
+    it("should preserve config and reset only format selection on a config format error", async () => {
       const first = createMockProcess();
       const second = createMockProcess();
       mockSpawnWithVersionCheck(first, second);
@@ -1408,7 +1415,9 @@ describe("ytDlpUtils", () => {
 
       await expect(promise).resolves.toEqual({ fallback: true });
       const secondArgs = getSpawnArgsForUrl("https://example.com/video", 1);
-      expect(secondArgs).toContain("--ignore-config");
+      expect(secondArgs).not.toContain("--ignore-config");
+      const options = vi.mocked(spawn).mock.calls.filter(([, args]) => Array.isArray(args) && args.includes("https://example.com/video"))[1]?.[2];
+      expect(options?.env?.MYTUBE_RESET_FORMAT).toBe("1");
       expect(secondArgs).not.toContain("--format");
     });
 

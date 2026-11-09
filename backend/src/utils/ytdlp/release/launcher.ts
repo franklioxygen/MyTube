@@ -8,6 +8,7 @@ import { resolveYtDlpPath } from "../pathResolver";
 import { DEFAULT_YT_DLP_PATH } from "../constants";
 import { collectGarbageIfDue } from "./gc";
 import type { YtDlpRelease } from "./types";
+import { guardedYtDlpCommand } from "./networkGuard";
 
 type TrackedChild = {
   child: ChildProcess;
@@ -33,6 +34,7 @@ const LEASE_ACQUISITION_ATTEMPTS = 3;
 
 export type SpawnYtDlpOptions = Omit<SpawnOptions, "env" | "shell"> & {
   timeoutMs?: number;
+  resetFormat?: boolean;
 };
 
 export async function withYtDlpRelease<T>(
@@ -132,13 +134,14 @@ export function spawnYtDlp(
   args: readonly string[],
   options: SpawnYtDlpOptions = {}
 ): ChildProcess {
-  const { timeoutMs: _ignoredTimeoutMs, stdio, ...spawnOptions } = options;
-  const child = spawn(release.command, [...release.prefixArgs, ...args], {
+  const { timeoutMs: _ignoredTimeoutMs, resetFormat, stdio, ...spawnOptions } = options;
+  const guarded = guardedYtDlpCommand(release, args);
+  const child = spawn(guarded.command, guarded.args, {
     ...spawnOptions,
     // The snapshot environment is not overridable: a caller-supplied env would
     // break the guarantee that every child of this operation runs the same
     // release with the same module path.
-    env: release.spawnEnv,
+    env: { ...guarded.env, MYTUBE_RESET_FORMAT: resetFormat ? "1" : "" },
     shell: false,
     windowsHide: true,
     stdio: stdio ?? ["ignore", "pipe", "pipe"],

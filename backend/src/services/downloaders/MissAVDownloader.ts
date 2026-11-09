@@ -979,7 +979,7 @@ export class MissAVDownloader extends BaseDownloader {
       // 8. Download and save the thumbnail
       if (thumbnailUrl) {
         // Use base class method via temporary instance
-        let axiosConfig = {};
+        let axiosConfig: Record<string, unknown> | null = {};
         // An empty string is yt-dlp's "connect directly" value, so it must reach
         // axios too: it disables axios' own HTTP_PROXY handling, keeping this
         // request on the same egress path as the download it belongs to.
@@ -989,16 +989,16 @@ export class MissAVDownloader extends BaseDownloader {
           } catch (error) {
             if (error instanceof InvalidProxyError) {
               logger.warn(
-                "Invalid proxy configuration for thumbnail download, proceeding without proxy:",
-                error.message,
+                "Invalid proxy configuration; skipping thumbnail download to avoid a direct connection.",
               );
+              axiosConfig = null;
             } else {
               throw error;
             }
           }
         }
         const downloader = new MissAVDownloader();
-        thumbnailSaved = await downloader.downloadThumbnail(
+        thumbnailSaved = axiosConfig !== null && await downloader.downloadThumbnail(
           thumbnailUrl,
           thumbnailDownloadPath,
           axiosConfig,

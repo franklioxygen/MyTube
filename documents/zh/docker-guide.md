@@ -408,6 +408,18 @@ proxy_buffering off;
 
 本节讲的是 MyTube 通过代理访问**外网**（mihomo、Clash、公司代理），与上一节的反向代理无关。
 
+GHSA-ppj6-v966-7mx3 修复面向 Linux Docker/NAS，以及托管版本或标准 Python/zipapp yt-dlp 入口。连接检查在 `connect`/发送时校验实际目标 IP，覆盖 DNS 重绑定、重定向、原生 HTTP/HLS/DASH、Chrome/libcurl 和动态链接的 ffmpeg；缩略图直连则固定到已检查的公网 DNS 地址，并保留原有 Axios/UI/环境代理设置；不会自动继承 yt-dlp 外部文件中的代理。如需统一这些请求的出口，应在环境或 MyTube 代理设置中配置。不使用临时 yt-dlp 插件，也不为每次下载额外启动 yt-dlp。
+
+yt-dlp 继续自行读取配置文件、别名、嵌套引用、编码和优先级，并自行选择代理和 `NO_PROXY`，包括默认端口规则。管理员配置的 HTTP/HTTPS/SOCKS 代理属于可信边界；代理请求不新增本地目标 DNS 检查，保留 Clash fake-IP 和 SOCKS 远程 DNS。格式重试只重置格式选择并保留配置，不再通过 `--ignore-config` 丢弃文件中的代理。
+
+明确的兼容限制：macOS/Windows 原生运行须改用 Docker；不透明包装脚本、冻结/静态 yt-dlp 二进制、非动态链接、32 位或带额外权限的外部工具、RTMP/RTSP 等非 HTTP 媒体传输，以及 ffmpeg 以外的外部下载器会被拒绝。ffmpeg 网络下载只支持 HTTP 代理或直连；SOCKS/HTTPS 代理组合、合并输入需要不同代理时明确报错，不会静默直连。原生 HLS/DASH 继续支持 SOCKS/HTTPS 代理；本地 ffmpeg 合并和后处理继续支持。自定义浏览器 Cookie IPC、HTTP agent/transport、超出受支持运行范围的管理员插件或程序可能需要单独适配。
+
+信任边界：管理员代理的 **IP/端口端点**、已加载的 bgutil HTTP PO Token 插件配置的服务端点（含其默认地址），以及系统 DNS 解析器的 53 端口是网络例外；连接层无法区分“直接请求这个允许的端点”和正常代理/DNS 使用，因此代理管理 API 应与代理端口分离。可信代理仍可能将域名解析或路由到内网，其 DNS、DIRECT/TUN 分流和内网访问策略由管理员负责。本检查保护受支持工具处理不可信 URL 的路径，不隔离管理员代码直接发起系统调用或移除防护的行为。
+
+OpenList 缩略图缓存也信任管理员配置的公开 URL 的精确源（协议、主机、端口），未配置公开 URL 时使用 API 的源。该源可以是内网地址；跳转到其他源后，直连仍执行公网地址检查。存储元数据返回的其他 URL 不会继承此例外。
+
+Linux 源码部署首次构建须有 C 编译器（例如 Debian/Ubuntu 的 `build-essential`）；`npm run build` 编译检查库，`npm run start` 和 `npm run dev` 在库缺失或过期时先编译再启动。已有有效库时无需编译器。Docker 构建会自动编译并携带检查库。库缺失或未加载时会在下载前报错。Linux 原生客户端回归：先将 `src/__tests__/fixtures/network-guard-route.c` 编译为临时共享库，设置 `MYTUBE_TEST_ROUTER` 指向它，再运行 `MYTUBE_TEST_YTDLP_PATH=/path/to/yt-dlp python3 src/__tests__/utils/nativeNetworkGuard.py`。该路由库只用于测试，服务绝不能加载它。
+
 MyTube 启动 yt-dlp 时会把 backend 容器自身的环境变量传给它，因此在 `backend` 服务上设置的 `HTTP_PROXY` / `HTTPS_PROXY` 会作用于 yt-dlp 发出的**每一个**请求——包括视频流中的每一个 HLS 分片。MyTube 的界面上看不到这一点，所以由代理引起的变慢很容易被误判。
 
 ```yaml

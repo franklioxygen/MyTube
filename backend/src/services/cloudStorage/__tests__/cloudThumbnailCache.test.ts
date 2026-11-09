@@ -3,10 +3,12 @@ import fs from 'fs-extra';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { CLOUD_THUMBNAIL_CACHE_DIR, IMAGES_DIR } from '../../../config/paths';
 import { clearThumbnailCache, downloadAndCacheThumbnail, getCachedThumbnail, getCacheStats, saveThumbnailToCache } from '../cloudThumbnailCache';
+import { getConfig } from '../config';
 
 // Mock dependencies
 vi.mock('fs-extra');
 vi.mock('axios');
+vi.mock('../config', () => ({ getConfig: vi.fn(() => ({ enabled: false, apiUrl: '' })) }));
 vi.mock('../../../utils/security', () => ({
   copySafe: vi.fn((sourcePath, _sourceAllowedDirs, destinationPath) =>
     fs.copy(sourcePath, destinationPath)
@@ -29,6 +31,7 @@ describe('cloudThumbnailCache', () => {
   
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(getConfig).mockReturnValue({ enabled: false, apiUrl: '', token: '', uploadPath: '/' });
     
     // Default fs behavior
     vi.mocked(fs.existsSync).mockReturnValue(false);
@@ -125,6 +128,19 @@ describe('cloudThumbnailCache', () => {
         
         const result = await downloadAndCacheThumbnail(mockCloudPath, mockSignedUrl);
         expect(result).toBeNull();
+    });
+
+    it.each(['publicUrl', 'apiUrl'] as const)('keeps administrator-configured private %s available', async field => {
+      vi.mocked(getConfig).mockReturnValue({ enabled: true, apiUrl: 'https://api.example.com/api/fs/put', token: 'token', uploadPath: '/', [field]: 'http://127.0.0.1:5244/openlist' });
+      vi.mocked(axios.get).mockResolvedValue({ data: Buffer.from('image-data') });
+      expect(await downloadAndCacheThumbnail(mockCloudPath, 'http://127.0.0.1:5244/openlist/d/thumb.jpg?sign=test')).not.toBeNull();
+      expect(axios.get).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ lookup: undefined }));
+    });
+
+    it('does not trust private signed URLs outside the configured origin', async () => {
+      vi.mocked(getConfig).mockReturnValue({ enabled: true, apiUrl: 'http://127.0.0.1:5244', token: 'token', uploadPath: '/' });
+      expect(await downloadAndCacheThumbnail(mockCloudPath, 'http://127.0.0.1:8080/secret')).toBeNull();
+      expect(axios.get).not.toHaveBeenCalled(); expect(fs.writeFile).not.toHaveBeenCalled();
     });
     
     it('should return null on empty response', async () => {

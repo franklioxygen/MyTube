@@ -78,6 +78,7 @@ codeql-reports/
 # Reports
 reports/*
 .lighthouseci/
+/backend/scripts/network-guard.so
 
 # Codacy CLI local snapshots (auto-generated; the shared config is .codacy/codacy.yaml)
 .codacy/codacy.config.json

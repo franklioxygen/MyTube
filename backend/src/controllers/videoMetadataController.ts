@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import axios from "axios";
+import { publicAxiosGet } from "../utils/publicAxios";
 import fs from "fs-extra";
 import multer from "multer";
 import crypto from "crypto";
@@ -195,7 +195,7 @@ const refreshThumbnailFromSource = async (
   fs.ensureDirSync(path.dirname(thumbnailAbsolutePath));
 
   const safeRemoteThumbnailUrl = validateUrl(remoteThumbnailUrl);
-  const response = await axios.get<ArrayBuffer>(safeRemoteThumbnailUrl, {
+  const response = await publicAxiosGet<ArrayBuffer>(safeRemoteThumbnailUrl, {
     responseType: "arraybuffer",
     timeout: 15000,
   });

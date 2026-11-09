@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import { downloadVideoAvatar } from "../../../../services/downloaders/ytdlp/avatarDownload";
 import { YtDlpDownloaderHelper } from "../../../../services/downloaders/ytdlp/ytdlpDownloaderHelper";
+import { getAxiosProxyConfig, InvalidProxyError } from "../../../../utils/ytDlpUtils";
+import { downloadAndProcessAvatar } from "../../../../utils/avatarUtils";
 
 // Mock external collaborators so we never touch the network or filesystem.
 vi.mock("fs-extra", () => ({
@@ -44,6 +46,15 @@ const makeInput = (overrides: Record<string, unknown> = {}) => ({
 });
 
 describe("ytdlp avatarDownload", () => {
+  it("skips an avatar with an invalid proxy instead of fetching directly", async () => {
+    vi.clearAllMocks();
+    vi.mocked(getAxiosProxyConfig).mockImplementationOnce(() => { throw new InvalidProxyError("invalid"); });
+    const result = await downloadVideoAvatar(makeInput({
+      authorAvatarUrl: "https://example.com/avatar.jpg", downloadUserConfig: { proxy: "invalid" },
+    }));
+    expect(result.authorAvatarSaved).toBe(false);
+    expect(downloadAndProcessAvatar).not.toHaveBeenCalled();
+  });
   it("returns no avatar when neither channelUrl nor avatarUrl is available", async () => {
     const result = await downloadVideoAvatar(makeInput());
 

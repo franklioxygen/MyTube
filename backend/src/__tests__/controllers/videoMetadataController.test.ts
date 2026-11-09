@@ -282,10 +282,10 @@ describe("videoMetadataController", () => {
       );
 
       expect(getVideoInfo).toHaveBeenCalledWith("https://www.youtube.com/watch?v=test");
-      expect(axios.get).toHaveBeenCalledWith("https://example.com/thumb.jpg", {
+      expect(axios.get).toHaveBeenCalledWith("https://example.com/thumb.jpg", expect.objectContaining({
         responseType: "arraybuffer",
         timeout: 15000,
-      });
+      }));
       expect(fs.writeFile).toHaveBeenCalledWith("/safe/missing.jpg", expect.any(Buffer));
       expect(storageService.updateVideo).toHaveBeenCalledWith("v4", {
         thumbnailFilename: "missing.jpg",
@@ -485,10 +485,10 @@ describe("videoMetadataController", () => {
       );
 
       expect(getVideoInfo).toHaveBeenCalledWith("https://www.youtube.com/watch?v=thumb");
-      expect(axios.get).toHaveBeenCalledWith("https://example.com/thumb.jpg", {
+      expect(axios.get).toHaveBeenCalledWith("https://example.com/thumb.jpg", expect.objectContaining({
         responseType: "arraybuffer",
         timeout: 15000,
-      });
+      }));
       expect(storageService.updateVideo).toHaveBeenCalledWith("v5", {
         thumbnailFilename: "movie.jpg",
         thumbnailPath: "/images/movie.jpg",
