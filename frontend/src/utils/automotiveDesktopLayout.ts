@@ -117,18 +117,16 @@ const isLikelyCarDisplay = (
 );
 
 /**
- * A remembered debugging override must not turn a desktop window into a car
+ * A remembered debugging override must not turn an ordinary browser into a car
  * display on every later visit. In particular, resizing that window would keep
  * shrinking the app to preserve a 1200px layout instead of letting it reflow.
  * Explicit URL overrides still work for testing; only head units remember them.
- * Keep tokenless Linux kiosk shells eligible for manually configured cars.
+ * Only identified cars and tokenless Linux kiosk shells may persist overrides;
+ * unknown user agents must not opt phones, tablets, or ChromeOS into this mode.
  */
 const canRememberVehicleOverrides = (userAgent: string, outerWidth: number): boolean => (
     CAR_BROWSER_USER_AGENT.test(userAgent) ||
-    !(
-        /\b(?:Macintosh|Windows NT)\b/i.test(userAgent) ||
-        (/X11;\s*Linux/i.test(userAgent) && outerWidth > 0)
-    )
+    (/X11;\s*Linux/i.test(userAgent) && outerWidth === 0)
 );
 
 const clampZoom = (zoom: number): number => (
@@ -165,7 +163,7 @@ const writeStorage = (storage: Storage, key: string, value: string | null): void
  * `?vehicleDesktop=1` forces the desktop layout on (`=0` off) for a head unit
  * the sniffing misses; `?vehicleZoom=0.75` overrides how far the UI is shrunk,
  * for tuning legibility from the driver's seat. Both are remembered on head
- * units, so the URL only has to be typed once. Ordinary desktop windows only
+ * units, so the URL only has to be typed once. Ordinary browsers only
  * honour the current URL; old remembered values cannot disable responsive UI.
  */
 const resolveOverrides = (href: string, storage: Storage, remember: boolean): {
