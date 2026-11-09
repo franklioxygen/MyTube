@@ -20,32 +20,39 @@ const lookup = (hostname: string, options: LookupOptions,
 };
 
 /** Pin direct lookups; retain Axios' own proxies, TLS, streams and redirects. */
-export function publicAxiosGet<T = unknown>(url: string, config: AxiosRequestConfig = {}): Promise<AxiosResponse<T>> {
-  validateUrl(url);
-  const parsed = new URL(url), literal = parsed.hostname.replace(/^\[|\]$/g, "");
-  if (net.isIP(literal)) assertPublicAddress(literal);
+export function publicAxiosGet<T = unknown>(url: string, config: AxiosRequestConfig = {}, trustedOrigin?: string): Promise<AxiosResponse<T>> {
+  // Only an administrator-configured storage origin may opt out of public-IP checks.
+  const origin = trustedOrigin ? new URL(trustedOrigin).origin : undefined;
+  const checkTarget = (target: URL) => {
+    if (["http:", "https:"].includes(target.protocol) && target.origin === origin) return true;
+    validateUrl(target.href);
+    const literal = target.hostname.replace(/^\[|\]$/g, "");
+    if (net.isIP(literal)) assertPublicAddress(literal);
+    return false;
+  };
+  const parsed = new URL(url), trusted = checkTarget(parsed);
   if (config.transport || config.socketPath) throw new Error("SSRF protection: unsupported HTTP transport");
   for (const agent of [config.httpAgent, config.httpsAgent]) {
     if (agent && !isProxyAgent(agent)) throw new Error("SSRF protection: unsupported custom HTTP agent");
   }
   const initialAgent = parsed.protocol === "https:" ? config.httpsAgent : config.httpAgent;
   const proxied = isProxyAgent(initialAgent) || Boolean(config.proxy || (config.proxy !== false && getProxyForUrl(url)));
-  // Direct sockets use the validated lookup below on every hop; administrator proxies are trusted.
+  // Public direct sockets use validated lookups; administrator proxies/storage origins are trusted.
   // nosemgrep: rules_lgpl_javascript_ssrf_rule-node-ssrf
   return axios.get<T>(url, {
     ...config, adapter: "http", httpVersion: 1,
-    lookup: proxied ? undefined : lookup,
+    lookup: proxied || trusted ? undefined : lookup,
     beforeRedirect(options, response, request) {
       config.beforeRedirect?.(options, response, request);
       // Axios has already applied the next hop's proxy policy before this hook.
       const absolute = /^https?:\/\//i.test(options.path || "");
       const agent = options.agents?.[options.protocol?.slice(0, -1)] ?? options.agent;
       const throughProxy = absolute || isProxyAgent(agent);
-      if (absolute) validateUrl(options.path);
-      const host = (absolute ? new URL(options.path).hostname : String(options.hostname || options.host || ""))
-        .replace(/^\[|\]$/g, "");
-      if (net.isIP(host)) assertPublicAddress(host);
-      options.lookup = throughProxy ? undefined : lookup;
+      const host = String(options.hostname || options.host || "").replace(/^\[|\]$/g, "");
+      const authority = net.isIP(host) === 6 ? `[${host}]` : host;
+      const target = new URL(absolute ? options.path : `${options.protocol}//${authority}${options.port ? `:${options.port}` : ""}/`);
+      const trustedHop = checkTarget(target);
+      options.lookup = throughProxy || trustedHop ? undefined : lookup;
     },
   });
 }

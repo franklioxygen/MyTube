@@ -416,7 +416,9 @@ yt-dlp 继续自行读取配置文件、别名、嵌套引用、编码和优先�
 
 信任边界：管理员代理的 **IP/端口端点**、已加载的 bgutil HTTP PO Token 插件配置的服务端点（含其默认地址），以及系统 DNS 解析器的 53 端口是网络例外；连接层无法区分“直接请求这个允许的端点”和正常代理/DNS 使用，因此代理管理 API 应与代理端口分离。可信代理仍可能将域名解析或路由到内网，其 DNS、DIRECT/TUN 分流和内网访问策略由管理员负责。本检查保护受支持工具处理不可信 URL 的路径，不隔离管理员代码直接发起系统调用或移除防护的行为。
 
-Linux 源码部署须有 C 编译器并运行 `npm run build`；Docker 构建会自动编译并携带检查库。库缺失或未加载时会在下载前报错。Linux 原生客户端回归：先将 `src/__tests__/fixtures/network-guard-route.c` 编译为临时共享库，设置 `MYTUBE_TEST_ROUTER` 指向它，再运行 `MYTUBE_TEST_YTDLP_PATH=/path/to/yt-dlp python3 src/__tests__/utils/nativeNetworkGuard.py`。该路由库只用于测试，服务绝不能加载它。
+OpenList 缩略图缓存也信任管理员配置的公开 URL 的精确源（协议、主机、端口），未配置公开 URL 时使用 API 的源。该源可以是内网地址；跳转到其他源后，直连仍执行公网地址检查。存储元数据返回的其他 URL 不会继承此例外。
+
+Linux 源码部署首次构建须有 C 编译器（例如 Debian/Ubuntu 的 `build-essential`）；`npm run build` 编译检查库，`npm run start` 和 `npm run dev` 在库缺失或过期时先编译再启动。已有有效库时无需编译器。Docker 构建会自动编译并携带检查库。库缺失或未加载时会在下载前报错。Linux 原生客户端回归：先将 `src/__tests__/fixtures/network-guard-route.c` 编译为临时共享库，设置 `MYTUBE_TEST_ROUTER` 指向它，再运行 `MYTUBE_TEST_YTDLP_PATH=/path/to/yt-dlp python3 src/__tests__/utils/nativeNetworkGuard.py`。该路由库只用于测试，服务绝不能加载它。
 
 MyTube 启动 yt-dlp 时会把 backend 容器自身的环境变量传给它，因此在 `backend` 服务上设置的 `HTTP_PROXY` / `HTTPS_PROXY` 会作用于 yt-dlp 发出的**每一个**请求——包括视频流中的每一个 HLS 分片。MyTube 的界面上看不到这一点，所以由代理引起的变慢很容易被误判。
 

@@ -82,6 +82,36 @@ it("checks new DNS answers after a later connection (rebinding)", async () => {
   await expect(publicAxiosGet(`http://public.example:${port}/secret`)).rejects.toBeDefined();
   expect(hits).toEqual(["/first"]);
 });
+it.each(["127.0.0.1", "localhost"])("allows only the configured storage origin at %s", async host => {
+  const origin = `http://${host}:${port}`;
+  expect((await publicAxiosGet(`${origin}/video`, {}, origin)).data).toBe("public content");
+  expect((await publicAxiosGet(`${origin}/literal/${host}`, {}, origin)).data).toBe("public content");
+  expect(checked).toEqual([]); expect(dns.lookup).not.toHaveBeenCalled();
+  await expect(Promise.resolve().then(() => publicAxiosGet(`http://${host}:${proxyPort}/secret`, {}, origin))).rejects.toBeDefined();
+  expect(forwarded).toEqual([]);
+});
+it.each(["redirect", "literal/198.18.0.1", "literal/[2001:db8::1]"])("guards a redirect leaving a trusted storage origin via %s", async path => {
+  const origin = `http://127.0.0.1:${port}`;
+  await expect(publicAxiosGet(`${origin}/${path}`, {}, origin)).rejects.toBeDefined();
+  expect(hits).toEqual([`/${path}`]); expect(checked).toEqual([]);
+});
+it("pins public DNS after a redirect leaves the configured storage origin", async () => {
+  const origin = `http://127.0.0.1:${port}`;
+  expect((await publicAxiosGet(`${origin}/literal/public.example`, {}, origin)).data).toBe("public content");
+  expect(checked).toEqual([PUBLIC]); expect(hits).toEqual(["/literal/public.example", "/secret"]);
+});
+it("keeps proxy DNS for a configured storage origin and its redirect", async () => {
+  vi.stubEnv("HTTP_PROXY", `http://127.0.0.1:${proxyPort}`);
+  vi.mocked(dns.lookup).mockRejectedValue(new Error("ENOTFOUND"));
+  expect((await publicAxiosGet("http://storage.invalid/redirect", {}, "http://storage.invalid")).data).toBe("public content");
+  expect(forwarded).toEqual(["http://storage.invalid/redirect", `http://private.example:${port}/secret`]);
+  expect(dns.lookup).not.toHaveBeenCalled(); expect(checked).toEqual([]);
+});
+it("guards NO_PROXY redirects out of a configured storage origin", async () => {
+  vi.stubEnv("HTTP_PROXY", `http://127.0.0.1:${proxyPort}`); vi.stubEnv("NO_PROXY", "private.example");
+  await expect(publicAxiosGet("http://storage.invalid/redirect", {}, "http://storage.invalid")).rejects.toBeDefined();
+  expect(forwarded).toEqual(["http://storage.invalid/redirect"]); expect(hits).toEqual(["/redirect"]);
+});
 it.each(["198.18.0.1", "127.0.0.1", "ENOTFOUND"])("keeps HTTP proxy DNS when local resolution gives %s", async address => {
   if (address === "ENOTFOUND") vi.mocked(dns.lookup).mockRejectedValue(new Error(address));
   else vi.mocked(dns.lookup).mockResolvedValue([{ address, family: 4 }] as never);

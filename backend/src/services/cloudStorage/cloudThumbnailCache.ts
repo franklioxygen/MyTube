@@ -9,6 +9,7 @@ import fs from "fs-extra";
 import path from "path";
 import { CLOUD_THUMBNAIL_CACHE_DIR, IMAGES_DIR } from "../../config/paths";
 import { logger } from "../../utils/logger";
+import { getConfig } from "./config";
 import {
   copySafe,
   pathExistsSafeSync,
@@ -18,7 +19,6 @@ import {
   statSafeSync,
   unlinkSafeSync,
   validateCloudThumbnailCachePath,
-  validateUrl,
   writeFileSafe,
 } from "../../utils/security";
 
@@ -143,12 +143,12 @@ export async function downloadAndCacheThumbnail(
       `[CloudThumbnailCache] Downloading thumbnail from cloud: ${cloudPath}`
     );
 
-    const validatedUrl = validateUrl(signedUrl);
-
-    const response = await publicAxiosGet<Buffer>(validatedUrl, {
+    const config = getConfig();
+    const trustedOrigin = config.enabled ? config.publicUrl || config.apiUrl : undefined;
+    const response = await publicAxiosGet<Buffer>(signedUrl, {
       responseType: "arraybuffer",
       timeout: 30000,
-    });
+    }, trustedOrigin);
 
     // Validate response data
     if (!response.data || response.data.length === 0) {

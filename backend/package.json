@@ -4,7 +4,9 @@
   "main": "server.js",
   "scripts": {
     "preinstall": "node scripts/check-supported-node.cjs backend",
+    "prestart": "node scripts/build-network-guard.cjs --if-needed",
     "start": "ts-node src/server.ts",
+    "predev": "node scripts/build-network-guard.cjs --if-needed",
     "dev": "nodemon src/server.ts",
     "build": "node scripts/build-network-guard.cjs && tsc",
     "generate": "drizzle-kit generate",
