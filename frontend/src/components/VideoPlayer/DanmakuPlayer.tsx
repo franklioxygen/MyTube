@@ -1,5 +1,5 @@
 import { Add, ChatBubbleOutline, Close, DeleteOutline, FileUploadOutlined, InfoOutlined, Refresh, Remove } from '@mui/icons-material';
-import { Alert, Box, Button, CircularProgress, Divider, Drawer, IconButton, InputBase, Popover, Slider, Stack, Switch, Tooltip, Typography, useMediaQuery, useTheme } from '@mui/material';
+import { Alert, Box, Button, CircularProgress, Divider, IconButton, InputBase, Popover, Slider, Stack, Switch, Tooltip, Typography, useMediaQuery, useTheme } from '@mui/material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { type MouseEvent, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -9,6 +9,7 @@ import { api } from '../../utils/apiClient';
 import { danmakuPanelPlacement, type DanmakuEvent, type DanmakuTrack } from '../../utils/danmaku';
 import { cancelAutomotiveZoom } from '../../utils/viewportUnits';
 import DanmakuOverlay from './DanmakuOverlay';
+import ActionSheet from '../ActionSheet';
 
 const EMPTY_EVENTS: DanmakuEvent[] = [];
 const OFFSET_LIMIT = 3600;
@@ -200,13 +201,11 @@ export default function DanmakuPlayer({ videoId, getTime, overlayContainer, canR
             size="small" color={enabled ? 'primary' : 'inherit'} onClick={openPanel} sx={{ p: '8px' }}>
             <ChatBubbleOutline fontSize="small" />
         </IconButton></Tooltip>
-        {sheet ? <Drawer {...surfaceProps} anchor={sheet} slotProps={{
-            // No scrim: the point of adjusting danmaku is watching the picture change.
-            backdrop: { invisible: true },
+        {sheet ? <ActionSheet {...surfaceProps} anchor={sheet} slotProps={{
             paper: { ...paperProps, sx: { ...paperSx, ...(sheet === 'bottom'
                 ? { maxHeight: '75vh', borderTopLeftRadius: 16, borderTopRightRadius: 16 }
                 : { width: 340, maxWidth: '85vw', borderTopLeftRadius: 16, borderBottomLeftRadius: 16 }) } },
-        }}>{panel}</Drawer> : <Popover {...surfaceProps} anchorEl={anchor}
+        }}>{panel}</ActionSheet> : <Popover {...surfaceProps} anchorEl={anchor}
             anchorOrigin={{ vertical: placement.opensUp ? 'top' : 'bottom', horizontal: 'center' }}
             transformOrigin={{ vertical: placement.opensUp ? 'bottom' : 'top', horizontal: 'center' }}
             slotProps={{ paper: { ...paperProps, sx: { ...paperSx, width: 340, maxWidth: 'calc(100vw - 32px)', maxHeight: `min(calc(100% - 32px), ${placement.maxHeight}px)`,

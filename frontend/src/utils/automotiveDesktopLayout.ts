@@ -13,7 +13,7 @@
  *     element at its magnified size, so the desktop layout arrives absurdly
  *     oversized and overflowing.
  *
- * What works is undoing the magnification: `zoom` on <body> shrinks the content
+ * What works is undoing the magnification: `zoom` on #root shrinks the content
  * and widens the layout box to match (763px -> 1174px at zoom 0.653). Media
  * queries deliberately do not follow `zoom`, so the theme's breakpoints are
  * scaled by the same factor to keep them in step. Note `zoom` on <html> does
@@ -29,7 +29,7 @@ export interface AutomotiveBreakpointValues {
 }
 
 export interface AutomotiveDesktopLayout {
-    /** Applied to <body>; < 1 shrinks the magnified UI back down. */
+    /** Applied to #root; < 1 shrinks the magnified UI back down. */
     zoom: number;
     breakpoints: AutomotiveBreakpointValues;
 }
@@ -116,6 +116,19 @@ const isLikelyCarDisplay = (
     )
 );
 
+/**
+ * A remembered debugging override must not turn an ordinary browser into a car
+ * display on every later visit. In particular, resizing that window would keep
+ * shrinking the app to preserve a 1200px layout instead of letting it reflow.
+ * Explicit URL overrides still work for testing; only head units remember them.
+ * Only identified cars and tokenless Linux kiosk shells may persist overrides;
+ * unknown user agents must not opt phones, tablets, or ChromeOS into this mode.
+ */
+const canRememberVehicleOverrides = (userAgent: string, outerWidth: number): boolean => (
+    CAR_BROWSER_USER_AGENT.test(userAgent) ||
+    (/X11;\s*Linux/i.test(userAgent) && outerWidth === 0)
+);
+
 const clampZoom = (zoom: number): number => (
     Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, zoom))
 );
@@ -149,10 +162,11 @@ const writeStorage = (storage: Storage, key: string, value: string | null): void
 /**
  * `?vehicleDesktop=1` forces the desktop layout on (`=0` off) for a head unit
  * the sniffing misses; `?vehicleZoom=0.75` overrides how far the UI is shrunk,
- * for tuning legibility from the driver's seat. Both are remembered, so the
- * URL only has to be typed once.
+ * for tuning legibility from the driver's seat. Both are remembered on head
+ * units, so the URL only has to be typed once. Ordinary browsers only
+ * honour the current URL; old remembered values cannot disable responsive UI.
  */
-const resolveOverrides = (href: string, storage: Storage): {
+const resolveOverrides = (href: string, storage: Storage, remember: boolean): {
     enabled: boolean | null;
     zoom: number | null;
 } => {
@@ -170,7 +184,7 @@ const resolveOverrides = (href: string, storage: Storage): {
         const requested = params.get('vehicleDesktop');
         if (requested === '1') requestedEnabled = true;
         if (requested === '0') requestedEnabled = false;
-        if (requestedEnabled !== null) {
+        if (requestedEnabled !== null && remember) {
             writeStorage(storage, ENABLED_KEY, String(requestedEnabled));
         }
 
@@ -179,13 +193,13 @@ const resolveOverrides = (href: string, storage: Storage): {
             const parsedZoom = Number(zoomParam);
             if (Number.isFinite(parsedZoom) && parsedZoom > 0) {
                 requestedZoom = clampZoom(parsedZoom);
-                writeStorage(storage, ZOOM_KEY, String(requestedZoom));
+                if (remember) writeStorage(storage, ZOOM_KEY, String(requestedZoom));
             }
         }
     }
 
-    const stored = readStorage(storage, ENABLED_KEY);
-    const storedZoom = Number(readStorage(storage, ZOOM_KEY));
+    const stored = remember ? readStorage(storage, ENABLED_KEY) : null;
+    const storedZoom = remember ? Number(readStorage(storage, ZOOM_KEY)) : 0;
 
     return {
         enabled: requestedEnabled ??
@@ -219,7 +233,9 @@ export const resolveAutomotiveDesktopLayout = ({
     innerWidth,
     outerWidth
 }: ResolveInput): AutomotiveDesktopLayout | null => {
-    const { enabled, zoom: overriddenZoom } = resolveOverrides(href, storage);
+    const { enabled, zoom: overriddenZoom } = resolveOverrides(
+        href, storage, canRememberVehicleOverrides(userAgent, outerWidth)
+    );
     const detected = isLikelyCarDisplay(userAgent, devicePixelRatio, maxTouchPoints, outerWidth);
 
     if (enabled === false || (enabled !== true && !detected)) {

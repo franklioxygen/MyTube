@@ -1,8 +1,17 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import VideoKebabMenu from '../VideoInfo/VideoKebabMenu';
 
 let mockUserRole = 'admin';
+let mockIsMobile = false;
+
+vi.mock('@mui/material', async (importOriginal) => {
+    const original = await importOriginal<typeof import('@mui/material')>();
+    return {
+        ...original,
+        useMediaQuery: (query: string) => query.includes('max-width') && mockIsMobile,
+    };
+});
 
 const mockT = vi.fn((key: string) => key);
 
@@ -28,6 +37,7 @@ describe('VideoKebabMenu', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         mockUserRole = 'admin';
+        mockIsMobile = false;
         document.body.appendChild(anchor);
     });
 
@@ -153,5 +163,94 @@ describe('VideoKebabMenu', () => {
 
         expect(screen.getByRole('button', { name: 'unlockVideo' })).toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'lockVideo' })).not.toBeInTheDocument();
+    });
+
+    it('renders labeled mobile actions with delete last and runs each callback after closing', () => {
+        mockIsMobile = true;
+        render(
+            <VideoKebabMenu
+                kebabMenuAnchor={anchor}
+                onClose={onClose}
+                onPlayWith={onPlayWith}
+                onShare={onShare}
+                onAddToCollection={onAddToCollection}
+                onDelete={onDelete}
+                onToggleVisibility={onToggleVisibility}
+                onToggleLock={onToggleLock}
+                onAddTag={onAddTag}
+                video={{ visibility: 1 }}
+            />
+        );
+
+        const dialog = screen.getByRole('dialog', { name: 'actions' });
+        expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+        const buttons = within(dialog).getAllByRole('button');
+        expect(buttons.map(button => button.textContent)).toEqual([
+            '', 'share', 'playWith', 'addToCollection', 'addTag', 'hideVideo', 'lockVideo', 'delete',
+        ]);
+        const callbacks = [onShare, onPlayWith, onAddToCollection, onAddTag, onToggleVisibility, onToggleLock, onDelete];
+        buttons.slice(1).forEach((button, index) => {
+            fireEvent.click(button);
+            expect(callbacks[index]).toHaveBeenCalledTimes(1);
+            expect(onClose.mock.invocationCallOrder[index]).toBeLessThan(callbacks[index].mock.invocationCallOrder[0]);
+        });
+        expect(onPlayWith).toHaveBeenCalledWith(anchor);
+    });
+
+    it('limits mobile visitors to playback and sharing and supports closing the sheet', () => {
+        mockIsMobile = true;
+        mockUserRole = 'visitor';
+        render(
+            <VideoKebabMenu
+                kebabMenuAnchor={anchor}
+                onClose={onClose}
+                onPlayWith={onPlayWith}
+                onShare={onShare}
+                onAddToCollection={onAddToCollection}
+                onDelete={onDelete}
+                onToggleVisibility={onToggleVisibility}
+                onToggleLock={onToggleLock}
+                onAddTag={onAddTag}
+            />
+        );
+
+        const dialog = screen.getByRole('dialog', { name: 'actions' });
+        expect(within(dialog).getAllByRole('button')).toHaveLength(3);
+        expect(within(dialog).getByRole('button', { name: 'share' })).toHaveTextContent('share');
+        expect(within(dialog).getByRole('button', { name: 'playWith' })).toHaveTextContent('playWith');
+        fireEvent.keyDown(dialog, { key: 'Escape' });
+        expect(onClose).toHaveBeenCalledTimes(1);
+        fireEvent.click(within(dialog).getByRole('button', { name: 'close' }));
+        expect(onClose).toHaveBeenCalledTimes(2);
+    });
+
+    it('disables mobile actions while their mutations are pending', () => {
+        mockIsMobile = true;
+        render(
+            <VideoKebabMenu
+                kebabMenuAnchor={anchor}
+                onClose={onClose}
+                onPlayWith={onPlayWith}
+                onShare={onShare}
+                onAddToCollection={onAddToCollection}
+                onDelete={onDelete}
+                isDeleting
+                onToggleVisibility={onToggleVisibility}
+                isTogglingVisibility
+                onToggleLock={onToggleLock}
+                isTogglingLock
+                isLocked
+                video={{ visibility: 0 }}
+            />
+        );
+        for (const name of ['delete', 'showVideo', 'unlockVideo']) {
+            const button = screen.getByRole('button', { name });
+            expect(button).toBeDisabled();
+            fireEvent.click(button);
+        }
+        expect(onClose).not.toHaveBeenCalled();
+        expect(onDelete).not.toHaveBeenCalled();
+        expect(onToggleVisibility).not.toHaveBeenCalled();
+        expect(onToggleLock).not.toHaveBeenCalled();
     });
 });

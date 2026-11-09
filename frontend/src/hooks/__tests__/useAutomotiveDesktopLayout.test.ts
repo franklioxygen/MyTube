@@ -137,4 +137,56 @@ describe('useAutomotiveDesktopLayout', () => {
         expect(result.current).toBeUndefined();
         expect(root.style.zoom).toBeFalsy();
     });
+
+    it('keeps desktop resizing responsive despite saved vehicle overrides', () => {
+        pretendToBeALaptop();
+        window.localStorage.setItem('forceAutomotiveDesktopViewport', 'true');
+        window.localStorage.setItem('automotiveDesktopZoom', '0.6');
+        const root = mountRoot();
+        const { result } = renderHook(() => useAutomotiveDesktopLayout());
+
+        for (const width of [1134, 900, 700, 390, 1440]) {
+            resizeTo(width);
+            expect(result.current).toBeUndefined();
+            expect(root.style.zoom).toBeFalsy();
+            expect(root.style.getPropertyValue('--automotive-zoom')).toBeFalsy();
+        }
+    });
+
+    it('retains the measured Tesla zoom while resizing its viewport', () => {
+        pretendToBeTheCar();
+        const root = mountRoot();
+        const { result } = renderHook(() => useAutomotiveDesktopLayout());
+
+        for (const width of [773, 900, 1200, 773]) {
+            resizeTo(width);
+            expect(result.current).toBeDefined();
+            expect(result.current!.zoom).toBeLessThanOrEqual(1 / window.devicePixelRatio);
+            expect(width).toBeGreaterThanOrEqual(result.current!.breakpoints.lg);
+            expect(Number(root.style.zoom)).toBe(result.current!.zoom);
+        }
+    });
+
+    it.each([
+        'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 Chrome/148.0.0.0 Mobile Safari/537.36',
+        'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Version/18.0 Mobile/15E148 Safari/604.1',
+        'Mozilla/5.0 (X11; CrOS x86_64 16093.0.0) AppleWebKit/537.36 Chrome/148.0.0.0 Safari/537.36',
+    ])('does not apply root zoom on ordinary touch devices with stale overrides (%s)', (userAgent) => {
+        pretendToBeALaptop();
+        define(window.navigator, 'userAgent', userAgent);
+        define(window.navigator, 'maxTouchPoints', 5);
+        define(window, 'innerWidth', 390);
+        define(window, 'outerWidth', 390);
+        window.localStorage.setItem('forceAutomotiveDesktopViewport', 'true');
+        window.localStorage.setItem('automotiveDesktopZoom', '0.6');
+        const root = mountRoot();
+        const { result } = renderHook(() => useAutomotiveDesktopLayout());
+
+        for (const width of [390, 844, 390]) {
+            resizeTo(width);
+            expect(result.current).toBeUndefined();
+            expect(root.style.zoom).toBeFalsy();
+            expect(root.style.getPropertyValue('--automotive-zoom')).toBeFalsy();
+        }
+    });
 });
