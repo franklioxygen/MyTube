@@ -304,6 +304,26 @@ with socket.socket(socket.AF_INET6 if ':' in host else socket.AF_INET, socket.SO
                     target = f'http://privatealias:{self.secret.server_port}/secret.mp4' if path == 'private' else self.public('/' + path)
                     self.assert_blocked(self.run_cli(target, args))
 
+    def test_policy_bounds_and_closed_stderr_still_deny(self):
+        script = """
+import ctypes, errno, os, socket
+library = ctypes.CDLL(None)
+policy = library.mytube_network_policy
+policy.argtypes = [ctypes.c_char_p]
+policy.restype = ctypes.c_int
+assert policy(None) == 0
+assert policy(b'x' * 65536) == 0
+assert policy(b'x' * 65535) == 1
+assert policy(b'') == 1
+os.close(2)
+with socket.socket() as sock:
+ try: sock.connect(('127.0.0.1', 12345))
+ except OSError as error: assert error.errno == errno.EACCES, error
+ else: raise AssertionError('Private socket was not blocked with closed stderr')
+"""
+        result = subprocess.run([sys.executable, '-c', script], env=self.env, capture_output=True, text=True, timeout=5)
+        self.assertEqual(result.returncode, 0, result.stderr)
+
     def test_native_hls_dash_and_ffmpeg(self):
         for path, args in (('/media.m3u8', ()), ('/media.m3u8', ('--downloader', 'ffmpeg')), ('/media.mpd', ())):
             with self.subTest(path=path, args=args):

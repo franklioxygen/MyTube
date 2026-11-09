@@ -21,7 +21,9 @@ beforeEach(async () => {
   for (const key of ["HTTP_PROXY", "http_proxy", "HTTPS_PROXY", "https_proxy", "ALL_PROXY", "all_proxy", "NO_PROXY", "no_proxy"]) vi.stubEnv(key, "");
   port = await listen(http.createServer((request, response) => {
     hits.push(request.url!);
-    if (request.url === "/redirect" || request.url === "/literal") {
+    if (request.url!.startsWith("/literal/")) {
+      response.writeHead(302, { Location: `http://${request.url!.slice(9)}:${port}/secret` }); response.end();
+    } else if (request.url === "/redirect" || request.url === "/literal") {
       const host = request.url === "/redirect" ? "private.example" : "127.0.0.1";
       response.writeHead(302, { Location: `http://${host}:${port}/secret` }); response.end();
     } else response.end("public content");
@@ -91,6 +93,18 @@ it("guards a proxied redirect that matches NO_PROXY", async () => {
   vi.stubEnv("HTTP_PROXY", `http://127.0.0.1:${proxyPort}`); vi.stubEnv("NO_PROXY", "private.example");
   await expect(publicAxiosGet("http://remote.invalid/redirect")).rejects.toBeDefined();
   expect(forwarded).toEqual(["http://remote.invalid/redirect"]); expect(hits).toEqual(["/redirect"]);
+});
+it.each(["198.18.0.1", "[2001:db8::1]", "127.0.0.1"])("blocks a proxied redirect to reserved literal %s", async host => {
+  vi.stubEnv("HTTP_PROXY", `http://127.0.0.1:${proxyPort}`);
+  await expect(publicAxiosGet(`http://remote.invalid/literal/${host}`)).rejects.toBeDefined();
+  expect(forwarded).toEqual([`http://remote.invalid/literal/${host}`]);
+  expect(hits).toEqual([`/literal/${host}`]); expect(dns.lookup).not.toHaveBeenCalled();
+});
+it("keeps a public literal redirect on the configured proxy", async () => {
+  vi.stubEnv("HTTP_PROXY", `http://127.0.0.1:${proxyPort}`);
+  expect((await publicAxiosGet(`http://remote.invalid/literal/${PUBLIC}`)).data).toBe("public content");
+  expect(forwarded).toEqual([`http://remote.invalid/literal/${PUBLIC}`, `http://${PUBLIC}:${port}/secret`]);
+  expect(dns.lookup).not.toHaveBeenCalled(); expect(checked).toEqual([]);
 });
 it("keeps native stream lifetime and maxRedirects=0 behavior", async () => {
   const response = await publicAxiosGet<NodeJS.ReadableStream>(`http://public.example:${port}/video`, { responseType: "stream" });

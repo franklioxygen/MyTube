@@ -6,7 +6,8 @@ import os
 import runpy
 import socket
 import struct
-import subprocess
+# Required to wrap native yt-dlp subprocesses with the guarded Popen boundary below.
+import subprocess  # nosec B404
 import sys
 import urllib.parse
 import urllib.request

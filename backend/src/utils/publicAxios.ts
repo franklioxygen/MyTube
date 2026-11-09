@@ -30,6 +30,8 @@ export function publicAxiosGet<T = unknown>(url: string, config: AxiosRequestCon
   }
   const initialAgent = parsed.protocol === "https:" ? config.httpsAgent : config.httpAgent;
   const proxied = isProxyAgent(initialAgent) || Boolean(config.proxy || (config.proxy !== false && getProxyForUrl(url)));
+  // Direct sockets use the validated lookup below on every hop; administrator proxies are trusted.
+  // nosemgrep: rules_lgpl_javascript_ssrf_rule-node-ssrf
   return axios.get<T>(url, {
     ...config, adapter: "http", httpVersion: 1,
     lookup: proxied ? undefined : lookup,
@@ -40,10 +42,9 @@ export function publicAxiosGet<T = unknown>(url: string, config: AxiosRequestCon
       const agent = options.agents?.[options.protocol?.slice(0, -1)] ?? options.agent;
       const throughProxy = absolute || isProxyAgent(agent);
       if (absolute) validateUrl(options.path);
-      else {
-        const host = String(options.hostname || options.host || "").replace(/^\[|\]$/g, "");
-        if (net.isIP(host)) assertPublicAddress(host);
-      }
+      const host = (absolute ? new URL(options.path).hostname : String(options.hostname || options.host || ""))
+        .replace(/^\[|\]$/g, "");
+      if (net.isIP(host)) assertPublicAddress(host);
       options.lookup = throughProxy ? undefined : lookup;
     },
   });
