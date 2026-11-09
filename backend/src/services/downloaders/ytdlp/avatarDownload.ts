@@ -150,7 +150,7 @@ export async function downloadVideoAvatar(
       });
 
       // Prepare axios config with proxy if available
-      let avatarAxiosConfig = {};
+      let avatarAxiosConfig: Record<string, unknown> | null = {};
       // An empty string is yt-dlp's "connect directly" value, so it must reach
       // axios too: it disables axios' own HTTP_PROXY handling, keeping this
       // request on the same egress path as the download it belongs to.
@@ -160,9 +160,9 @@ export async function downloadVideoAvatar(
         } catch (error) {
           if (error instanceof InvalidProxyError) {
             logger.warn(
-              "Invalid proxy configuration for avatar download, proceeding without proxy:",
-              error.message
+              "Invalid proxy configuration; skipping avatar download to avoid a direct connection."
             );
+            avatarAxiosConfig = null;
           } else {
             throw error;
           }
@@ -170,7 +170,7 @@ export async function downloadVideoAvatar(
       }
 
       // Use the utility function to download and process avatar
-      authorAvatarPath = await downloadAndProcessAvatar(
+      authorAvatarPath = avatarAxiosConfig === null ? null : await downloadAndProcessAvatar(
         authorAvatarUrl,
         platform,
         videoAuthor,

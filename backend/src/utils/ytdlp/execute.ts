@@ -84,7 +84,8 @@ async function executeYtDlpJsonWithRelease(
   release: YtDlpRelease,
   rawUrl: string,
   flags: Record<string, any>,
-  retryWithoutFormatRestrictions: boolean
+  retryWithoutFormatRestrictions: boolean,
+  resetFormat = false,
 ): Promise<any> {
   const url = preprocessUrl(rawUrl);
   const partialFlags = withDefaultYouTubeExtractorArgs(url, flags);
@@ -113,7 +114,7 @@ async function executeYtDlpJsonWithRelease(
   );
 
   return new Promise<any>((resolve, reject) => {
-    const subprocess = spawnYtDlp(release, args);
+    const subprocess = spawnYtDlp(release, args, { resetFormat });
 
     let stdout = "";
     let stderr = "";
@@ -144,12 +145,11 @@ async function executeYtDlpJsonWithRelease(
 
           if (hasFormatRestrictions) {
             logger.info(
-              "Format not available, retrying without format restrictions and with --ignore-config..."
+              "Format not available, retrying with default format selection while preserving configuration..."
             );
             try {
               const retryFlags: Record<string, any> = {
                 ...effectiveFlags,
-                ignoreConfig: true,
               };
               delete retryFlags.formatSort;
               delete retryFlags.format;
@@ -159,7 +159,8 @@ async function executeYtDlpJsonWithRelease(
                 release,
                 url,
                 retryFlags,
-                false
+                false,
+                true,
               );
               resolve(result);
               return;
@@ -174,18 +175,18 @@ async function executeYtDlpJsonWithRelease(
             }
           } else if (!effectiveFlags.ignoreConfig) {
             logger.info(
-              "Format not available without explicit format flags, retrying with --ignore-config..."
+              "Format not available, retrying with default format selection while preserving configuration..."
             );
             try {
               const retryFlags: Record<string, any> = {
                 ...effectiveFlags,
-                ignoreConfig: true,
               };
               const result = await executeYtDlpJsonWithRelease(
                 release,
                 url,
                 retryFlags,
-                false
+                false,
+                true,
               );
               resolve(result);
               return;

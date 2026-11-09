@@ -3,7 +3,7 @@
  * Caches thumbnails locally to reduce cloud storage API calls
  */
 
-import axios from "axios";
+import { publicAxiosGet } from "../../utils/publicAxios";
 import crypto from "crypto";
 import fs from "fs-extra";
 import path from "path";
@@ -145,7 +145,7 @@ export async function downloadAndCacheThumbnail(
 
     const validatedUrl = validateUrl(signedUrl);
 
-    const response = await axios.get(validatedUrl, {
+    const response = await publicAxiosGet<Buffer>(validatedUrl, {
       responseType: "arraybuffer",
       timeout: 30000,
     });

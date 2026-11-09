@@ -135,8 +135,9 @@ function isBlockedPrivateHostname(hostname: string): boolean {
 }
 
 /**
- * Validates a URL to prevent SSRF attacks
- * Only allows http/https protocols and validates the hostname
+ * Checks URL syntax, protocol and literal hostnames; does not resolve DNS.
+ * Use publicAxios or guarded yt-dlp execution to enforce direct-connection
+ * address checks, including redirects and DNS rebinding.
  */
 export function validateUrl(url: string): string {
   try {

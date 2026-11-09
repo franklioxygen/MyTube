@@ -1,4 +1,5 @@
-import axios from "axios";
+import { publicAxiosGet } from "../../utils/publicAxios";
+import type { Readable } from "node:stream";
 import path from "path";
 import { AVATARS_DIR, IMAGES_DIR, VIDEOS_DIR } from "../../config/paths";
 import { DownloadCancelledError } from "../../errors/DownloadErrors";
@@ -66,14 +67,6 @@ export abstract class BaseDownloader implements IDownloader {
   // Default timeout for thumbnail downloads (60 seconds)
   protected static readonly THUMBNAIL_DOWNLOAD_TIMEOUT = 60000;
 
-  private validateThumbnailRedirect(options: Record<string, unknown>): void {
-    const protocol = typeof options.protocol === "string" ? options.protocol : "";
-    const hostname = typeof options.hostname === "string" ? options.hostname : "";
-    const pathValue = typeof options.path === "string" ? options.path : "/";
-
-    validateUrl(`${protocol}//${hostname}${pathValue}`);
-  }
-
   /**
    * Common helper to download a thumbnail
    */
@@ -103,11 +96,10 @@ export abstract class BaseDownloader implements IDownloader {
 
       const allowedThumbnailUrls = new Set([validatedThumbnailUrl]);
       if (allowedThumbnailUrls.has(validatedThumbnailUrl)) {
-        const response = await axios.get(validatedThumbnailUrl, {
+        const response = await publicAxiosGet<Readable>(validatedThumbnailUrl, {
           ...axiosConfig,
           responseType: "stream",
           timeout: BaseDownloader.THUMBNAIL_DOWNLOAD_TIMEOUT,
-          beforeRedirect: this.validateThumbnailRedirect,
         });
 
         const writer = createWriteStreamSafe(safeSavePath, [

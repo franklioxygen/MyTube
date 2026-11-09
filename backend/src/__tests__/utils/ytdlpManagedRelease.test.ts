@@ -1,3 +1,10 @@
+// Transport behavior is exercised by the native guard integration tests.
+vi.mock("../../utils/ytdlp/release/networkGuard", () => ({
+  guardedYtDlpCommand: (release: { command: string; prefixArgs: string[]; spawnEnv: NodeJS.ProcessEnv }, args: string[]) => ({
+    command: release.command, args: [...release.prefixArgs, ...args], env: release.spawnEnv,
+  }),
+}));
+
 import { spawn } from "child_process";
 import fs from "fs";
 import fsExtra from "fs-extra";

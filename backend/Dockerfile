@@ -178,6 +178,7 @@ RUN chmod +x /usr/local/bin/mytube-entrypoint.sh \
 
 # Copy built artifacts from builder
 COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/scripts/network-guard.so ./scripts/network-guard.so
 # Copy frontend build
 COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 # Copy drizzle migrations
