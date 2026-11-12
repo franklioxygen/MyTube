@@ -1,3 +1,7 @@
+vi.mock('../../services/authorAvatarService', () => ({
+  projectAuthorAvatar: (row: unknown) => row,
+  projectAuthorAvatars: (rows: unknown[]) => rows,
+}));
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import crypto from "crypto";
 import { Request, Response } from "express";

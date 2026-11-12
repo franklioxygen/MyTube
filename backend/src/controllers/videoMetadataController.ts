@@ -1,10 +1,11 @@
+import { projectAuthorAvatar } from "../services/authorAvatarService";
 import { Request, Response } from "express";
 import { publicAxiosGet } from "../utils/publicAxios";
 import fs from "fs-extra";
 import multer from "multer";
 import crypto from "crypto";
 import path from "path";
-import { fromBuffer } from "file-type";
+import { ALLOWED_IMAGE_MIMES, validateUploadedImageContent } from "../utils/uploadedImage";
 import { IMAGES_DIR, VIDEOS_DIR } from "../config/paths";
 import { NotFoundError, ValidationError } from "../errors/DownloadErrors";
 import { syncMediaServerArtifactsForRecord } from "../services/mediaServerExport";
@@ -34,16 +35,6 @@ import {
   writeFileSafe,
 } from "../utils/security";
 import { getStringParam } from "../utils/paramUtils";
-
-// Strict whitelist: only known-safe MIME types, extension derived from MIME (never from originalname)
-const ALLOWED_IMAGE_MIMES: Record<string, string> = {
-  "image/jpeg": ".jpg",
-  "image/png": ".png",
-  "image/webp": ".webp",
-  "image/gif": ".gif",
-  "image/avif": ".avif",
-};
-const ALLOWED_IMAGE_MIME_SET = new Set(Object.keys(ALLOWED_IMAGE_MIMES));
 
 const resolveStoredThumbnailPath = (thumbnailPath: string): string | null => {
   return getThumbnailRelativePath(thumbnailPath);
@@ -121,30 +112,6 @@ const removeImageFileSafely = async (
     await removeSafe(safeResolvedPath, [VIDEOS_DIR, IMAGES_DIR]);
   }
   deleteSmallThumbnailMirrorSync(imagePath);
-};
-
-const validateUploadedImageContent = async (
-  uploadedFile: Buffer
-): Promise<string> => {
-  try {
-    const type = await fromBuffer(uploadedFile);
-    if (!type?.mime || !ALLOWED_IMAGE_MIME_SET.has(type.mime)) {
-      throw new ValidationError(
-        "Uploaded file is not a valid supported image",
-        "file"
-      );
-    }
-
-    return type.mime;
-  } catch (error) {
-    if (error instanceof ValidationError) {
-      throw error;
-    }
-    throw new ValidationError(
-      "Uploaded file is not a valid supported image",
-      "file"
-    );
-  }
 };
 
 const createThumbnailFilename = (mimeType: string): string => {
@@ -256,7 +223,7 @@ export const rateVideo = async (req: Request, res: Response): Promise<void> => {
   // Return format expected by frontend: { success: true, video: ... }
   res.status(200).json({
     success: true,
-    video: updatedVideo,
+    video: updatedVideo ? projectAuthorAvatar(updatedVideo) : updatedVideo,
   });
 };
 

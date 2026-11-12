@@ -3,6 +3,10 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import UploadModal from '../UploadModal';
 
+vi.mock('../../contexts/VideoContext', () => ({ useVideo: () => ({ videos: [] }) }));
+vi.mock('../../hooks/useAuthorProfile', () => ({ useAuthorProfile: () => ({ canManage: true, data: undefined }) }));
+vi.mock('../AuthorAvatarEditor', () => ({ default: () => null }));
+
 // Mock dependencies
 vi.mock('../../contexts/LanguageContext', () => ({
     useLanguage: () => ({ t: (key: string) => key }),

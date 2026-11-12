@@ -617,6 +617,11 @@ export function ensureFavoritesTables(): void {
 // favorites and download_history, plus the file-size/video_id data backfills.
 export function migrateColumnsAndTables(): void {
   try {
+    sqlite.prepare(`CREATE TABLE IF NOT EXISTS author_profiles (
+      author TEXT PRIMARY KEY NOT NULL,
+      custom_avatar_path TEXT NOT NULL,
+      updated_at INTEGER NOT NULL
+    )`).run();
     sqlite.prepare(`CREATE TABLE IF NOT EXISTS danmaku_tracks (
     video_id TEXT PRIMARY KEY NOT NULL REFERENCES videos(id) ON DELETE CASCADE,
     source TEXT NOT NULL, cid TEXT, revision TEXT,

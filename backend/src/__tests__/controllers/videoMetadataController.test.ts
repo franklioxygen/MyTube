@@ -1,3 +1,7 @@
+vi.mock('../../services/authorAvatarService', () => ({
+  projectAuthorAvatar: (row: unknown) => row,
+  projectAuthorAvatars: (rows: unknown[]) => rows,
+}));
 import { Request, Response } from "express";
 import axios from "axios";
 import crypto from "crypto";

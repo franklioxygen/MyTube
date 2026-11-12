@@ -1,5 +1,8 @@
 import { CloudUpload, CreateNewFolder } from '@mui/icons-material';
 import {
+    Alert,
+    Autocomplete,
+    Avatar,
     Box,
     Button,
     Dialog,
@@ -12,7 +15,11 @@ import {
     Typography
 } from '@mui/material';
 import { useMutation } from '@tanstack/react-query';
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
+import AuthorAvatarEditor from './AuthorAvatarEditor';
+import { useVideo } from '../contexts/VideoContext';
+import { useAuthorProfile } from '../hooks/useAuthorProfile';
+import { useCloudStorageUrl } from '../hooks/useCloudStorageUrl';
 import { useLanguage } from '../contexts/LanguageContext';
 import { api } from '../utils/apiClient';
 
@@ -77,11 +84,35 @@ const getFileExtension = (filename: string) => {
 const getDefaultTitle = (file: File) => file.name.replace(/\.[^/.]+$/, '');
 const getDisplayName = (file: UploadableFile) => file.webkitRelativePath || file.name;
 
+function AuthorOptionAvatar({ path, name }: { path?: string; name: string }) {
+    const url = useCloudStorageUrl(path, 'thumbnail');
+    return <Avatar src={url} sx={{ width: 32, height: 32 }}>{name.charAt(0)}</Avatar>;
+}
+
 const UploadModal: React.FC<UploadModalProps> = ({ open, onClose, onUploadSuccess }) => {
     const { t } = useLanguage();
     const [files, setFiles] = useState<File[]>([]);
     const [title, setTitle] = useState<string>('');
     const [author, setAuthor] = useState<string>('Admin');
+    const { videos } = useVideo();
+    const [editingAvatar, setEditingAvatar] = useState(false);
+    const targetAuthor = author.trim() || 'Admin';
+    const profile = useAuthorProfile(targetAuthor, open);
+    const avatarUrl = useCloudStorageUrl(profile.data?.effectiveAvatarPath, 'thumbnail');
+    const authors = useMemo(() => {
+        if (!open) return [];
+        const groups = new Map<string, { name: string; count: number; avatar?: string }>();
+        for (const video of videos) {
+            if (!video.author) continue;
+            const name = video.author.trim();
+            if (!name) continue;
+            const current = groups.get(name) ?? { name, count: 0, avatar: video.authorAvatarPath };
+            current.count++;
+            if (!current.avatar) current.avatar = video.authorAvatarPath;
+            groups.set(name, current);
+        }
+        return [...groups.values()].sort((a, b) => a.name.localeCompare(b.name));
+    }, [videos, open]);
     const [progress, setProgress] = useState<number>(0);
     const [error, setError] = useState<string>('');
     const [skippedFilesCount, setSkippedFilesCount] = useState<number>(0);
@@ -333,13 +364,34 @@ const UploadModal: React.FC<UploadModalProps> = ({ open, onClose, onUploadSucces
                             : undefined}
                     />
 
-                    <TextField
-                        label={t('author')}
-                        fullWidth
-                        value={author}
-                        onChange={(e) => setAuthor(e.target.value)}
-                        disabled={uploadMutation.isPending}
+                    <Autocomplete
+                        freeSolo
+                        options={authors.map(option => option.name)}
+                        inputValue={author}
+                        value={targetAuthor}
+                        onInputChange={(_, value) => setAuthor(value)}
+                        disabled={uploadMutation.isPending || editingAvatar}
+                        renderOption={(props, name) => {
+                            const option = authors.find(item => item.name === name)!;
+                            const { key, ...other } = props;
+                            return <Box component="li" key={key} {...other} sx={{ gap: 1 }}>
+                                <AuthorOptionAvatar path={option.avatar} name={name} />
+                                <Box><Typography>{name}</Typography><Typography variant="caption" color="text.secondary">{option.count} {t('videos')}</Typography></Box>
+                            </Box>;
+                        }}
+                        renderInput={params => <TextField {...params} label={t('author')} />}
                     />
+                    {profile.canManage && <Stack spacing={1}>
+                        <Stack direction="row" spacing={2} alignItems="center">
+                            <Avatar src={avatarUrl}>{targetAuthor.charAt(0)}</Avatar>
+                            <Box sx={{ flex: 1, minWidth: 0 }}><Typography noWrap>{targetAuthor}</Typography>
+                                {!authors.some(item => item.name === targetAuthor) && <Typography variant="caption" color="text.secondary">{t('authorAvatarNewAuthor')}</Typography>}
+                            </Box>
+                            <Button disabled={uploadMutation.isPending} onClick={() => setEditingAvatar(true)}>{t(avatarUrl ? 'authorAvatarChange' : 'authorAvatarSet')}</Button>
+                        </Stack>
+                        <Alert severity="info">{t('authorAvatarUploadHint')}</Alert>
+                    </Stack>}
+                    {editingAvatar && <AuthorAvatarEditor key={targetAuthor} author={targetAuthor} onClose={() => setEditingAvatar(false)} />}
 
                     {error && (
                         <Typography color="error" variant="body2">

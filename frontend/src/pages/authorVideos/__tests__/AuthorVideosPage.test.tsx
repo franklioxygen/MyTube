@@ -56,6 +56,9 @@ const defaultTagFilter = () => ({
 // Mutable video count label
 let mockVideoCountLabel = '2 videos';
 
+vi.mock('../../../contexts/AuthContext', () => ({ useAuth: () => ({ loginRequired: false, userRole: null }) }));
+vi.mock('../../../components/AuthorAvatarEditor', () => ({ default: () => null }));
+
 // --- vi.mock declarations ---
 
 vi.mock('react-router', () => ({

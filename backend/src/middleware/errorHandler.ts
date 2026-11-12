@@ -74,7 +74,9 @@ export function errorHandler(
     const status = err.code === "LIMIT_FILE_SIZE" ? 413 : 400;
     const message =
       err.code === "LIMIT_FILE_SIZE"
-        ? req.path.includes("/subtitles")
+        ? req.path === "/api/authors/avatar" || req.path === "/authors/avatar"
+          ? "File too large. Maximum avatar size is 2 MiB."
+          : req.path.includes("/subtitles")
           ? "File too large. Maximum size is 10 MB."
           : "File too large. Maximum size is 100 GB per file."
         : err.message;

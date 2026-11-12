@@ -1,3 +1,4 @@
+import { projectAuthorAvatars } from "../authorAvatarService";
 import fs from "fs-extra";
 import path from "path";
 import { AVATARS_DIR, IMAGES_DIR, VIDEOS_DIR } from "../../config/paths";
@@ -257,7 +258,7 @@ function getShowVideos(
 }
 
 function chooseShowPosterSourcePath(showVideos: Video[]): string | null {
-  for (const video of showVideos) {
+  for (const video of projectAuthorAvatars(showVideos)) {
     const avatarPath = resolveLocalArtworkPath(video.authorAvatarPath);
     if (avatarPath) {
       return avatarPath;

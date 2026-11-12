@@ -1,4 +1,5 @@
 /// <reference path="../types/ass-to-vtt.d.ts" />
+import { projectAuthorAvatar, projectAuthorAvatars } from "../services/authorAvatarService";
 import crypto from "crypto";
 import { Request, Response } from "express";
 import fs from "fs-extra";
@@ -116,7 +117,7 @@ export const getVideos = async (
   // library and its per-video description sizes grow.
   const videos = storageService.getVideoSummaries(role, page);
   // Return array directly for backward compatibility (frontend expects response.data to be Video[])
-  sendData(res, videos);
+  sendData(res, projectAuthorAvatars(videos));
 };
 
 /**
@@ -219,7 +220,7 @@ export const getVideoById = async (
   }
 
   // Return video object directly for backward compatibility (frontend expects response.data to be Video)
-  sendData(res, video);
+  sendData(res, projectAuthorAvatar(video));
 };
 
 /**
@@ -289,7 +290,7 @@ export const uploadVideo = async (
   const statusCode = result.status === "duplicate" ? 200 : 201;
   res
     .status(statusCode)
-    .json(successResponse({ video: result.video }, result.message));
+    .json(successResponse({ video: result.video ? projectAuthorAvatar(result.video) : result.video }, result.message));
 };
 
 export const uploadVideosBatch = async (
@@ -325,10 +326,13 @@ export const uploadVideosBatch = async (
   }
 
   const summary = getUploadSummary(results);
+  const projectedVideos = new Map(projectAuthorAvatars(
+    results.flatMap(result => result.video ? [result.video] : [])
+  ).map(video => [video.id, video]));
   res.status(200).json(
     successResponse(
       {
-        results,
+        results: results.map(result => ({ ...result, ...(result.video ? { video: projectedVideos.get(result.video.id) } : {}) })),
         summary,
       },
       buildUploadResponseMessage(summary)
@@ -410,7 +414,7 @@ export const updateVideoDetails = async (
   // Return format expected by frontend: { success: true, video: ... }
   sendData(res, {
     success: true,
-    video: updatedVideo,
+    video: projectAuthorAvatar(updatedVideo),
   });
 };
 
@@ -671,7 +675,7 @@ export const uploadSubtitle = async (
     successResponse(
       {
         subtitle: newSubtitle,
-        video: updatedVideo,
+        video: projectAuthorAvatar(updatedVideo),
       },
       "Subtitle uploaded successfully"
     )

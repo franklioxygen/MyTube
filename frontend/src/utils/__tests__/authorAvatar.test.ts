@@ -18,6 +18,20 @@ const createVideo = (overrides: Partial<Video>): Video =>
     ...overrides,
   }) as Video;
 
+describe('custom avatar isolation', () => {
+  it('never shares custom avatars or replaces them with automatic channel avatars', () => {
+    const common = { source: 'youtube' as const, channelUrl: 'https://youtube.com/channel/abc' };
+    const custom = createVideo({ ...common, author: 'Alice', authorAvatarPath: '/avatars/custom-a.jpg', authorAvatarOrigin: 'custom' });
+    const other = createVideo({ ...common, author: 'alice' });
+    const automatic = createVideo({ ...common, author: 'Old Name', authorAvatarPath: '/avatars/auto.jpg' });
+    expect(withCanonicalAuthorAvatars([custom, other])[1].authorAvatarPath).toBeUndefined();
+    const result = withCanonicalAuthorAvatars([automatic, custom, other]);
+    expect(result[1].authorAvatarPath).toBe('/avatars/custom-a.jpg');
+    expect(result[2].authorAvatarPath).toBe('/avatars/auto.jpg');
+    expect(withCanonicalAuthorAvatar(custom, buildAuthorAvatarPathMap([automatic])).authorAvatarPath).toBe('/avatars/custom-a.jpg');
+  });
+});
+
 describe("authorAvatar", () => {
   it("shares the first available avatar across same-source author rows", () => {
     const videos = [
