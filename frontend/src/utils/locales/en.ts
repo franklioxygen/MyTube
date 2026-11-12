@@ -1307,6 +1307,7 @@ export const en = {
   videoWasDeleted: "This video was previously downloaded but has been deleted.",
   downloadAgain: "Download Again",
   downloadedOn: "Downloaded on",
+  editDownloadTime: "Edit download time",
   deletedOn: "Deleted on",
   existingVideo: "Existing Video",
   skipped: "Skipped",

@@ -355,6 +355,16 @@ export const updateVideoDetails = async (
   // Filter allowed updates
   const allowedUpdates: Partial<storageService.Video> = {};
   if (updates.title !== undefined) allowedUpdates.title = updates.title;
+  if (updates.addedAt !== undefined) {
+    if (
+      typeof updates.addedAt !== "string" ||
+      !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?(?:Z|[+-]\d{2}:\d{2})$/.test(updates.addedAt) ||
+      !Number.isFinite(Date.parse(updates.addedAt))
+    ) {
+      throw new ValidationError("addedAt must be a valid ISO date-time with a timezone", "addedAt");
+    }
+    allowedUpdates.addedAt = new Date(updates.addedAt).toISOString();
+  }
   if (updates.tags !== undefined) {
     if (!Array.isArray(updates.tags) || updates.tags.some((tag: unknown) => typeof tag !== "string")) {
       throw new ValidationError("tags must be an array of strings", "tags");

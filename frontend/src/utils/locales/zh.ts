@@ -1275,6 +1275,7 @@ export const zh = {
   videoWasDeleted: "此视频曾经下载过，但已被删除。",
   downloadAgain: "再次下载",
   downloadedOn: "下载时间",
+  editDownloadTime: "编辑下载时间",
   deletedOn: "删除时间",
   existingVideo: "已存在的视频",
   skipped: "已跳过",

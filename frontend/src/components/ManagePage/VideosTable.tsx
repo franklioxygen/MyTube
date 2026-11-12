@@ -41,7 +41,7 @@ import { usePaginationSwipeNavigation } from '../../hooks/usePaginationSwipeNavi
 import { useThumbnailCandidates } from '../../hooks/useThumbnailCandidates';
 import { Video } from '../../types';
 import type { TranslationKey } from '../../utils/translations';
-import { formatDuration, formatSize } from '../../utils/formatUtils';
+import { formatDisplayDateTime, formatDuration, formatSize } from '../../utils/formatUtils';
 import VideoBatchToolbar from '../VideoBatchToolbar';
 import { useVideoSelection } from '../../hooks/useVideoSelection';
 import ConfirmationModal from '../ConfirmationModal';
@@ -166,6 +166,7 @@ const VideosTable: React.FC<VideosTableProps> = ({
     const redownloadVideoLabel = getLabel('redownloadVideo', 'Re-download Video');
     const deleteVideoLabel = getLabel('deleteVideo', 'Delete Video');
     const editVideoLabel = getLabel('edit', 'Edit');
+    const editDownloadTimeLabel = t('editDownloadTime');
 
     // Bulk selection state
     const selection = useVideoSelection({
@@ -182,6 +183,12 @@ const VideosTable: React.FC<VideosTableProps> = ({
     const [editingVideoId, setEditingVideoId] = useState<string | null>(null);
     const [editTitle, setEditTitle] = useState<string>('');
     const [isSavingTitle, setIsSavingTitle] = useState<boolean>(false);
+    const [editingDownloadTimeId, setEditingDownloadTimeId] = useState<string | null>(null);
+    const [editDownloadTime, setEditDownloadTime] = useState('');
+    const [isSavingDownloadTime, setIsSavingDownloadTime] = useState(false);
+    const [downloadTimeError, setDownloadTimeError] = useState('');
+    const isDownloadTimeValid = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?$/.test(editDownloadTime)
+        && Number.isFinite(new Date(editDownloadTime).getTime());
 
     // Upload thumbnail state
     const [uploadThumbnailVideoId, setUploadThumbnailVideoId] = useState<string | null>(null);
@@ -198,6 +205,7 @@ const VideosTable: React.FC<VideosTableProps> = ({
     };
 
     const handleEditClick = (video: Video) => {
+        setEditingDownloadTimeId(null);
         setEditingVideoId(video.id);
         setEditTitle(video.title);
     };
@@ -220,6 +228,33 @@ const VideosTable: React.FC<VideosTableProps> = ({
         }
     };
 
+    const handleEditDownloadTime = (video: Video) => {
+        setEditingVideoId(null);
+        setEditingDownloadTimeId(video.id);
+        setEditDownloadTime(formatDisplayDateTime(video.addedAt, '').replace(' ', 'T'));
+        setDownloadTimeError('');
+    };
+
+    const handleSaveDownloadTime = async (id: string) => {
+        if (!isDownloadTimeValid || isSavingDownloadTime) return;
+
+        setIsSavingDownloadTime(true);
+        setDownloadTimeError('');
+        try {
+            // datetime-local uses the browser's timezone; persist the same instant in UTC.
+            const result = await onUpdateVideo(id, { addedAt: new Date(editDownloadTime).toISOString() });
+            if (result?.success === false) {
+                setDownloadTimeError(result.error || t('videoUpdateFailed'));
+                return;
+            }
+            setEditingDownloadTimeId(null);
+        } catch {
+            setDownloadTimeError(t('videoUpdateFailed'));
+        } finally {
+            setIsSavingDownloadTime(false);
+        }
+    };
+
     const handleSelectAll = () => selection.togglePage(displayedVideos.map((video) => video.id));
     const handleSelectOne = (_event: React.ChangeEvent<HTMLInputElement>, id: string) => selection.toggle(id);
 
@@ -238,11 +273,12 @@ const VideosTable: React.FC<VideosTableProps> = ({
     return (
         <Box>
             <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 2, mb: 2 }}>
-                <Typography variant="h5" sx={{ display: 'flex', alignItems: 'center' }}>
+                <Typography variant="h5" sx={{ display: 'flex', alignItems: 'center', fontSize: { xs: '1.125rem', sm: '1.5rem' } }}>
                     <VideoLibrary sx={{ mr: 1, color: 'primary.main' }} />
                     {t('videos')} ({totalVideosCount}) - {formatSize(totalSize)}
                 </Typography>
                 <TextField placeholder={t('searchVideos')} size="small" value={searchTerm}
+                    sx={{ width: { xs: '100%', sm: 'auto' }, minWidth: 0 }}
                     disabled={selection.locked || isBulkDeleting} onChange={(event) => onSearchChange(event.target.value)}
                     InputProps={{ startAdornment: <InputAdornment position="start"><Search /></InputAdornment> }} />
                 {selection.canWrite && selectedVideoIds.length > 0 && <Button variant="outlined" color="error"
@@ -254,11 +290,19 @@ const VideosTable: React.FC<VideosTableProps> = ({
 
             {displayedVideos.length > 0 ? (
                 <TableContainer component={Paper} variant="outlined" ref={tableContainerRef} {...swipeHandlers}>
-                    <Table>
-                        <TableHead>
-                            <TableRow>
+                    <Table sx={{ display: { xs: 'block', md: 'table' } }}>
+                        <TableHead sx={{ display: { xs: 'block', md: 'table-header-group' } }}>
+                            <TableRow sx={{
+                                display: { xs: 'flex', md: 'table-row' },
+                                alignItems: 'center', flexWrap: 'wrap',
+                                px: { xs: 1.5, md: 0 }, py: { xs: 0.5, md: 0 },
+                                borderBottomWidth: { xs: 1, md: 0 }, borderBottomStyle: 'solid', borderColor: 'divider',
+                                '& > th': { px: { xs: 0.75, md: 2 }, py: { xs: 0.5, md: 2 }, borderBottomWidth: { xs: 0, md: 1 }, borderColor: 'divider' },
+                                '& .MuiTableSortLabel-root': { whiteSpace: 'nowrap', fontSize: { xs: '0.8125rem', md: '0.875rem' } },
+                                '& .MuiTableSortLabel-icon': { width: { xs: 14, md: 18 }, ml: { xs: 0.25, md: 0.5 }, mr: { xs: 0, md: 0.5 } },
+                            }}>
                                 {!isVisitor && (
-                                    <TableCell padding="checkbox">
+                                    <TableCell padding="checkbox" sx={{ display: { xs: 'none', md: 'table-cell' } }}>
                                         <Checkbox
                                             color="primary"
                                             indeterminate={currentPageSelected > 0 && currentPageSelected < displayedVideos.length}
@@ -273,7 +317,7 @@ const VideosTable: React.FC<VideosTableProps> = ({
                                         />
                                     </TableCell>
                                 )}
-                                <TableCell>{t('thumbnail')}</TableCell>
+                                <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>{t('thumbnail')}</TableCell>
                                 <TableCell>
                                     <TableSortLabel
                                         disabled={selection.locked || isBulkDeleting}
@@ -320,14 +364,32 @@ const VideosTable: React.FC<VideosTableProps> = ({
                                         </TableSortLabel>
                                     </Box>
                                 </TableCell>
-                                {!isVisitor && <TableCell align="right">{t('actions')}</TableCell>}
+                                {!isVisitor && <TableCell align="right" sx={{ display: { xs: 'none', md: 'table-cell' } }}>{t('actions')}</TableCell>}
                             </TableRow>
                         </TableHead>
-                        <TableBody>
+                        <TableBody sx={{ display: { xs: 'block', md: 'table-row-group' } }}>
                             {displayedVideos.map(video => (
-                                <TableRow key={video.id} hover selected={selectedVideoIds.includes(video.id)}>
+                                <TableRow key={video.id} hover selected={selectedVideoIds.includes(video.id)} sx={{
+                                    display: { xs: 'grid', md: 'table-row' },
+                                    gridTemplateColumns: {
+                                        xs: isVisitor ? '104px minmax(0, 1fr)' : '104px minmax(0, 1fr) 36px',
+                                        sm: isVisitor ? '120px minmax(0, 1fr)' : '120px minmax(0, 1fr) 36px',
+                                    },
+                                    gridTemplateAreas: isVisitor
+                                        ? '"thumbnail author" "thumbnail size" "info info"'
+                                        : '"thumbnail author select" "thumbnail size select" "info info info" "actions actions actions"',
+                                    columnGap: 1.5, rowGap: 0.5,
+                                    p: { xs: 1.5, md: 0 },
+                                    borderBottomWidth: { xs: 1, md: 0 }, borderBottomStyle: 'solid', borderColor: 'divider',
+                                    '&:last-child': { borderBottom: 0 },
+                                    '& > td': {
+                                        minWidth: 0, p: { xs: 0, md: 2 },
+                                        borderBottomWidth: { xs: 0, md: 1 }, borderColor: 'divider',
+                                        '&.MuiTableCell-paddingCheckbox': { p: 0 },
+                                    },
+                                }}>
                                     {!isVisitor && (
-                                        <TableCell padding="checkbox">
+                                        <TableCell padding="checkbox" sx={{ gridArea: 'select', alignSelf: 'start', '& .MuiCheckbox-root': { p: { xs: 0.75, md: 1 } } }}>
                                             <Checkbox
                                                 color="primary"
                                                 checked={selectedVideoIds.includes(video.id)}
@@ -341,8 +403,8 @@ const VideosTable: React.FC<VideosTableProps> = ({
                                             />
                                         </TableCell>
                                     )}
-                                    <TableCell sx={{ width: 140 }}>
-                                        <Box sx={{ position: 'relative', width: 120, height: 68 }}>
+                                    <TableCell sx={{ gridArea: 'thumbnail', width: { xs: 'auto', md: 140 } }}>
+                                        <Box sx={{ position: 'relative', width: { xs: 104, sm: 120 }, height: { xs: 59, sm: 68 } }}>
                                             <Link to={`/video/${video.id}`} style={{ display: 'block', width: '100%', height: '100%' }}>
                                                 <ThumbnailImage
                                                     video={video}
@@ -409,14 +471,15 @@ const VideosTable: React.FC<VideosTableProps> = ({
                                             {formatDuration(video.duration)}
                                         </Typography>
                                     </TableCell>
-                                    <TableCell sx={{ fontWeight: 500, maxWidth: 400 }}>
+                                    <TableCell sx={{ gridArea: 'info', fontWeight: 500, maxWidth: { xs: '100%', md: 400 } }}>
                                         {editingVideoId === video.id ? (
-                                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                            <Box sx={{ display: 'flex', alignItems: 'center', minWidth: 0 }}>
                                                 <TextField
                                                     value={editTitle}
                                                     onChange={(e) => setEditTitle(e.target.value)}
                                                     size="small"
                                                     fullWidth
+                                                    sx={{ minWidth: 0 }}
                                                     autoFocus
                                                     onKeyDown={(e) => {
                                                         if (e.key === 'Enter') handleSaveTitle(video.id);
@@ -443,13 +506,14 @@ const VideosTable: React.FC<VideosTableProps> = ({
                                                 </IconButton>
                                             </Box>
                                         ) : (
-                                            <Box sx={{ display: 'flex', alignItems: 'flex-start' }}>
+                                            <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: { xs: 0.5, md: 0 } }}>
                                                 {!isVisitor && (
                                                     <IconButton
                                                         size="small"
                                                         onClick={() => handleEditClick(video)}
+                                                        disabled={isSavingDownloadTime || isSavingTitle}
                                                         aria-label={editVideoLabel}
-                                                        sx={{ mr: 1, mt: -0.5, opacity: 0.6, '&:hover': { opacity: 1 } }}
+                                                        sx={{ order: { xs: 1, md: 0 }, flexShrink: 0, mr: { xs: 0, md: 1 }, mt: -0.5, opacity: 0.6, '&:hover': { opacity: 1 } }}
                                                     >
                                                         <Edit fontSize="small" />
                                                     </IconButton>
@@ -462,15 +526,81 @@ const VideosTable: React.FC<VideosTableProps> = ({
                                                         WebkitBoxOrient: 'vertical',
                                                         overflow: 'hidden',
                                                         textOverflow: 'ellipsis',
-                                                        lineHeight: 1.4
+                                                        lineHeight: 1.4,
+                                                        flex: 1, minWidth: 0, overflowWrap: 'anywhere'
                                                     }}
                                                 >
                                                     {video.title}
                                                 </Typography>
                                             </Box>
                                         )}
+                                        {editingDownloadTimeId === video.id ? (
+                                            <Box sx={{
+                                                display: { xs: 'grid', md: 'flex' }, alignItems: 'center', mt: 1,
+                                                gridTemplateColumns: 'minmax(0, 1fr) auto auto',
+                                            }}>
+                                                <TextField
+                                                    label={t('downloadedOn')}
+                                                    type="datetime-local"
+                                                    value={editDownloadTime}
+                                                    onChange={(event) => setEditDownloadTime(event.target.value)}
+                                                    size="small"
+                                                    fullWidth
+                                                    sx={{ minWidth: 0, gridColumn: '1 / -1' }}
+                                                    autoFocus
+                                                    disabled={isSavingDownloadTime}
+                                                    error={!!downloadTimeError}
+                                                    helperText={downloadTimeError}
+                                                    slotProps={{
+                                                        inputLabel: { shrink: true },
+                                                        htmlInput: { step: 1 },
+                                                    }}
+                                                    onKeyDown={(event) => {
+                                                        if (event.key === 'Enter') void handleSaveDownloadTime(video.id);
+                                                        if (event.key === 'Escape' && !isSavingDownloadTime) setEditingDownloadTimeId(null);
+                                                    }}
+                                                />
+                                                <IconButton
+                                                    size="small"
+                                                    color="primary"
+                                                    aria-label={t('save')}
+                                                    onClick={() => void handleSaveDownloadTime(video.id)}
+                                                    loading={isSavingDownloadTime}
+                                                    disabled={!isDownloadTimeValid}
+                                                    sx={{ gridColumn: 2 }}
+                                                >
+                                                    <Check />
+                                                </IconButton>
+                                                <IconButton
+                                                    size="small"
+                                                    color="error"
+                                                    aria-label={t('cancel')}
+                                                    onClick={() => setEditingDownloadTimeId(null)}
+                                                    disabled={isSavingDownloadTime}
+                                                >
+                                                    <Close />
+                                                </IconButton>
+                                            </Box>
+                                        ) : (
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 0.5, md: 0 }, mt: 0.5 }}>
+                                                {!isVisitor && (
+                                                    <IconButton
+                                                        size="small"
+                                                        onClick={() => handleEditDownloadTime(video)}
+                                                        aria-label={editDownloadTimeLabel}
+                                                        disabled={isSavingTitle || isSavingDownloadTime}
+                                                        sx={{ order: { xs: 1, md: 0 }, flexShrink: 0, mr: { xs: 0, md: 1 }, opacity: 0.6, '&:hover': { opacity: 1 } }}
+                                                    >
+                                                        <Edit fontSize="small" />
+                                                    </IconButton>
+                                                )}
+                                                <Typography variant="caption" color="text.secondary" sx={{ flex: 1, minWidth: 0 }}>
+                                                    {t('downloadedOn')}: <Box component="span" sx={{ whiteSpace: 'nowrap' }}>{formatDisplayDateTime(video.addedAt, t('unknownDate'))}</Box>
+                                                </Typography>
+                                            </Box>
+                                        )}
                                     </TableCell>
-                                    <TableCell>
+                                    <TableCell sx={{ gridArea: 'author', alignSelf: 'end' }}>
                                         <Link
                                             to={`/author/${encodeURIComponent(video.author)}`}
                                             style={{ textDecoration: 'none', color: 'inherit' }}
@@ -478,6 +608,7 @@ const VideosTable: React.FC<VideosTableProps> = ({
                                             <Typography
                                                 variant="body2"
                                                 sx={{
+                                                    overflowWrap: 'anywhere',
                                                     '&:hover': { textDecoration: 'underline', color: 'primary.main' }
                                                 }}
                                             >
@@ -485,9 +616,9 @@ const VideosTable: React.FC<VideosTableProps> = ({
                                             </Typography>
                                         </Link>
                                     </TableCell>
-                                    <TableCell>{formatSize(video.fileSize)}</TableCell>
+                                    <TableCell sx={{ gridArea: 'size', whiteSpace: 'nowrap', color: { xs: 'text.secondary', md: 'text.primary' }, fontSize: { xs: '0.75rem', md: '0.875rem' } }}>{formatSize(video.fileSize)}</TableCell>
                                     {!isVisitor && (
-                                        <TableCell align="right">
+                                        <TableCell align="right" sx={{ gridArea: 'actions', justifySelf: 'end' }}>
 	                                            {video.sourceUrl && (!isVideoDownloading(video.sourceUrl) || isReDownloading(video.sourceUrl)) && (
 	                                                <Tooltip
                                                     title={redownloadVideoLabel}

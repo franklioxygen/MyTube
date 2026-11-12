@@ -167,8 +167,8 @@ const CollectionsTable: React.FC<CollectionsTableProps> = ({
 
     return (
         <Box sx={{ mb: 6 }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                <Typography variant="h5" sx={{ display: 'flex', alignItems: 'center' }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1, mb: 2 }}>
+                <Typography variant="h5" sx={{ display: 'flex', alignItems: 'center', fontSize: { xs: '1.125rem', sm: '1.5rem' } }}>
                     <Folder sx={{ mr: 1, color: 'secondary.main' }} />
                     {t('collections')} ({totalCollectionsCount})
                 </Typography>
@@ -189,9 +189,20 @@ const CollectionsTable: React.FC<CollectionsTableProps> = ({
 
             {totalCollectionsCount > 0 ? (
                 <TableContainer component={Paper} variant="outlined" ref={tableContainerRef} {...swipeHandlers}>
-                    <Table>
-                        <TableHead>
-                            <TableRow>
+                    <Table sx={{ display: { xs: 'block', md: 'table' } }}>
+                        <TableHead sx={{ display: { xs: 'block', md: 'table-header-group' } }}>
+                            <TableRow sx={{
+                                display: { xs: 'flex', md: 'table-row' },
+                                alignItems: 'center', flexWrap: 'wrap',
+                                px: { xs: 1, md: 0 }, py: { xs: 0.5, md: 0 },
+                                borderBottomWidth: { xs: 1, md: 0 }, borderBottomStyle: 'solid', borderColor: 'divider',
+                                '& > th': {
+                                    px: { xs: 0.5, md: 2 }, py: { xs: 0.5, md: 2 },
+                                    borderBottomWidth: { xs: 0, md: 1 }, borderColor: 'divider',
+                                },
+                                '& .MuiTableSortLabel-root': { whiteSpace: 'nowrap', fontSize: { xs: '0.8125rem', md: '0.875rem' } },
+                                '& .MuiTableSortLabel-icon': { width: { xs: 14, md: 18 }, ml: { xs: 0.25, md: 0.5 }, mr: { xs: 0, md: 0.5 } },
+                            }}>
                                 <TableCell>
                                     <TableSortLabel
                                         active={orderBy === 'name'}
@@ -228,20 +239,38 @@ const CollectionsTable: React.FC<CollectionsTableProps> = ({
                                         {t('created')}
                                     </TableSortLabel>
                                 </TableCell>
-                                {!isVisitor && <TableCell align="right">{t('actions')}</TableCell>}
+                                {!isVisitor && <TableCell align="right" sx={{ display: { xs: 'none', md: 'table-cell' } }}>{t('actions')}</TableCell>}
                             </TableRow>
                         </TableHead>
-                        <TableBody>
+                        <TableBody sx={{ display: { xs: 'block', md: 'table-row-group' } }}>
                             {displayedCollections.map(collection => (
-                                <TableRow key={collection.id} hover>
-                                    <TableCell component="th" scope="row" sx={{ fontWeight: 500 }}>
+                                <TableRow key={collection.id} hover sx={{
+                                    display: { xs: 'grid', md: 'table-row' },
+                                    gridTemplateColumns: 'minmax(0, 1fr) auto',
+                                    gridTemplateAreas: isVisitor
+                                        ? '"name name" "count size" "created created"'
+                                        : '"name name" "count size" "created actions"',
+                                    columnGap: 1.5, rowGap: 1,
+                                    p: { xs: 1.5, md: 0 },
+                                    borderBottomWidth: { xs: 1, md: 0 }, borderBottomStyle: 'solid', borderColor: 'divider',
+                                    '&:last-child': { borderBottom: 0 },
+                                    '& > th, & > td': {
+                                        minWidth: 0, p: { xs: 0, md: 2 },
+                                        borderBottomWidth: { xs: 0, md: 1 }, borderColor: 'divider',
+                                    },
+                                }}>
+                                    <TableCell component="th" scope="row" sx={{ fontWeight: 500, gridArea: 'name' }}>
                                         {editingCollectionId === collection.id ? (
-                                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                            <Box sx={{
+                                                display: { xs: 'grid', md: 'flex' }, alignItems: 'center',
+                                                gridTemplateColumns: 'minmax(0, 1fr) auto auto',
+                                            }}>
                                                 <TextField
                                                     value={editName}
                                                     onChange={(e) => handleNameChange(e.target.value)}
                                                     size="small"
                                                     fullWidth
+                                                    sx={{ minWidth: 0, gridColumn: '1 / -1' }}
                                                     autoFocus
                                                     error={!!nameError}
                                                     helperText={nameError}
@@ -258,6 +287,7 @@ const CollectionsTable: React.FC<CollectionsTableProps> = ({
                                                     onClick={() => handleSave(collection.id)}
                                                     loading={isSaving}
                                                     aria-label="save collection name"
+                                                    sx={{ gridColumn: 2 }}
                                                 >
                                                     <Check />
                                                 </IconButton>
@@ -272,12 +302,12 @@ const CollectionsTable: React.FC<CollectionsTableProps> = ({
                                                 </IconButton>
                                             </Box>
                                         ) : (
-                                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                            <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: { xs: 0.5, md: 0 } }}>
                                                 {!isVisitor && (
                                                     <IconButton
                                                         size="small"
                                                         onClick={() => handleEditClick(collection)}
-                                                        sx={{ mr: 1, opacity: 0.6, '&:hover': { opacity: 1 } }}
+                                                        sx={{ order: { xs: 1, md: 0 }, flexShrink: 0, mr: { xs: 0, md: 1 }, opacity: 0.6, '&:hover': { opacity: 1 } }}
                                                         aria-label="edit collection"
                                                     >
                                                         <Edit fontSize="small" />
@@ -291,6 +321,7 @@ const CollectionsTable: React.FC<CollectionsTableProps> = ({
                                                         color: 'inherit',
                                                         textDecoration: 'none',
                                                         cursor: 'pointer',
+                                                        flex: 1, minWidth: 0, overflowWrap: 'anywhere',
                                                         '&:hover': { textDecoration: 'underline' }
                                                     }}
                                                 >
@@ -299,11 +330,20 @@ const CollectionsTable: React.FC<CollectionsTableProps> = ({
                                             </Box>
                                         )}
                                     </TableCell>
-                                    <TableCell>{collection.videos.length}</TableCell>
-                                    <TableCell>{getCollectionSize(collection.videos)}</TableCell>
-                                    <TableCell>{formatDisplayDate(collection.createdAt)}</TableCell>
+                                    <TableCell sx={{ gridArea: 'count', color: { xs: 'text.secondary', md: 'text.primary' } }}>
+                                        <Box component="span" sx={{ display: { xs: 'inline', md: 'none' } }}>{t('videos')}: </Box>
+                                        <Box component="span">{collection.videos.length}</Box>
+                                    </TableCell>
+                                    <TableCell sx={{ gridArea: 'size', justifySelf: 'end', whiteSpace: 'nowrap', color: { xs: 'text.secondary', md: 'text.primary' } }}>
+                                        <Box component="span" sx={{ display: { xs: 'inline', md: 'none' } }}>{t('size')}: </Box>
+                                        <Box component="span">{getCollectionSize(collection.videos)}</Box>
+                                    </TableCell>
+                                    <TableCell sx={{ gridArea: 'created', alignSelf: 'center', color: { xs: 'text.secondary', md: 'text.primary' } }}>
+                                        <Box component="span" sx={{ display: { xs: 'inline', md: 'none' } }}>{t('created')}: </Box>
+                                        <Box component="span" sx={{ whiteSpace: 'nowrap' }}>{formatDisplayDate(collection.createdAt)}</Box>
+                                    </TableCell>
                                     {!isVisitor && (
-                                        <TableCell align="right">
+                                        <TableCell align="right" sx={{ gridArea: 'actions', justifySelf: 'end' }}>
                                             <Tooltip title={t('deleteCollection')} disableHoverListener={isTouch}>
                                                 <IconButton
                                                     color="error"
