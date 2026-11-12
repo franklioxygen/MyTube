@@ -1,8 +1,11 @@
 import crypto from "crypto";
+import { eq } from "drizzle-orm";
 import { Request } from "express";
 import path from "path";
 import sanitizeFilename from "sanitize-filename";
 import { IMAGES_DIR, VIDEOS_DIR } from "../../config/paths";
+import { db } from "../../db";
+import { videos } from "../../db/schema";
 import { ValidationError } from "../../errors/DownloadErrors";
 import * as storageService from "../../services/storageService";
 import {
@@ -134,6 +137,27 @@ export const readStringField = (
     return firstString?.trim() || fallback;
   }
   return fallback;
+};
+
+/** Existing picker selections preserve the database key; new names retain legacy trimming. */
+export const readUploadAuthor = (
+  body: { author?: unknown; authorKey?: unknown } | undefined,
+  files: UploadedVideoFile[]
+): string => {
+  if (body?.authorKey === undefined) return readStringField(body?.author, "Admin");
+
+  try {
+    const key = body.authorKey;
+    if (typeof key !== "string" || !key || !db.select({ id: videos.id })
+      .from(videos).where(eq(videos.author, key)).limit(1).get()) {
+      throw new ValidationError("Selected author no longer exists. Select an author again.", "authorKey");
+    }
+    return key;
+  } catch (error) {
+    // Multer has already written these files; rejected metadata must not orphan them.
+    for (const file of files) cleanupUploadedVideo(getStoredUploadFilename(file));
+    throw error;
+  }
 };
 
 export const buildUploadResponseMessage = (summary: UploadSummary): string => {

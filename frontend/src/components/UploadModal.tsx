@@ -33,6 +33,7 @@ interface UploadPayload {
     files: File[];
     title: string;
     author: string;
+    authorKey?: string;
 }
 
 interface UploadBatchSummary {
@@ -86,17 +87,20 @@ const getDisplayName = (file: UploadableFile) => file.webkitRelativePath || file
 
 function AuthorOptionAvatar({ path, name }: { path?: string; name: string }) {
     const url = useCloudStorageUrl(path, 'thumbnail');
-    return <Avatar src={url} sx={{ width: 32, height: 32 }}>{name.charAt(0)}</Avatar>;
+    return <Avatar src={url} sx={{ width: 32, height: 32 }}>{name.trim().charAt(0)}</Avatar>;
 }
+
+const displayAuthor = (name: string) => name === name.trim() ? name : `“${name}”`;
 
 const UploadModal: React.FC<UploadModalProps> = ({ open, onClose, onUploadSuccess }) => {
     const { t } = useLanguage();
     const [files, setFiles] = useState<File[]>([]);
     const [title, setTitle] = useState<string>('');
     const [author, setAuthor] = useState<string>('Admin');
+    const [selectedAuthorKey, setSelectedAuthorKey] = useState<string | null>(null);
     const { videos } = useVideo();
     const [editingAvatar, setEditingAvatar] = useState(false);
-    const targetAuthor = author.trim() || 'Admin';
+    const targetAuthor = selectedAuthorKey ?? (author.trim() || 'Admin');
     const profile = useAuthorProfile(targetAuthor, open);
     const avatarUrl = useCloudStorageUrl(profile.data?.effectiveAvatarPath, 'thumbnail');
     const authors = useMemo(() => {
@@ -104,8 +108,8 @@ const UploadModal: React.FC<UploadModalProps> = ({ open, onClose, onUploadSucces
         const groups = new Map<string, { name: string; count: number; avatar?: string }>();
         for (const video of videos) {
             if (!video.author) continue;
-            const name = video.author.trim();
-            if (!name) continue;
+            const name = video.author;
+            if (!name.trim()) continue;
             const current = groups.get(name) ?? { name, count: 0, avatar: video.authorAvatarPath };
             current.count++;
             if (!current.avatar) current.avatar = video.authorAvatarPath;
@@ -194,7 +198,7 @@ const UploadModal: React.FC<UploadModalProps> = ({ open, onClose, onUploadSucces
     };
 
     const uploadMutation = useMutation({
-        mutationFn: async ({ files: selectedFiles, title: selectedTitle, author: selectedAuthor }: UploadPayload) => {
+        mutationFn: async ({ files: selectedFiles, title: selectedTitle, author: selectedAuthor, authorKey }: UploadPayload) => {
             const formData = new FormData();
 
             for (const file of selectedFiles as UploadableFile[]) {
@@ -206,6 +210,7 @@ const UploadModal: React.FC<UploadModalProps> = ({ open, onClose, onUploadSucces
                 formData.append('title', selectedTitle.trim());
             }
             formData.append('author', selectedAuthor.trim() || 'Admin');
+            if (authorKey !== undefined) formData.append('authorKey', authorKey);
 
             const response = await api.post<{ data?: UploadBatchResponse }>('/upload/batch', formData, {
                 headers: {
@@ -244,6 +249,7 @@ const UploadModal: React.FC<UploadModalProps> = ({ open, onClose, onUploadSucces
             files,
             title,
             author,
+            ...(selectedAuthorKey !== null ? { authorKey: selectedAuthorKey } : {}),
         });
     };
 
@@ -251,6 +257,8 @@ const UploadModal: React.FC<UploadModalProps> = ({ open, onClose, onUploadSucces
         setFiles([]);
         setTitle('');
         setAuthor('Admin');
+        setSelectedAuthorKey(null);
+        setEditingAvatar(false);
         setError('');
         setProgress(0);
         setSkippedFilesCount(0);
@@ -368,23 +376,30 @@ const UploadModal: React.FC<UploadModalProps> = ({ open, onClose, onUploadSucces
                         freeSolo
                         options={authors.map(option => option.name)}
                         inputValue={author}
-                        value={targetAuthor}
-                        onInputChange={(_, value) => setAuthor(value)}
+                        value={selectedAuthorKey}
+                        onChange={(_, value, reason) => {
+                            setAuthor(value ?? '');
+                            setSelectedAuthorKey(reason === 'selectOption' ? value : null);
+                        }}
+                        onInputChange={(_, value, reason) => {
+                            setAuthor(value);
+                            if (reason === 'input' || reason === 'clear') setSelectedAuthorKey(null);
+                        }}
                         disabled={uploadMutation.isPending || editingAvatar}
                         renderOption={(props, name) => {
                             const option = authors.find(item => item.name === name)!;
                             const { key, ...other } = props;
                             return <Box component="li" key={key} {...other} sx={{ gap: 1 }}>
                                 <AuthorOptionAvatar path={option.avatar} name={name} />
-                                <Box><Typography>{name}</Typography><Typography variant="caption" color="text.secondary">{option.count} {t('videos')}</Typography></Box>
+                                <Box><Typography sx={{ whiteSpace: 'pre-wrap' }}>{displayAuthor(name)}</Typography><Typography variant="caption" color="text.secondary">{option.count} {t('videos')}</Typography></Box>
                             </Box>;
                         }}
                         renderInput={params => <TextField {...params} label={t('author')} />}
                     />
                     {profile.canManage && <Stack spacing={1}>
                         <Stack direction="row" spacing={2} alignItems="center">
-                            <Avatar src={avatarUrl}>{targetAuthor.charAt(0)}</Avatar>
-                            <Box sx={{ flex: 1, minWidth: 0 }}><Typography noWrap>{targetAuthor}</Typography>
+                            <Avatar src={avatarUrl}>{targetAuthor.trim().charAt(0)}</Avatar>
+                            <Box sx={{ flex: 1, minWidth: 0 }}><Typography noWrap sx={{ whiteSpace: 'pre' }}>{displayAuthor(targetAuthor)}</Typography>
                                 {!authors.some(item => item.name === targetAuthor) && <Typography variant="caption" color="text.secondary">{t('authorAvatarNewAuthor')}</Typography>}
                             </Box>
                             <Button disabled={uploadMutation.isPending} onClick={() => setEditingAvatar(true)}>{t(avatarUrl ? 'authorAvatarChange' : 'authorAvatarSet')}</Button>

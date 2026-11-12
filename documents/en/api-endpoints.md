@@ -58,17 +58,20 @@ Validation errors return `400`; missing videos/collections return `404`; damaged
 Repeated additions are safe while their targets remain unchanged. A network timeout does not prove rollback; a concurrent collection rename/deletion may make a retry return a conflict/not-found response. Tags trigger best-effort media metadata export after commit, skipping damaged records individually and loading the full library only for TV show aggregation. Single-video exports and rebuilds use the same record validation; orphan cleanup checks all stored video paths, including damaged records; export failure or restart does not undo database changes. A successful response whose subsequent list refresh fails should be shown as saved with a refresh warning.
 
 - `POST /api/upload` - Upload one local video file
-  - Multipart form-data: `video` (required), `title` (optional), `author` (optional)
+  - Multipart form-data: `video` (required), `title` (optional), `author` (optional), `authorKey` (optional exact existing author)
   - Notes:
     - Content is validated as a supported video before it is accepted.
     - Duplicate uploads are skipped by content hash.
 - `POST /api/upload/batch` - Upload multiple local video files in one request
-  - Multipart form-data: `videos` (one or more required), `title` (optional, only used when exactly one file is uploaded), `author` (optional)
+  - Multipart form-data: `videos` (one or more required), `title` (optional, only used when exactly one file is uploaded), `author` (optional), `authorKey` (optional exact existing author)
   - Response data shape: `{ results: Array<{ originalName, status, message, video? }>, summary: { total, uploaded, duplicates, failed } }`
   - Notes:
     - Intended for multi-file selection and folder uploads.
     - Folder uploads import supported video files only; subdirectory structure is not preserved.
     - Duplicate uploads are skipped by content hash.
+
+For both upload endpoints, `authorKey` takes precedence and must exactly match an existing video author, including whitespace and case; invalid or stale selections return `400`. Without it, `author` is trimmed and defaults to `Admin` when empty. The upload picker sends `authorKey` only for an existing selection.
+
 - `GET /api/videos` - Get all videos (no server-side pagination/filtering in current implementation)
   - Auth: accepts a session cookie, or API key (`X-API-Key` / `Authorization: ApiKey <key>`)
 - `GET /api/videos/:id` - Get one video by ID
@@ -363,7 +366,7 @@ While a gesture credential exists, a settings update that disables password logi
   - Multipart form-data: `file`
 - `POST /api/settings/merge-database-preview` - Scan uploaded `.db` backup and return merge counts without modifying current DB
   - Multipart form-data: `file`
-  - Response `summary` includes `videos`, `collections`, `collectionLinks`, `subscriptions`, `downloadHistory`, `videoDownloads`, and `tags`; each item contains `{ merged, skipped }`
+  - Response `summary` includes `videos`, `collections`, `collectionLinks`, `subscriptions`, `downloadHistory`, `videoDownloads`, `tags`, and `authorProfiles`; each item contains `{ merged, skipped }`
 - `POST /api/settings/merge-database` - Merge uploaded `.db` backup into current DB while keeping existing records
   - Multipart form-data: `file`
   - Response includes the same merge `summary` shape as preview
@@ -371,7 +374,7 @@ While a gesture credential exists, a settings update that disables password logi
 - `POST /api/settings/restore-from-last-backup` - Restore from latest backup
 - `POST /api/settings/cleanup-backup-databases` - Cleanup backup DB files
 
-Author avatar overrides participate in database merge previews and imports. The response includes `authorProfiles: { merged, skipped }`. Exact author keys absent from the target are imported; an existing target profile wins a conflict, regardless of source timestamps. Older backups without `author_profiles` remain supported. Database imports/merges do not copy avatar image files: back up and restore the avatar directory as well; missing images fall back to automatic artwork.
+Author avatar overrides participate in `merge-database-preview` and `merge-database`. Their merge summary includes `authorProfiles: { merged, skipped }`. Exact author keys absent from the target are imported; an existing target profile wins a conflict, regardless of source timestamps. These conflict rules and counts apply only to merging. `import-database` replaces the entire database, including author profiles, and does not return merge counts. Older backups without `author_profiles` remain supported. Database imports/merges do not copy avatar image files: back up and restore the avatar directory as well; missing images fall back to automatic artwork.
 
 ## File Maintenance
 

@@ -1,11 +1,16 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import type { AxiosResponse } from 'axios';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import UploadModal from '../UploadModal';
+import { api } from '../../utils/apiClient';
 
-vi.mock('../../contexts/VideoContext', () => ({ useVideo: () => ({ videos: [] }) }));
+const authorState = vi.hoisted(() => ({ videos: [] as Array<{ author: string; authorAvatarPath?: string }> }));
+vi.mock('../../contexts/VideoContext', () => ({ useVideo: () => ({ videos: authorState.videos }) }));
 vi.mock('../../hooks/useAuthorProfile', () => ({ useAuthorProfile: () => ({ canManage: true, data: undefined }) }));
-vi.mock('../AuthorAvatarEditor', () => ({ default: () => null }));
+vi.mock('../AuthorAvatarEditor', () => ({ default: ({ author, onClose }: { author: string; onClose: () => void }) =>
+    <div><output data-testid="editor-author">{JSON.stringify(author)}</output><button onClick={onClose}>Close editor</button></div> }));
+vi.mock('../../utils/apiClient', () => ({ api: { post: vi.fn() } }));
 
 // Mock dependencies
 vi.mock('../../contexts/LanguageContext', () => ({
@@ -28,6 +33,8 @@ describe('UploadModal', () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
+        authorState.videos = [];
+        vi.mocked(api.post).mockResolvedValue({ data: { data: { summary: {} } } } as AxiosResponse);
         // Setup default useMutation mock
         vi.mocked(useMutation).mockReturnValue({
             mutate: mockMutate,
@@ -151,6 +158,46 @@ describe('UploadModal', () => {
         expect(screen.getByText('video-2.mkv')).toBeInTheDocument();
         expect(screen.getByLabelText('title')).toBeDisabled();
         expect(screen.getByText('Multiple uploads use each filename as the title')).toBeInTheDocument();
+    });
+
+    it('keeps whitespace-sensitive existing authors separate for editing and upload', async () => {
+        authorState.videos = [{ author: ' Alice ' }, { author: ' Alice ' }, { author: 'Alice' }];
+        const user = userEvent.setup();
+        render(<UploadModal {...defaultProps} />);
+        const file = new File(['video'], 'video.mp4', { type: 'video/mp4' });
+        fireEvent.change(document.querySelector('input[type="file"]')!, { target: { files: [file] } });
+        const authorInput = screen.getByLabelText('author');
+        await user.clear(authorInput);
+        await user.click(authorInput);
+        const options = screen.getAllByRole('option');
+        expect(options).toHaveLength(2);
+        const padded = options.find(option => option.textContent?.includes('“ Alice ”'))!;
+        expect(within(padded).getByText('2 videos')).toBeInTheDocument();
+        const plain = options.find(option => option !== padded)!;
+        expect(within(plain).getByText('1 videos')).toBeInTheDocument();
+        await user.click(padded);
+        expect(authorInput).toHaveValue(' Alice ');
+        await user.click(screen.getByText('authorAvatarSet'));
+        expect(screen.getByTestId('editor-author').textContent).toBe(JSON.stringify(' Alice '));
+        await user.click(screen.getByText('Close editor'));
+        await user.click(screen.getByText('upload'));
+        const payload = mockMutate.mock.calls[0][0];
+        expect(payload).toMatchObject({ author: ' Alice ', authorKey: ' Alice ' });
+        const optionsForMutation = vi.mocked(useMutation).mock.calls.at(-1)![0] as any;
+        await act(async () => { await optionsForMutation.mutationFn(payload); });
+        const form = vi.mocked(api.post).mock.calls[0][1] as FormData;
+        expect(form.get('authorKey')).toBe(' Alice ');
+
+        // Editing the selected text makes it a new name and removes the exact-key override.
+        await user.clear(authorInput);
+        await user.type(authorInput, ' New Author ');
+        await user.click(screen.getByText('upload'));
+        const typedPayload = mockMutate.mock.calls[1][0];
+        expect(typedPayload).not.toHaveProperty('authorKey');
+        await act(async () => { await optionsForMutation.mutationFn(typedPayload); });
+        const typedForm = vi.mocked(api.post).mock.calls[1][1] as FormData;
+        expect(typedForm.get('author')).toBe('New Author');
+        expect(typedForm.has('authorKey')).toBe(false);
     });
 
     it('should skip unsupported files automatically', () => {

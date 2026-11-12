@@ -43,6 +43,7 @@ import {
   getUploadVideoPayload,
   getUploadedFilesFromRequest,
   readStringField,
+  readUploadAuthor,
   UploadResultItem,
 } from "./video/uploadHelpers";
 import {
@@ -280,7 +281,7 @@ export const uploadVideo = async (
   }
 
   const title = readStringField(req.body?.title);
-  const author = readStringField(req.body?.author, "Admin");
+  const author = readUploadAuthor(req.body, [file]);
   const result = await getUploadVideoPayload(file, title, author);
 
   if (result.status === "failed") {
@@ -303,7 +304,7 @@ export const uploadVideosBatch = async (
   }
 
   const title = readStringField(req.body?.title);
-  const author = readStringField(req.body?.author, "Admin");
+  const author = readUploadAuthor(req.body, files);
   const results: UploadResultItem[] = [];
 
   for (const [index, file] of files.entries()) {

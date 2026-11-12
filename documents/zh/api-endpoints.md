@@ -58,17 +58,20 @@
 在目标未被并发更改时可以安全重复追加；网络超时不表示事务已回滚。两次请求间合集被改名/删除时，重试可能返回冲突或未找到。标签提交后尽力更新媒体元数据文件，逐条跳过损坏记录，仅在 TV 节目聚合时加载全库。单视频导出与重建使用相同的记录校验，孤立文件清理依据包括损坏记录在内的全部视频路径；导出失败或重启不撤销数据库结果。保存成功而后续列表刷新失败时，应提示已保存并允许刷新。
 
 - `POST /api/upload` - 上传单个本地视频文件
-  - 多部分表单数据: `video` (必需), `title` (可选), `author` (可选)
+  - 多部分表单数据: `video` (必需), `title` (可选), `author` (可选), `authorKey` (可选，已有作者的精确名称)
   - 说明:
     - 服务端会在接收后校验内容是否为受支持的视频。
     - 重复内容会按内容哈希跳过，不会重复入库。
 - `POST /api/upload/batch` - 在一个请求中批量上传多个本地视频文件
-  - 多部分表单数据: `videos` (一个或多个，必需), `title` (可选，仅在只上传 1 个文件时使用), `author` (可选)
+  - 多部分表单数据: `videos` (一个或多个，必需), `title` (可选，仅在只上传 1 个文件时使用), `author` (可选), `authorKey` (可选，已有作者的精确名称)
   - 响应数据结构: `{ results: Array<{ originalName, status, message, video? }>, summary: { total, uploaded, duplicates, failed } }`
   - 说明:
     - 适用于多文件选择和文件夹上传。
     - 文件夹上传只导入受支持的视频文件，不保留子目录结构。
     - 重复内容会按内容哈希跳过。
+
+以上两个上传接口中，`authorKey` 优先于 `author`，必须与已有视频的作者名完全一致（包括空白和大小写）；无效或已失效的选择返回 `400`。未提供时，`author` 会去除首尾空白，空值默认为 `Admin`。上传选择器只在选择已有作者时发送 `authorKey`。
+
 - `GET /api/videos` - 获取所有视频 (当前实现无服务器端分页/过滤)
   - 认证: 支持会话 Cookie，或 API Key (`X-API-Key` / `Authorization: ApiKey <key>`)
 - `GET /api/videos/:id` -通过 ID 获取单个视频
@@ -348,7 +351,7 @@
   - 多部分表单数据: `file`
 - `POST /api/settings/merge-database-preview` - 扫描上传的 `.db` 备份文件并返回合并数量预览，不修改当前数据库
   - 多部分表单数据: `file`
-  - 响应中的 `summary` 包含 `videos`、`collections`、`collectionLinks`、`subscriptions`、`downloadHistory`、`videoDownloads` 和 `tags`；每项都包含 `{ merged, skipped }`
+  - 响应中的 `summary` 包含 `videos`、`collections`、`collectionLinks`、`subscriptions`、`downloadHistory`、`videoDownloads`、`tags` 和 `authorProfiles`；每项都包含 `{ merged, skipped }`
 - `POST /api/settings/merge-database` - 将上传的 `.db` 备份合并到当前数据库，同时保留现有记录
   - 多部分表单数据: `file`
   - 响应包含与预览相同结构的合并 `summary`
@@ -356,7 +359,7 @@
 - `POST /api/settings/restore-from-last-backup` - 从最新备份恢复
 - `POST /api/settings/cleanup-backup-databases` - 清理备份数据库文件
 
-作者头像覆盖也参与数据库合并预览和导入，响应增加 `authorProfiles: { merged, skipped }`。目标库中不存在的精确作者名会被导入；同名冲突始终保留目标库资料，不按来源时间戳覆盖。兼容没有 `author_profiles` 表的旧备份。数据库导入或合并不会复制头像图片文件；需同时备份和恢复头像目录，缺失图片时回退自动头像。
+作者头像覆盖也参与 `merge-database-preview` 和 `merge-database`，其合并汇总包含 `authorProfiles: { merged, skipped }`。目标库中不存在的精确作者名会被导入；同名冲突始终保留目标库资料，不按来源时间戳覆盖。这些冲突规则和计数仅适用于合并；`import-database` 会替换整个数据库（包括作者资料），不返回合并计数。兼容没有 `author_profiles` 表的旧备份。数据库导入或合并不会复制头像图片文件；需同时备份和恢复头像目录，缺失图片时回退自动头像。
 
 ## 文件维护
 
