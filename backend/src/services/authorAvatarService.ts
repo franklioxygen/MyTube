@@ -7,6 +7,7 @@ import { AVATARS_DIR } from "../config/paths";
 import { pathExistsSafeSync, resolveSafeChildPath, unlinkSafeSync } from "../utils/security";
 import { logger } from "../utils/logger";
 import { bumpVideosListRevision } from "./storageService/videoListRevision";
+import { getSettings } from "./storageService/settings";
 
 export type AvatarOrigin = "custom" | "auto" | "none";
 export interface AuthorProfile {
@@ -75,11 +76,17 @@ export function getAuthorProfile(author: string): AuthorProfile {
     .from(videos).where(eq(videos.author, author)).orderBy(desc(videos.createdAt), desc(videos.id)).all();
   const defaultAvatarPath = rows.find(row => row.avatar)?.avatar ?? null;
   const customAvatarPath = getCustomAvatarPaths([author]).get(author) ?? null;
+  let avatarSources = collectAvatarSources(rows.map(row => row.channel));
+  if (avatarSources.some(source => source.platform === "twitch")) {
+    const settings = getSettings();
+    const configured = String(settings.twitchClientId || "").trim() && String(settings.twitchClientSecret || "").trim();
+    if (!configured) avatarSources = avatarSources.filter(source => source.platform !== "twitch");
+  }
   return { author, customAvatarPath, defaultAvatarPath,
     effectiveAvatarPath: customAvatarPath || defaultAvatarPath,
     avatarOrigin: customAvatarPath ? "custom" : defaultAvatarPath ? "auto" : "none",
     videoCount: rows.length,
-    avatarSources: collectAvatarSources(rows.map(row => row.channel)),
+    avatarSources,
     multipleSources: new Set(rows.map(row => `${row.source || ""}:${row.channel || ""}`)).size > 1,
   };
 }

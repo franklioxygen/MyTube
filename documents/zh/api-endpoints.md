@@ -124,7 +124,7 @@
     ```
 
   - 头像路径可为 `null`；`avatarOrigin` 为 `custom`、`auto` 或 `none`。`videoCount` 是整个作者组的视频数，不受当前页面的标签筛选影响。
-  - `avatarSources` 是作者视频已关联的受支持频道地址，经过规范化及去重。平台包括 `youtube`、`bilibili` 和 `twitch`；纯本地作者可能没有来源地址。
+  - `avatarSources` 是作者视频已关联且当前可用的频道来源，经过规范化及去重。平台包括 `youtube`、`bilibili` 和 `twitch`。Twitch 头像获取需要同时配置 `twitchClientId` 和 `twitchClientSecret`；任一缺失或为空白时不返回 Twitch 来源。未配置 Twitch 凭据仍可上传头像或恢复缓存的默认头像。纯本地作者可能没有来源地址。
 - `PUT /api/authors/avatar` - 保存或替换自定义头像
   - Multipart form-data：必填文本 `author` 和单张文件 `avatar`。不接收裁剪坐标、远程图片 URL 或服务器文件路径。
   - 浏览器编辑器接受最大 5 MiB、单边不超过 8192 像素、总像素不超过 1600 万的静态 JPEG/PNG/WebP 原图；裁剪并填充白底后上传 512×512 PNG。

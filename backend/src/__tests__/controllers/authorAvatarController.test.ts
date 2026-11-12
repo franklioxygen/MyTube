@@ -5,8 +5,9 @@ import express from "express";
 import fs from "fs-extra";
 import type { Server } from "http";
 
-const state = vi.hoisted(() => ({ db: undefined as any, dir: '', login: false, dimensions: { width: 512, height: 512 }, fail: false, fetchSource: vi.fn() }));
+const state = vi.hoisted(() => ({ db: undefined as any, dir: '', login: false, dimensions: { width: 512, height: 512 }, fail: false, fetchSource: vi.fn(), settings: {} as Record<string, unknown> }));
 vi.mock('../../db', () => ({ get db() { return state.db; } }));
+vi.mock('../../services/storageService/settings', () => ({ getSettings: () => state.settings }));
 vi.mock('../../config/paths', async importOriginal => {
   const fs = await import('fs'); const os = await import('os'); const path = await import('path');
   state.dir = fs.mkdtempSync(path.join(os.tmpdir(), 'avatar-controller-'));
@@ -42,7 +43,7 @@ beforeAll(async () => {
   await new Promise<void>(resolve => { server = app.listen(0, '127.0.0.1', () => resolve()); });
   url = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
 });
-beforeEach(() => { avatarSourceLimiter.resetKey('127.0.0.1'); sqlite.exec('DELETE FROM author_profiles; DELETE FROM videos'); fs.emptyDirSync(state.dir); state.login = false; state.fail = false; state.dimensions = { width: 512, height: 512 }; state.fetchSource.mockReset().mockResolvedValue({ buffer: png, mime: 'image/png' }); });
+beforeEach(() => { avatarSourceLimiter.resetKey('127.0.0.1'); sqlite.exec('DELETE FROM author_profiles; DELETE FROM videos'); fs.emptyDirSync(state.dir); state.login = false; state.fail = false; state.settings = {}; state.dimensions = { width: 512, height: 512 }; state.fetchSource.mockReset().mockResolvedValue({ buffer: png, mime: 'image/png' }); });
 afterAll(async () => { await new Promise<void>(resolve => server.close(() => resolve())); sqlite.close(); fs.removeSync(state.dir); });
 
 describe('author avatar HTTP contract', () => {
@@ -121,6 +122,25 @@ describe('author avatar HTTP contract', () => {
       expect(response.status).toBe(400);
     }
     expect(state.fetchSource).not.toHaveBeenCalled();
+  });
+  it('offers Twitch fetching only with complete credentials and rechecks settings before a fetch', async () => {
+    const author = 'Twitch Author';
+    const channelUrl = 'https://www.twitch.tv/test';
+    sqlite.prepare('INSERT INTO videos VALUES (?, ?, ?, ?, ?, ?)').run('v', author, 'twitch', channelUrl, '/avatars/cached.jpg', '2026');
+    const profile = () => fetch(url + '/authors/profile?author=' + encodeURIComponent(author));
+    const preview = () => fetch(url + '/authors/avatar/from-source', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ author, channelUrl }) });
+    expect((await (await profile()).json() as any).data).toMatchObject({ avatarSources: [], effectiveAvatarPath: '/avatars/cached.jpg' });
+    expect((await preview()).status).toBe(400);
+    expect(state.fetchSource).not.toHaveBeenCalled();
+    state.settings = { twitchClientId: 'id', twitchClientSecret: 'secret' };
+    expect((await (await profile()).json() as any).data.avatarSources).toEqual([{ platform: 'twitch', channelUrl }]);
+    expect((await preview()).status).toBe(200);
+    expect(state.fetchSource).toHaveBeenCalledTimes(1);
+    // A previously offered source must stop working if credentials are removed.
+    state.settings = {};
+    expect((await preview()).status).toBe(400);
+    expect(state.fetchSource).toHaveBeenCalledTimes(1);
+    expect(fs.readdirSync(state.dir)).toEqual([]);
   });
   it('rejects unexpected preview response types without returning active content', async () => {
     sqlite.prepare('INSERT INTO videos VALUES (?, ?, ?, ?, ?, ?)').run('v', '作者 / 🎬', 'youtube', 'https://youtube.com/@test', null, '2026');

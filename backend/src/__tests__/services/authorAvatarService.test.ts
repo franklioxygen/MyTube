@@ -5,8 +5,9 @@ import fs from "fs-extra";
 import os from "os";
 import path from "path";
 
-const state = vi.hoisted(() => ({ db: undefined as any, dir: '' }));
+const state = vi.hoisted(() => ({ db: undefined as any, dir: '', settings: {} as Record<string, unknown> }));
 vi.mock('../../db', () => ({ get db() { return state.db; } }));
+vi.mock('../../services/storageService/settings', () => ({ getSettings: () => state.settings }));
 vi.mock('../../config/paths', async () => {
   const fs = await import('fs'); const os = await import('os'); const path = await import('path');
   state.dir = fs.mkdtempSync(path.join(os.tmpdir(), 'author-avatar-test-'));
@@ -22,7 +23,7 @@ beforeAll(() => {
     CREATE TABLE videos (id TEXT PRIMARY KEY, author TEXT, source TEXT, channel_url TEXT, author_avatar_path TEXT, created_at TEXT);`);
   state.db = drizzle(sqlite);
 });
-beforeEach(() => { sqlite.exec('DELETE FROM author_profiles; DELETE FROM videos;'); fs.emptyDirSync(state.dir); });
+beforeEach(() => { sqlite.exec('DELETE FROM author_profiles; DELETE FROM videos;'); fs.emptyDirSync(state.dir); state.settings = {}; });
 afterAll(() => { sqlite.close(); fs.removeSync(state.dir); });
 const asset = (name: string) => { fs.writeFileSync(path.join(state.dir, `custom-${name}.jpg`), 'image'); return `/avatars/custom-${name}.jpg`; };
 
@@ -62,6 +63,26 @@ describe('author avatar persistence and projection', () => {
     expect(fs.existsSync(path.join(state.dir, 'custom-two.jpg'))).toBe(false);
     expect(getAuthorProfile('作者 / 🎬')).toMatchObject({ effectiveAvatarPath: '/avatars/auto.jpg', avatarOrigin: 'auto' });
     expect(sqlite.prepare('SELECT author_avatar_path AS path FROM videos').get()).toEqual({ path: '/avatars/auto.jpg' });
+  });
+  it.each([{}, { twitchClientId: 'id' }, { twitchClientSecret: 'secret' }, { twitchClientId: '  ', twitchClientSecret: 'secret' }, { twitchClientId: 'id', twitchClientSecret: '  ' }])(
+    'omits unavailable Twitch sources while retaining other sources and cached artwork (%j)', settings => {
+      state.settings = settings;
+      const insert = sqlite.prepare('INSERT INTO videos VALUES (?, ?, ?, ?, ?, ?)');
+      insert.run('twitch', 'A', 'twitch', 'https://www.twitch.tv/test', '/avatars/cached.jpg', '2026');
+      insert.run('youtube', 'A', 'youtube', 'https://youtube.com/@test', null, '2026');
+      insert.run('bilibili', 'A', 'bilibili', 'https://space.bilibili.com/123', null, '2026');
+      expect(getAuthorProfile('A')).toMatchObject({ defaultAvatarPath: '/avatars/cached.jpg', videoCount: 3, avatarSources: [
+        { platform: 'youtube', channelUrl: 'https://www.youtube.com/@test' },
+        { platform: 'bilibili', channelUrl: 'https://space.bilibili.com/123' },
+      ] });
+    }
+  );
+  it('includes Twitch sources when both credentials are configured and reflects their removal', () => {
+    sqlite.prepare('INSERT INTO videos VALUES (?, ?, ?, ?, ?, ?)').run('v', 'A', 'twitch', 'https://www.twitch.tv/test', null, '2026');
+    state.settings = { twitchClientId: ' id ', twitchClientSecret: ' secret ' };
+    expect(getAuthorProfile('A').avatarSources).toEqual([{ platform: 'twitch', channelUrl: 'https://www.twitch.tv/test' }]);
+    state.settings = {};
+    expect(getAuthorProfile('A').avatarSources).toEqual([]);
   });
   it('falls back when custom files are missing and keeps profiles without videos', () => {
     saveAuthorAvatar('new', asset('saved'));

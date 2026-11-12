@@ -124,7 +124,7 @@ These four endpoints manage a library-wide avatar for the **exact** `author` str
     ```
 
   - Avatar paths can be `null`; `avatarOrigin` is `custom`, `auto`, or `none`. `videoCount` counts the entire author group, not a page's current tag filter.
-  - `avatarSources` lists deduplicated, supported channel addresses already associated with the author's videos. Platforms are `youtube`, `bilibili`, and `twitch`. Local-only authors may have no source addresses.
+  - `avatarSources` lists deduplicated, currently available channel sources already associated with the author's videos. Platforms are `youtube`, `bilibili`, and `twitch`. Twitch avatar lookup requires both `twitchClientId` and `twitchClientSecret`; Twitch is omitted when either is missing or blank. Uploading an avatar and restoring cached defaults remain available without Twitch credentials. Local-only authors may have no source addresses.
 - `PUT /api/authors/avatar` - Save or replace a custom avatar
   - Multipart form-data: `author` and one `avatar` file are required. No crop coordinates, remote URL, or filesystem path are accepted.
   - The browser editor accepts original static JPEG/PNG/WebP images up to 5 MiB, 8192 pixels per side and 16 megapixels, then crops to a white-backed 512×512 PNG before uploading.
