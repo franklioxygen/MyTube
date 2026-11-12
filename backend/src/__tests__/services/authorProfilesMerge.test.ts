@@ -4,7 +4,7 @@ import { executeDatabaseMerge } from '../../services/databaseBackup/tableMerges'
 import { MERGEABLE_TABLES } from '../../services/databaseBackup/types';
 vi.mock('../../services/storageService/settings', () => ({ invalidateSettingsCache: vi.fn() }));
 let source: Database.Database, target: Database.Database;
-const table = 'CREATE TABLE author_profiles (author TEXT PRIMARY KEY, custom_avatar_path TEXT NOT NULL, updated_at INTEGER NOT NULL)';
+const table = 'CREATE TABLE author_profiles (author TEXT PRIMARY KEY, custom_avatar_path TEXT, updated_at INTEGER NOT NULL)';
 beforeEach(() => { source = new Database(':memory:'); target = new Database(':memory:'); source.exec(table); target.exec(table); });
 afterEach(() => { source.close(); target.close(); });
 describe('author profile database merges', () => {
@@ -28,5 +28,16 @@ describe('author profile database merges', () => {
   it('accepts older backups without the profile table', () => {
     source.exec('DROP TABLE author_profiles');
     expect(executeDatabaseMerge(source, target, { applyChanges: true, persistTagSettings: false }).authorProfiles).toEqual({ merged: 0, skipped: 0 });
+  });
+  it('merges author identities without artwork and preserves target default-avatar choices', () => {
+    const author = 'legacy'.repeat(40);
+    source.prepare('INSERT INTO author_profiles VALUES (?, ?, ?)').run(author, null, 1);
+    source.prepare('INSERT INTO author_profiles VALUES (?, ?, ?)').run('A', '/avatars/custom-aaaa.jpg', 99);
+    target.prepare('INSERT INTO author_profiles VALUES (?, ?, ?)').run('A', null, 2);
+    const preview = executeDatabaseMerge(source, target, { applyChanges: false, persistTagSettings: false });
+    expect(preview.authorProfiles).toEqual({ merged: 1, skipped: 1 });
+    expect(executeDatabaseMerge(source, target, { applyChanges: true, persistTagSettings: false })).toEqual(preview);
+    expect(target.prepare('SELECT custom_avatar_path FROM author_profiles WHERE author = ?').get(author)).toEqual({ custom_avatar_path: null });
+    expect(target.prepare('SELECT custom_avatar_path FROM author_profiles WHERE author = ?').get('A')).toEqual({ custom_avatar_path: null });
   });
 });

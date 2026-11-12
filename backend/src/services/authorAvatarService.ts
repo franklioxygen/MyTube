@@ -31,6 +31,7 @@ export function getCustomAvatarPaths(authors: string[]): Map<string, string> {
     const rows = db.select().from(authorProfiles)
       .where(inArray(authorProfiles.author, unique.slice(i, i + 500))).all();
     for (const row of rows) {
+      if (row.customAvatarPath === null) continue;
       try {
         if (isCustomAvatarPath(row.customAvatarPath) && pathExistsSafeSync(
           resolveSafeChildPath(AVATARS_DIR, row.customAvatarPath.slice("/avatars/".length)), AVATARS_DIR,
@@ -83,7 +84,7 @@ export function getAuthorProfile(author: string): AuthorProfile {
   };
 }
 
-function removeCustomAvatar(webPath: string | undefined): void {
+function removeCustomAvatar(webPath: string | null | undefined): void {
   if (!isCustomAvatarPath(webPath)) return;
   try {
     // Never remove an asset that a concurrent operation still owns.
@@ -98,10 +99,9 @@ function removeCustomAvatar(webPath: string | undefined): void {
 export function saveAuthorAvatar(author: string, customAvatarPath: string | null): void {
   const oldPath = db.transaction(tx => {
     const previous = tx.select().from(authorProfiles).where(eq(authorProfiles.author, author)).get();
-    if (customAvatarPath) {
-      tx.insert(authorProfiles).values({ author, customAvatarPath, updatedAt: Date.now() })
-        .onConflictDoUpdate({ target: authorProfiles.author, set: { customAvatarPath, updatedAt: Date.now() } }).run();
-    } else tx.delete(authorProfiles).where(eq(authorProfiles.author, author)).run();
+    // The profile owns the author identity; null removes artwork, not the identity.
+    tx.insert(authorProfiles).values({ author, customAvatarPath, updatedAt: Date.now() })
+      .onConflictDoUpdate({ target: authorProfiles.author, set: { customAvatarPath, updatedAt: Date.now() } }).run();
     return previous?.customAvatarPath;
   });
   bumpVideosListRevision();

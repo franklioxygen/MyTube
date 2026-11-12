@@ -18,7 +18,7 @@ import { getVideosListETag } from '../../services/storageService/videoListRevisi
 let sqlite: Database.Database;
 beforeAll(() => {
   sqlite = new Database(':memory:');
-  sqlite.exec(`CREATE TABLE author_profiles (author TEXT PRIMARY KEY, custom_avatar_path TEXT NOT NULL, updated_at INTEGER NOT NULL);
+  sqlite.exec(`CREATE TABLE author_profiles (author TEXT PRIMARY KEY, custom_avatar_path TEXT, updated_at INTEGER NOT NULL);
     CREATE TABLE videos (id TEXT PRIMARY KEY, author TEXT, source TEXT, channel_url TEXT, author_avatar_path TEXT, created_at TEXT);`);
   state.db = drizzle(sqlite);
 });

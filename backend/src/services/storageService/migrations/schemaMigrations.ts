@@ -619,7 +619,7 @@ export function migrateColumnsAndTables(): void {
   try {
     sqlite.prepare(`CREATE TABLE IF NOT EXISTS author_profiles (
       author TEXT PRIMARY KEY NOT NULL,
-      custom_avatar_path TEXT NOT NULL,
+      custom_avatar_path TEXT,
       updated_at INTEGER NOT NULL
     )`).run();
     sqlite.prepare(`CREATE TABLE IF NOT EXISTS danmaku_tracks (

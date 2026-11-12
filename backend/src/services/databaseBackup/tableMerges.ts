@@ -625,7 +625,7 @@ function mergeAuthorProfiles(
   const insert = options.applyChanges ? buildInsertStatement(targetDb, "author_profiles", columns) : null;
   for (const row of rows) {
     if (typeof row.author !== "string" || !row.author.trim() || row.author.includes("\0") ||
-      typeof row.custom_avatar_path !== "string" || !/^\/avatars\/custom-[a-f0-9-]+\.jpg$/.test(row.custom_avatar_path) ||
+      (row.custom_avatar_path !== null && (typeof row.custom_avatar_path !== "string" || !/^\/avatars\/custom-[a-f0-9-]+\.jpg$/.test(row.custom_avatar_path))) ||
       typeof row.updated_at !== "number" || !Number.isSafeInteger(row.updated_at) || row.updated_at < 0 || authors.has(row.author)) {
       summary.authorProfiles.skipped++;
       continue;

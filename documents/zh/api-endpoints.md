@@ -359,7 +359,7 @@
 - `POST /api/settings/restore-from-last-backup` - 从最新备份恢复
 - `POST /api/settings/cleanup-backup-databases` - 清理备份数据库文件
 
-作者头像覆盖也参与 `merge-database-preview` 和 `merge-database`，其合并汇总包含 `authorProfiles: { merged, skipped }`。目标库中不存在的精确作者名会被导入；同名冲突始终保留目标库资料，不按来源时间戳覆盖。这些冲突规则和计数仅适用于合并；`import-database` 会替换整个数据库（包括作者资料），不返回合并计数。兼容没有 `author_profiles` 表的旧备份。数据库导入或合并不会复制头像图片文件；需同时备份和恢复头像目录，缺失图片时回退自动头像。
+作者头像覆盖也参与 `merge-database-preview` 和 `merge-database`，其合并汇总包含 `authorProfiles: { merged, skipped }`。恢复默认头像时保留精确作者身份（`custom_avatar_path = NULL`），因此即使最后一个视频已删除，历史作者名仍可继续编辑。仅保留身份的资料也参与备份和合并。目标库中不存在的精确作者名会被导入；同名冲突始终保留目标库资料，不按来源时间戳覆盖。这些冲突规则和计数仅适用于合并；`import-database` 会替换整个数据库（包括作者资料），不返回合并计数。兼容没有 `author_profiles` 表的旧备份。数据库导入或合并不会复制头像图片文件；需同时备份和恢复头像目录，缺失图片时回退自动头像。
 
 ## 文件维护
 

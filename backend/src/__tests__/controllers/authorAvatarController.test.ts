@@ -29,7 +29,7 @@ function form(bytes: Buffer = png, type = 'image/png') {
 }
 beforeAll(async () => {
   sqlite = new Database(':memory:');
-  sqlite.exec(`CREATE TABLE author_profiles (author TEXT PRIMARY KEY, custom_avatar_path TEXT NOT NULL, updated_at INTEGER NOT NULL);
+  sqlite.exec(`CREATE TABLE author_profiles (author TEXT PRIMARY KEY, custom_avatar_path TEXT, updated_at INTEGER NOT NULL);
     CREATE TABLE videos (id TEXT PRIMARY KEY, author TEXT, source TEXT, channel_url TEXT, author_avatar_path TEXT, created_at TEXT);`);
   state.db = drizzle(sqlite);
   const app = express(); app.use(express.json());
@@ -72,8 +72,14 @@ describe('author avatar HTTP contract', () => {
     const removed = await fetch(url + '/authors/avatar', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ author }) });
     expect(removed.status).toBe(200);
     expect((await removed.json() as any).data).toMatchObject({ author, customAvatarPath: null, videoCount: 0 });
-    expect(sqlite.prepare('SELECT author FROM author_profiles').all()).toEqual([]);
+    expect(sqlite.prepare('SELECT author, custom_avatar_path FROM author_profiles').all()).toEqual([{ author, custom_avatar_path: null }]);
     expect(fs.readdirSync(state.dir)).toEqual([]);
+    const afterRestore = await fetch(profileUrl);
+    expect(afterRestore.status).toBe(200);
+    expect((await afterRestore.json() as any).data).toMatchObject({ author, customAvatarPath: null, avatarOrigin: 'none' });
+    const uploadedAgain = await fetch(url + '/authors/avatar', { method: 'PUT', body: avatarForm() });
+    expect(uploadedAgain.status).toBe(200);
+    expect((await uploadedAgain.json() as any).data).toMatchObject({ author, avatarOrigin: 'custom', videoCount: 0 });
   });
 
   it('saves and restores an exact Unicode name, leaving video storage untouched and changing ETags', async () => {
