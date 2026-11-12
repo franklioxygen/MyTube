@@ -612,16 +612,34 @@ export function ensureFavoritesTables(): void {
   }
 }
 
+/** Recover author migrations after an interrupted or out-of-sync migration journal. */
+export function ensureAuthorProfilesTable(): void {
+  sqlite.prepare(`CREATE TABLE IF NOT EXISTS author_profiles (
+    author TEXT PRIMARY KEY NOT NULL,
+    custom_avatar_path TEXT,
+    updated_at INTEGER NOT NULL
+  )`).run();
+  const columns = sqlite.prepare("PRAGMA table_info(author_profiles)").all() as Array<{ name: string; notnull: number }>;
+  if (!columns.some(column => column.name === "custom_avatar_path" && column.notnull === 1)) return;
+
+  // An out-of-sync Drizzle journal may skip 0032 after an earlier duplicate
+  // column. Recover its nullable path without losing the existing profiles.
+  sqlite.transaction(() => {
+    sqlite.exec(`CREATE TABLE __new_author_profiles (
+      author TEXT PRIMARY KEY NOT NULL, custom_avatar_path TEXT, updated_at INTEGER NOT NULL
+    );
+    INSERT INTO __new_author_profiles SELECT author, custom_avatar_path, updated_at FROM author_profiles;
+    DROP TABLE author_profiles;
+    ALTER TABLE __new_author_profiles RENAME TO author_profiles;`);
+  })();
+}
+
 // Additive column/table self-heal for videos, downloads, collections,
 // subscriptions, continuous tasks, video_downloads, rss_tokens, users,
 // favorites and download_history, plus the file-size/video_id data backfills.
 export function migrateColumnsAndTables(): void {
   try {
-    sqlite.prepare(`CREATE TABLE IF NOT EXISTS author_profiles (
-      author TEXT PRIMARY KEY NOT NULL,
-      custom_avatar_path TEXT,
-      updated_at INTEGER NOT NULL
-    )`).run();
+    ensureAuthorProfilesTable();
     sqlite.prepare(`CREATE TABLE IF NOT EXISTS danmaku_tracks (
     video_id TEXT PRIMARY KEY NOT NULL REFERENCES videos(id) ON DELETE CASCADE,
     source TEXT NOT NULL, cid TEXT, revision TEXT,

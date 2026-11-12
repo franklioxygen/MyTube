@@ -437,6 +437,7 @@ export async function runMigrations(options: RunMigrationsOptions = {}) {
       ensureVisitorUsersTable,
       ensureFavoritesTables,
       ensureGestureCredentialTable,
+      ensureAuthorProfilesTable,
     } = await import(
       "../services/storageService/migrations/schemaMigrations"
     );
@@ -453,6 +454,10 @@ export async function runMigrations(options: RunMigrationsOptions = {}) {
     // skipped batch leaves every Gesture Login endpoint failing with
     // "no such table" on a server that reported a clean start.
     ensureGestureCredentialTable();
+
+    // Imports/restores also need the author schema when an earlier migration
+    // aborted the batch; initializeStorage is not rerun on these paths.
+    ensureAuthorProfilesTable();
 
     const { migrateLegacySharedVisitorPassword } = await import(
       "../services/userService"
