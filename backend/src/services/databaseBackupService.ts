@@ -1,4 +1,5 @@
 import Database from "better-sqlite3";
+import { bumpVideosListRevision } from "./storageService/videoListRevision";
 import crypto from "crypto";
 import path from "path";
 import { DATA_DIR } from "../config/paths";
@@ -202,6 +203,7 @@ export function mergeDatabase(fileBuffer: Buffer): DatabaseMergeSummary {
       })
     )();
 
+    if (summary.authorProfiles.merged > 0) bumpVideosListRevision();
     logger.info(
       `Merged database backup successfully: ${JSON.stringify(summary)}`
     );

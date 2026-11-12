@@ -32,3 +32,10 @@ export function collectAvatarSources(channels: unknown[]): AuthorAvatarSource[] 
   }
   return [...sources.values()];
 }
+
+export class AvatarSourceBusyError extends Error {
+  constructor() {
+    super("YouTube avatar lookups are busy. Please retry shortly.");
+    this.name = "AvatarSourceBusyError";
+  }
+}

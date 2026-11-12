@@ -1,6 +1,7 @@
+import { projectAuthorAvatar, projectAuthorAvatars } from "../../services/authorAvatarService";
 vi.mock('../../services/authorAvatarService', () => ({
-  projectAuthorAvatar: (row: unknown) => row,
-  projectAuthorAvatars: (rows: unknown[]) => rows,
+  projectAuthorAvatar: vi.fn((row: unknown) => row),
+  projectAuthorAvatars: vi.fn((rows: unknown[]) => rows),
 }));
 import { Request, Response } from "express";
 import fs from "fs-extra";
@@ -375,6 +376,13 @@ describe("VideoController", () => {
         .mockReturnValue('W/"videos-all-test-1"');
     });
 
+    it("returns the projected custom avatar in list responses", () => {
+      vi.mocked(storageService.getVideoSummaries).mockReturnValue([{ id: "v", author: "A" }] as any);
+      vi.mocked(projectAuthorAvatars).mockImplementationOnce(rows => rows.map(row => ({ ...row, authorAvatarPath: "/avatars/custom-list.jpg", authorAvatarOrigin: "custom" as const })));
+      getVideos(req as Request, res as Response);
+      expect(json).toHaveBeenCalledWith([expect.objectContaining({ id: "v", authorAvatarPath: "/avatars/custom-list.jpg", authorAvatarOrigin: "custom" })]);
+    });
+
     it("should return all video summaries", () => {
       const mockVideos = [{ id: "1" }];
       (storageService.getVideoSummaries as any).mockReturnValue(mockVideos);
@@ -470,6 +478,14 @@ describe("VideoController", () => {
   });
 
   describe("getVideoById", () => {
+    it("returns the projected custom avatar in direct detail responses", async () => {
+      req.params = { id: "v" };
+      vi.mocked(storageService.getVideoById).mockReturnValue({ id: "v", author: "A" } as any);
+      vi.mocked(projectAuthorAvatar).mockImplementationOnce(row => ({ ...row, authorAvatarPath: "/avatars/custom-detail.jpg", authorAvatarOrigin: "custom" as const }));
+      await getVideoById(req as Request, res as Response);
+      expect(json).toHaveBeenCalledWith(expect.objectContaining({ id: "v", authorAvatarPath: "/avatars/custom-detail.jpg", authorAvatarOrigin: "custom" }));
+    });
+
     it("should return video if found", () => {
       req.params = { id: "1" };
       const mockVideo = { id: "1" };

@@ -6,6 +6,7 @@ import AuthorVideosPage from '../AuthorVideosPage';
 
 // --- Mutable mock state ---
 
+let mockProfileAvatar: string | null = null;
 let mockLoading = false;
 const mockDeleteVideo = vi.fn();
 const mockUpdateVideo = vi.fn();
@@ -56,6 +57,7 @@ const defaultTagFilter = () => ({
 // Mutable video count label
 let mockVideoCountLabel = '2 videos';
 
+vi.mock('../../../hooks/useAuthorProfile', () => ({ useAuthorProfile: () => ({ canManage: true, data: { effectiveAvatarPath: mockProfileAvatar } }) }));
 vi.mock('../../../contexts/AuthContext', () => ({ useAuth: () => ({ loginRequired: false, userRole: null }) }));
 vi.mock('../../../components/AuthorAvatarEditor', () => ({ default: () => null }));
 
@@ -93,7 +95,7 @@ vi.mock('../../../contexts/CollectionContext', () => ({
 }));
 
 vi.mock('../../../hooks/useCloudStorageUrl', () => ({
-    useCloudStorageUrl: () => 'https://example.com/avatar.jpg',
+    useCloudStorageUrl: (path: string) => path,
 }));
 
 vi.mock('../../../hooks/useSettings', () => ({
@@ -148,6 +150,7 @@ vi.mock('../../../components/TagsSidebar', () => ({
 vi.mock('../AuthorVideosHeader', () => ({
     default: (props: { authorDisplayName: ReactNode; videoCountLabel: ReactNode; hasVideos: unknown; isBusy: unknown; onToggleSidebar: MouseEventHandler; onOpenTagsModal: MouseEventHandler; onOpenCreateCollectionModal: MouseEventHandler; onOpenDeleteModal: MouseEventHandler; [key: string]: unknown }) => (
         <div data-testid="author-header">
+            <span data-testid="header-avatar">{String(props.avatarUrl ?? '')}</span>
             <span data-testid="author-display-name">{props.authorDisplayName}</span>
             <span data-testid="video-count-label">{props.videoCountLabel}</span>
             <span data-testid="has-videos">{String(props.hasVideos)}</span>
@@ -205,6 +208,7 @@ describe('AuthorVideosPage', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         mockLoading = false;
+        mockProfileAvatar = null;
         mockVideos = [
             { id: 'v1', title: 'Video 1', author: 'TestAuthor', tags: ['tag1'], authorAvatarPath: '/avatar.jpg' },
             { id: 'v2', title: 'Video 2', author: 'TestAuthor', tags: ['tag2'] },
@@ -224,6 +228,20 @@ describe('AuthorVideosPage', () => {
             </ThemeProvider>
         );
     };
+
+    it('shows saved profile artwork for empty authors and retains video artwork precedence', () => {
+        mockAuthorVideos = [];
+        mockProfileAvatar = '/avatars/custom-empty.jpg';
+        const view = renderPage();
+        expect(screen.getByTestId('header-avatar')).toHaveTextContent('/avatars/custom-empty.jpg');
+        mockProfileAvatar = '/avatars/custom-updated.jpg';
+        view.rerender(<ThemeProvider theme={createTheme()}><AuthorVideosPage /></ThemeProvider>);
+        expect(screen.getByTestId('header-avatar')).toHaveTextContent('/avatars/custom-updated.jpg');
+        mockVideos = [...mockVideos];
+        mockAuthorVideos = [...mockVideos];
+        view.rerender(<ThemeProvider theme={createTheme()}><AuthorVideosPage /></ThemeProvider>);
+        expect(screen.getByTestId('header-avatar')).toHaveTextContent('/avatar.jpg');
+    });
 
     // -------------------------------------------------------
     // 1. Loading state

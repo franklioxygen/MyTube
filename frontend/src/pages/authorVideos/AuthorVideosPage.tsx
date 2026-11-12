@@ -1,3 +1,4 @@
+import { useAuthorProfile } from '../../hooks/useAuthorProfile';
 import AuthorAvatarEditor from '../../components/AuthorAvatarEditor';
 import { useAuth } from '../../contexts/AuthContext';
 import { Box, CircularProgress, Container } from '@mui/material';
@@ -66,10 +67,12 @@ const AuthorVideosPage: React.FC = () => {
         defaultSort: 'dateDesc'
     });
 
-    const authorAvatarPath = useMemo(
+    const videoAvatarPath = useMemo(
         () => authorVideos.find((video) => video.authorAvatarPath)?.authorAvatarPath ?? null,
         [authorVideos]
     );
+    const authorProfile = useAuthorProfile(authorDisplayName, !videoAvatarPath && !loading);
+    const authorAvatarPath = videoAvatarPath ?? (authorProfile.canManage ? authorProfile.data?.effectiveAvatarPath : null);
     const avatarUrl = useCloudStorageUrl(authorAvatarPath, 'thumbnail') ?? null;
     const favoriteAuthorDraft = useMemo(() => ({
         author: authorDisplayName,

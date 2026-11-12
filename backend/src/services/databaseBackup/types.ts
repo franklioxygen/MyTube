@@ -13,6 +13,7 @@ export type DatabaseMergeSummary = {
   tags: MergeCount;
   favoriteCollections: MergeCount;
   favoriteAuthors: MergeCount;
+  authorProfiles: MergeCount;
 };
 
 export type MergeRow = Record<string, unknown>;
@@ -32,6 +33,7 @@ export const MERGEABLE_TABLES = [
   "settings",
   "favorite_collections",
   "favorite_authors",
+  "author_profiles",
 ] as const;
 
 export function createEmptyMergeSummary(): DatabaseMergeSummary {
@@ -45,5 +47,6 @@ export function createEmptyMergeSummary(): DatabaseMergeSummary {
     tags: { merged: 0, skipped: 0 },
     favoriteCollections: { merged: 0, skipped: 0 },
     favoriteAuthors: { merged: 0, skipped: 0 },
+    authorProfiles: { merged: 0, skipped: 0 },
   };
 }

@@ -24,6 +24,15 @@ export function useAuthorProfile(author: string, enabled = true) {
         enabled: enabled && canManage && !!author.trim(),
         staleTime: 0,
     });
+    const refreshDependentViews = () => Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['videos'] }),
+        queryClient.invalidateQueries({ queryKey: ['video'] }),
+        queryClient.invalidateQueries({ queryKey: ['favorite-authors'] }),
+    ]);
+    const reconcile = async () => {
+        try { return await query.refetch(); }
+        finally { await refreshDependentViews(); }
+    };
     const save = async (file: Blob | null) => {
         let profile: AuthorProfile;
         if (file) {
@@ -38,11 +47,7 @@ export function useAuthorProfile(author: string, enabled = true) {
         }
         queryClient.setQueryData(queryKey, profile);
         // Refetch failures must not turn a successful write into an upload error.
-        void Promise.all([
-            queryClient.invalidateQueries({ queryKey: ['videos'] }),
-            queryClient.invalidateQueries({ queryKey: ['video'] }),
-            queryClient.invalidateQueries({ queryKey: ['favorite-authors'] }),
-        ]);
+        void refreshDependentViews();
         return profile;
     };
     const fetchFromSource = async (channelUrl: string, signal?: AbortSignal) => {
@@ -51,5 +56,5 @@ export function useAuthorProfile(author: string, enabled = true) {
         });
         return new File([response.data], 'channel-avatar', { type: response.data.type });
     };
-    return { ...query, canManage, save, fetchFromSource };
+    return { ...query, canManage, save, fetchFromSource, reconcile };
 }

@@ -46,7 +46,7 @@ export default function AuthorAvatarEditor({ author, onClose }: Props) {
     useEffect(() => () => { if (selected) URL.revokeObjectURL(selected.url); }, [selected]);
     const choose = async (file?: File) => {
         if (!file || busy) return;
-        const token = ++generation.current;
+        const selectionVersion = ++generation.current;
         setReading(true); setError('');
         let url: string | undefined;
         try {
@@ -54,13 +54,13 @@ export default function AuthorAvatarEditor({ author, onClose }: Props) {
             url = URL.createObjectURL(file);
             const image = new Image(); image.src = url;
             await image.decode();
-            if (generation.current !== token) { URL.revokeObjectURL(url); return; }
+            if (generation.current !== selectionVersion) { URL.revokeObjectURL(url); return; }
             setSelected({ image, url }); setCrop(INITIAL_CROP); setRestore(false); setSourcePreview(false);
             return true;
         } catch (err) {
             if (url) URL.revokeObjectURL(url);
-            if (generation.current === token) setError(t(err instanceof Error && err.message === 'dimensions' ? 'authorAvatarDimensionsError' : 'authorAvatarFormatError'));
-        } finally { if (generation.current === token) setReading(false); }
+            if (generation.current === selectionVersion) setError(t(err instanceof Error && err.message === 'dimensions' ? 'authorAvatarDimensionsError' : 'authorAvatarFormatError'));
+        } finally { if (generation.current === selectionVersion) setReading(false); }
     };
     const fetchFromSource = async () => {
         const channelUrl = sources.length === 1 ? sources[0].channelUrl : sourceChannel;
@@ -83,7 +83,7 @@ export default function AuthorAvatarEditor({ author, onClose }: Props) {
         } catch {
             setError(t('authorAvatarSaveError'));
             // A timed-out request may have committed; show the actual persisted state.
-            await profile.refetch();
+            await profile.reconcile();
         } finally { setBusy(false); }
     };
     const close = () => {

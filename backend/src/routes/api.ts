@@ -33,7 +33,7 @@ export type ApiRouteDefinition = {
 };
 
 const apiRouteDefinitions: ApiRouteDefinition[] = [
-  { method: "post", path: "/authors/avatar/from-source", allowApiKey: false, handlers: [requireAdmin, asyncHandler(authorAvatarController.fetchSourceAvatar)] },
+  { method: "post", path: "/authors/avatar/from-source", allowApiKey: false, handlers: [requireAdmin, authorAvatarController.avatarSourceLimiter, asyncHandler(authorAvatarController.fetchSourceAvatar)] },
   { method: "get", path: "/authors/profile", allowApiKey: false, handlers: [requireAdmin, asyncHandler(authorAvatarController.readProfile)] },
   { method: "put", path: "/authors/avatar", allowApiKey: false, handlers: [requireAdmin, authorAvatarController.avatarUpload.single("avatar"), asyncHandler(authorAvatarController.uploadAvatar)] },
   { method: "delete", path: "/authors/avatar", allowApiKey: false, handlers: [requireAdmin, asyncHandler(authorAvatarController.removeAvatar)] },

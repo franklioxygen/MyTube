@@ -61,6 +61,7 @@ export interface MergePreviewSummary {
   tags: { merged: number; skipped: number };
   favoriteCollections?: { merged: number; skipped: number };
   favoriteAuthors?: { merged: number; skipped: number };
+  authorProfiles?: { merged: number; skipped: number };
 }
 
 const areSettingValuesEqual = (a: unknown, b: unknown): boolean => {
@@ -153,6 +154,9 @@ export function useSettingsMutations({
   const invalidateDatabaseQueries = () => {
     void queryClient.invalidateQueries({ queryKey: ["settings"] });
     void queryClient.invalidateQueries({ queryKey: ["videos"] });
+    void queryClient.invalidateQueries({ queryKey: ["video"] });
+    void queryClient.invalidateQueries({ queryKey: ["author-profile"] });
+    void queryClient.invalidateQueries({ queryKey: ["favorite-authors"] });
     void queryClient.invalidateQueries({ queryKey: ["collections"] });
     void queryClient.invalidateQueries({ queryKey: SUBSCRIPTIONS_QUERY_KEY });
     void queryClient.invalidateQueries({ queryKey: ["subscriptionTasks"] });

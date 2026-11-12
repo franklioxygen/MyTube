@@ -14,6 +14,11 @@ function processResult(info: unknown) {
   const completion = Promise.resolve().then(() => { stdout.end(JSON.stringify(info)); stderr.end(); });
   return { stdout, stderr, kill: vi.fn(), then: completion.then.bind(completion) };
 }
+function pendingProcess() {
+  let close!: () => void;
+  const completion = new Promise<void>(resolve => { close = resolve; });
+  return { stdout: new PassThrough(), stderr: new PassThrough(), kill: vi.fn(), then: completion.then.bind(completion), close };
+}
 beforeEach(() => {
   vi.clearAllMocks(); state.config.mockReturnValue({ proxy: '' }); state.proxy.mockReturnValue({ proxy: false });
   state.get.mockResolvedValue({ data: png });
@@ -59,12 +64,27 @@ describe('author avatar source lookup', () => {
       await expect(fetchAuthorSourceAvatar({ platform: 'twitch', channelUrl: 'https://www.twitch.tv/test' })).rejects.toThrow();
     }
   });
+  it('caps concurrent processes and retains cancelled slots until process close', async () => {
+    const first = pendingProcess(), second = pendingProcess();
+    state.spawn.mockReturnValueOnce(first).mockReturnValueOnce(second);
+    const one = new AbortController(), two = new AbortController();
+    const oneResult = expect(fetchAuthorSourceAvatar({ platform: 'youtube', channelUrl: 'https://www.youtube.com/@one' }, one.signal)).rejects.toThrow('cancelled');
+    const twoResult = expect(fetchAuthorSourceAvatar({ platform: 'youtube', channelUrl: 'https://www.youtube.com/@two' }, two.signal)).rejects.toThrow('cancelled');
+    await expect(fetchAuthorSourceAvatar({ platform: 'youtube', channelUrl: 'https://www.youtube.com/@three' })).rejects.toThrow('busy');
+    expect(state.spawn).toHaveBeenCalledTimes(2);
+    one.abort(); two.abort(); await oneResult; await twoResult;
+    await expect(fetchAuthorSourceAvatar({ platform: 'youtube', channelUrl: 'https://www.youtube.com/@three' })).rejects.toThrow('busy');
+    first.close(); second.close(); await Promise.resolve(); await Promise.resolve();
+    state.spawn.mockReturnValueOnce(processResult({ thumbnails: [{ id: 'avatar_uncropped', url: 'https://images.test/avatar' }] }));
+    await expect(fetchAuthorSourceAvatar({ platform: 'youtube', channelUrl: 'https://www.youtube.com/@three' })).resolves.toMatchObject({ mime: 'image/png' });
+  });
   it('kills a stalled YouTube lookup at the deadline', async () => {
     vi.useFakeTimers();
-    const pending = { stdout: new PassThrough(), stderr: new PassThrough(), kill: vi.fn(), then: new Promise<void>(() => undefined).then.bind(new Promise<void>(() => undefined)) };
+    const pending = pendingProcess();
     state.spawn.mockReturnValue(pending);
     const result = expect(fetchAuthorSourceAvatar({ platform: 'youtube', channelUrl: 'https://www.youtube.com/@test' })).rejects.toThrow('timed out');
     await vi.advanceTimersByTimeAsync(40000); await result;
     expect(pending.kill).toHaveBeenCalledWith('SIGKILL');
+    pending.close(); await Promise.resolve(); await Promise.resolve();
   });
 });

@@ -5,7 +5,7 @@ import AuthorAvatarEditor from '../AuthorAvatarEditor';
 const state = vi.hoisted(() => ({ save: vi.fn(), refetch: vi.fn(), notify: vi.fn(), fetchSource: vi.fn(), sources: [] as Array<{ platform: string; channelUrl: string }> }));
 vi.mock('../../hooks/useAuthorProfile', () => ({ useAuthorProfile: (author: string) => ({
     data: { author, customAvatarPath: '/avatars/custom.jpg', effectiveAvatarPath: '/avatars/custom.jpg', defaultAvatarPath: '/avatars/auto.jpg', avatarOrigin: 'custom', videoCount: 5, avatarSources: state.sources },
-    fetchFromSource: state.fetchSource, save: state.save, refetch: state.refetch, isPending: false, isError: false,
+    fetchFromSource: state.fetchSource, save: state.save, reconcile: state.refetch, refetch: state.refetch, isPending: false, isError: false,
 }) }));
 vi.mock('../../contexts/LanguageContext', () => ({ useLanguage: () => ({ t: (key: string) => key }) }));
 vi.mock('../../contexts/SnackbarContext', () => ({ useSnackbar: () => ({ showSnackbar: state.notify }) }));

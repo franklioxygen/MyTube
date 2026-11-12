@@ -3,35 +3,51 @@ import { publicAxiosGet } from "../utils/publicAxios";
 import { validateUploadedImageContent } from "../utils/uploadedImage";
 import { searchBilibiliAuthors } from "./downloaders/bilibili/bilibiliAuthorSearch";
 import { twitchApiService } from "./twitchService";
-import type { AuthorAvatarSource } from "../utils/authorAvatarSources";
+import { AvatarSourceBusyError, type AuthorAvatarSource } from "../utils/authorAvatarSources";
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const MAX_METADATA_BYTES = 2 * 1024 * 1024;
+const MAX_YOUTUBE_LOOKUPS = 2;
+let activeYouTubeLookups = 0;
 
 async function youtubeAvatarUrl(channelUrl: string, signal?: AbortSignal): Promise<string> {
-  const config = getNetworkConfigFromUserConfig(getUserYtDlpConfig(channelUrl));
-  const process = executeYtDlpSpawn(channelUrl, {
-    ...config, dumpSingleJson: true, skipDownload: true, playlistItems: "0",
-    noWarnings: true, socketTimeout: 10, retries: 0, extractorRetries: 0,
-  });
+  if (signal?.aborted) throw new Error("Avatar fetch cancelled");
+  if (activeYouTubeLookups >= MAX_YOUTUBE_LOOKUPS) throw new AvatarSourceBusyError();
+  activeYouTubeLookups++;
+  let subprocess: ReturnType<typeof executeYtDlpSpawn>;
+  try {
+    const config = getNetworkConfigFromUserConfig(getUserYtDlpConfig(channelUrl));
+    subprocess = executeYtDlpSpawn(channelUrl, {
+      ...config, dumpSingleJson: true, skipDownload: true, playlistItems: "0",
+      noWarnings: true, socketTimeout: 10, retries: 0, extractorRetries: 0,
+    });
+  } catch (error) {
+    activeYouTubeLookups--;
+    throw error;
+  }
+  // Cancellation rejects the request immediately, but keep its slot until the
+  // actual subprocess (including a deferred spawn) has finished closing.
+  const completion = Promise.resolve(subprocess);
+  const release = () => { activeYouTubeLookups--; };
+  void completion.then(release, release);
   const info = await new Promise<{ thumbnails?: Array<{ id?: string; url?: string }> }>((resolve, reject) => {
     let stdout = "", bytes = 0, settled = false;
     const fail = (error: unknown) => {
       if (settled) return;
       settled = true; clearTimeout(timer); signal?.removeEventListener("abort", abort);
-      process.kill("SIGKILL"); reject(error);
+      subprocess.kill("SIGKILL"); reject(error);
     };
     const abort = () => fail(new Error("Avatar fetch cancelled"));
     const timer = setTimeout(() => fail(new Error("YouTube avatar lookup timed out")), 40_000);
     signal?.addEventListener("abort", abort, { once: true });
-    process.stdout?.on("data", (chunk: Buffer | string) => {
+    subprocess.stdout?.on("data", (chunk: Buffer | string) => {
       bytes += Buffer.byteLength(chunk);
       if (bytes > MAX_METADATA_BYTES) fail(new Error("Channel metadata is too large"));
       else if (!settled) stdout += chunk.toString();
     });
     // Consume stderr even when metadata is the only output we need.
-    process.stderr?.on("data", () => undefined);
-    Promise.resolve(process).then(() => {
+    subprocess.stderr?.on("data", () => undefined);
+    completion.then(() => {
       if (settled) return;
       clearTimeout(timer); signal?.removeEventListener("abort", abort);
       try { const parsed = JSON.parse(stdout); settled = true; resolve(parsed); }

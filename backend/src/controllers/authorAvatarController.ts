@@ -1,3 +1,5 @@
+import rateLimit, { ipKeyGenerator } from "express-rate-limit";
+import { AvatarSourceBusyError } from "../utils/authorAvatarSources";
 import { Request, Response } from "express";
 import multer from "multer";
 import crypto from "crypto";
@@ -11,11 +13,16 @@ import { AVATARS_DIR } from "../config/paths";
 import { ValidationError } from "../errors/DownloadErrors";
 import { getAuthorProfile, saveAuthorAvatar } from "../services/authorAvatarService";
 import { resizeAvatar } from "../utils/avatarUtils";
-import { execFileSafe, resolveSafeChildPath, unlinkSafeSync, pathExistsSafeSync } from "../utils/security";
+import { execFileSafe, resolveSafeChildPath, unlinkSafeSync, pathExistsSafeSync, writeFileSafe, getClientIp } from "../utils/security";
 import { validateUploadedImageContent } from "../utils/uploadedImage";
 import { logger } from "../utils/logger";
 import { successResponse } from "../utils/response";
 import { queueBulkArtifactRefresh } from "../services/mediaServerExport/bulkArtifactRefresh";
+
+export const avatarSourceLimiter = rateLimit({
+  windowMs: 60_000, limit: 10, standardHeaders: true, legacyHeaders: false,
+  keyGenerator: req => ipKeyGenerator(getClientIp(req)), validate: { trustProxy: false },
+});
 
 const mimes = new Set(["image/jpeg", "image/png", "image/webp"]);
 export const avatarUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 2 * 1024 * 1024, files: 1, fields: 1 },
@@ -54,7 +61,7 @@ export async function uploadAvatar(req: Request, res: Response): Promise<void> {
   let finalPath: string | undefined;
   let committed = false;
   try {
-    await fs.writeFile(input, req.file.buffer);
+    await writeFileSafe(input, tempDir, req.file.buffer);
     // getVideoDimensions is restricted to VIDEOS_DIR; probe this private image explicitly.
     const { stdout } = await execFileSafe("ffprobe", ["-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height", "-of", "json", input], { timeout: 5000 });
     const dimensions = JSON.parse(stdout).streams?.[0];
@@ -97,6 +104,11 @@ export async function fetchSourceAvatar(req: Request, res: Response): Promise<vo
     res.type(result.mime).send(result.buffer);
   } catch (error) {
     if (controller.signal.aborted) return;
+    if (error instanceof AvatarSourceBusyError) {
+      res.set("Retry-After", "2");
+      res.status(503).json({ error: error.message, code: "AUTHOR_AVATAR_SOURCE_BUSY" });
+      return;
+    }
     logger.warn("Could not fetch author avatar from source", error);
     res.status(502).json({ error: "Could not fetch the channel avatar. Your saved avatar has not changed.", code: "AUTHOR_AVATAR_SOURCE_UNAVAILABLE" });
   } finally { res.removeListener("close", abort); }

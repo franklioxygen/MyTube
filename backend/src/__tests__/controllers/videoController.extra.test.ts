@@ -1,6 +1,7 @@
+import { projectAuthorAvatars } from "../../services/authorAvatarService";
 vi.mock('../../services/authorAvatarService', () => ({
-  projectAuthorAvatar: (row: unknown) => row,
-  projectAuthorAvatars: (rows: unknown[]) => rows,
+  projectAuthorAvatar: vi.fn((row: unknown) => row),
+  projectAuthorAvatars: vi.fn((rows: unknown[]) => rows),
 }));
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import crypto from "crypto";
@@ -912,6 +913,9 @@ describe("videoController extra coverage", () => {
   });
 
   it("uploadVideosBatch returns per-file results and summary", async () => {
+    vi.mocked(projectAuthorAvatars).mockImplementationOnce(rows => [...rows].reverse().map(row => ({
+      ...row, authorAvatarPath: `/avatars/custom-${(row as { id: string }).id}.jpg`, authorAvatarOrigin: "custom" as const,
+    })));
     req.files = [
       {
         filename: "fresh.mp4",
@@ -962,10 +966,12 @@ describe("videoController extra coverage", () => {
             expect.objectContaining({
               originalName: "fresh.mp4",
               status: "uploaded",
+              video: expect.objectContaining({ id: "upload-fresh-hash", authorAvatarPath: "/avatars/custom-upload-fresh-hash.jpg", authorAvatarOrigin: "custom" }),
             }),
             expect.objectContaining({
               originalName: "duplicate.mp4",
               status: "duplicate",
+              video: expect.objectContaining({ id: "upload-dup-hash", authorAvatarPath: "/avatars/custom-upload-dup-hash.jpg", authorAvatarOrigin: "custom" }),
             }),
             expect.objectContaining({
               originalName: "bad.mp4",

@@ -17,7 +17,7 @@ vi.mock('../../services/passwordService', () => ({ isLoginRequired: () => state.
 vi.mock('../../services/mediaServerExport/bulkArtifactRefresh', () => ({ queueBulkArtifactRefresh: vi.fn() }));
 vi.mock('../../utils/security', async importOriginal => ({ ...await importOriginal<object>(), execFileSafe: async () => ({ stdout: JSON.stringify({ streams: [state.dimensions] }) }) }));
 vi.mock('../../utils/avatarUtils', () => ({ resizeAvatar: async (_input: string, output: string) => { if (state.fail) return false; await fs.writeFile(output, 'jpeg-output'); return true; } }));
-import { avatarUpload, readProfile, uploadAvatar, removeAvatar, fetchSourceAvatar } from '../../controllers/authorAvatarController';
+import { avatarUpload, readProfile, uploadAvatar, removeAvatar, fetchSourceAvatar, avatarSourceLimiter } from '../../controllers/authorAvatarController';
 import { requireAdmin } from '../../middleware/requireAdmin';
 import { asyncHandler, errorHandler } from '../../middleware/errorHandler';
 import { getVideosListETag } from '../../services/storageService/videoListRevision';
@@ -34,7 +34,7 @@ beforeAll(async () => {
   state.db = drizzle(sqlite);
   const app = express(); app.use(express.json());
   app.use((req, _res, next) => { if (req.headers['x-test-role']) req.user = { role: req.headers['x-test-role'] as 'admin' | 'visitor' }; if (req.headers['x-api-key']) req.apiKeyAuthenticated = true; next(); });
-  app.post('/authors/avatar/from-source', requireAdmin, asyncHandler(fetchSourceAvatar));
+  app.post('/authors/avatar/from-source', requireAdmin, avatarSourceLimiter, asyncHandler(fetchSourceAvatar));
   app.get('/authors/profile', requireAdmin, asyncHandler(readProfile));
   app.put('/authors/avatar', requireAdmin, avatarUpload.single('avatar'), asyncHandler(uploadAvatar));
   app.delete('/authors/avatar', requireAdmin, asyncHandler(removeAvatar));
@@ -42,7 +42,7 @@ beforeAll(async () => {
   await new Promise<void>(resolve => { server = app.listen(0, '127.0.0.1', () => resolve()); });
   url = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
 });
-beforeEach(() => { sqlite.exec('DELETE FROM author_profiles; DELETE FROM videos'); fs.emptyDirSync(state.dir); state.login = false; state.fail = false; state.dimensions = { width: 512, height: 512 }; state.fetchSource.mockReset().mockResolvedValue({ buffer: png, mime: 'image/png' }); });
+beforeEach(() => { avatarSourceLimiter.resetKey('127.0.0.1'); sqlite.exec('DELETE FROM author_profiles; DELETE FROM videos'); fs.emptyDirSync(state.dir); state.login = false; state.fail = false; state.dimensions = { width: 512, height: 512 }; state.fetchSource.mockReset().mockResolvedValue({ buffer: png, mime: 'image/png' }); });
 afterAll(async () => { await new Promise<void>(resolve => server.close(() => resolve())); sqlite.close(); fs.removeSync(state.dir); });
 
 describe('author avatar HTTP contract', () => {
@@ -110,6 +110,16 @@ describe('author avatar HTTP contract', () => {
     expect(large.status).toBe(413); expect((await large.json() as any).error).toContain('2 MiB');
     const invalid = await fetch(url + '/authors/avatar', { method: 'PUT', body: form(Buffer.from('not an image')) });
     expect(invalid.status).toBe(400); expect(fs.readdirSync(state.dir)).toEqual([]);
+  });
+  it('rate-limits source requests separately from the general API limiter', async () => {
+    for (let i = 0; i < 10; i++) {
+      const response = await fetch(url + '/authors/avatar/from-source', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ author: 'A' }) });
+      expect(response.status).toBe(400);
+    }
+    const limited = await fetch(url + '/authors/avatar/from-source', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ author: 'A' }) });
+    expect(limited.status).toBe(429);
+    expect(Number(limited.headers.get('retry-after'))).toBeGreaterThan(0);
+    expect(state.fetchSource).not.toHaveBeenCalled();
   });
   it('retains the current avatar on invalid dimensions or conversion failure', async () => {
     const first = await (await fetch(url + '/authors/avatar', { method: 'PUT', body: form() })).json() as any;
