@@ -53,7 +53,7 @@ export function buildAuthorAvatarPathMap(videos: Video[]): Map<string, string> {
   const avatarPathByKey = new Map<string, string>();
 
   for (const video of videos) {
-    if (!video.authorAvatarPath) {
+    if (video.authorAvatarOrigin === "custom" || !video.authorAvatarPath) {
       continue;
     }
 
@@ -75,6 +75,7 @@ export function getCanonicalAuthorAvatarPath(
   video: Video,
   avatarPathByKey: Map<string, string>
 ): string | undefined {
+  if (video.authorAvatarOrigin === "custom") return video.authorAvatarPath;
   const primaryKey = getAuthorPrimaryKey(video);
   const fallbackKey = getAuthorFallbackKey(video);
 

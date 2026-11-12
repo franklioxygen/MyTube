@@ -33,6 +33,7 @@ export interface Video {
   signedThumbnailUrl?: string; // Pre-signed URL for cloud thumbnail
   authorAvatarFilename?: string;
   authorAvatarPath?: string;
+  authorAvatarOrigin?: "custom" | "auto" | "none";
   [key: string]: any;
 }
 

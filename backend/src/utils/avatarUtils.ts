@@ -34,12 +34,13 @@ export function getExistingAvatarPath(
 }
 
 /**
- * Resize image to 100x100px and save
+ * Resize an image to a square and save (automatic avatars default to 100px)
  * Returns true if successful, false otherwise
  */
 export async function resizeAvatar(
   inputPath: string,
-  outputPath: string
+  outputPath: string,
+  size = 100
 ): Promise<boolean> {
   try {
     // Ensure output directory exists
@@ -50,13 +51,14 @@ export async function resizeAvatar(
       "-i",
       inputPath,
       "-vf",
-      "scale=100:100:force_original_aspect_ratio=increase,crop=100:100",
+      `scale=${size}:${size}:force_original_aspect_ratio=increase,crop=${size}:${size}`,
+      "-map_metadata", "-1",
       "-frames:v",
       "1",
       outputPath,
-    ]);
+    ], { timeout: 15000 });
 
-    logger.info(`Resized avatar to 100x100px: ${outputPath}`);
+    logger.info(`Resized avatar to ${size}x${size}px: ${outputPath}`);
     return true;
   } catch (error) {
     logger.error(`Error resizing avatar: ${error instanceof Error ? error.message : String(error)}`);

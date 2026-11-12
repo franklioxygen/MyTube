@@ -7,6 +7,7 @@ All API routes are mounted under `/api` unless noted otherwise.
 - Browser authentication uses an HTTP-only cookie containing an opaque server-side session ID. Bearer JWTs are not accepted.
 - When password login is enabled, unauthenticated users can only access login-related public endpoints.
 - Visitor role is read-only for most resources.
+- Cookie-authenticated writes require the matching `mytube_csrf` cookie and `X-CSRF-Token` request header. Read the token from the `X-CSRF-Token` response header and keep it updated after login/session changes.
 - API key auth is supported via `X-API-Key` or `Authorization: ApiKey <key>` when `apiKeyEnabled` is true.
 - API key auth allows `POST /api/download` plus a minimal read-only library surface:
   - `GET /api/videos`
@@ -57,17 +58,20 @@ Validation errors return `400`; missing videos/collections return `404`; damaged
 Repeated additions are safe while their targets remain unchanged. A network timeout does not prove rollback; a concurrent collection rename/deletion may make a retry return a conflict/not-found response. Tags trigger best-effort media metadata export after commit, skipping damaged records individually and loading the full library only for TV show aggregation. Single-video exports and rebuilds use the same record validation; orphan cleanup checks all stored video paths, including damaged records; export failure or restart does not undo database changes. A successful response whose subsequent list refresh fails should be shown as saved with a refresh warning.
 
 - `POST /api/upload` - Upload one local video file
-  - Multipart form-data: `video` (required), `title` (optional), `author` (optional)
+  - Multipart form-data: `video` (required), `title` (optional), `author` (optional), `authorKey` (optional exact existing author)
   - Notes:
     - Content is validated as a supported video before it is accepted.
     - Duplicate uploads are skipped by content hash.
 - `POST /api/upload/batch` - Upload multiple local video files in one request
-  - Multipart form-data: `videos` (one or more required), `title` (optional, only used when exactly one file is uploaded), `author` (optional)
+  - Multipart form-data: `videos` (one or more required), `title` (optional, only used when exactly one file is uploaded), `author` (optional), `authorKey` (optional exact existing author)
   - Response data shape: `{ results: Array<{ originalName, status, message, video? }>, summary: { total, uploaded, duplicates, failed } }`
   - Notes:
     - Intended for multi-file selection and folder uploads.
     - Folder uploads import supported video files only; subdirectory structure is not preserved.
     - Duplicate uploads are skipped by content hash.
+
+For both upload endpoints, `authorKey` takes precedence and must exactly match an existing video author, including whitespace and case; invalid or stale selections return `400`. Without it, `author` is trimmed and defaults to `Admin` when empty. The upload picker sends `authorKey` only for an existing selection.
+
 - `GET /api/videos` - Get all videos (no server-side pagination/filtering in current implementation)
   - Auth: accepts a session cookie, or API key (`X-API-Key` / `Authorization: ApiKey <key>`)
 - `GET /api/videos/:id` - Get one video by ID
@@ -95,6 +99,53 @@ Repeated additions are safe while their targets remain unchanged. A network time
 - `GET /api/videos/author-channel-url` - Resolve channel/author URL from source URL
   - Query params: `sourceUrl` (required)
   - Supports: YouTube, Bilibili and Twitch source URLs
+
+## Author Avatars
+
+These four endpoints manage a library-wide avatar for the **exact** `author` string, across downloaded and locally uploaded videos. Names are case-sensitive and are not trimmed or renamed by these endpoints. They require an administrator session when login is enabled; when login is disabled they follow the existing single-user management policy. API-key authentication is rejected. Session writes use the normal CSRF protection described above.
+
+- `GET /api/authors/profile?author=<URL-encoded name>` - Read the editor profile, including authors with no videos
+  - Returns `{ success: true, data: AuthorProfile }` with `Cache-Control: private, no-store`.
+  - `AuthorProfile` has this shape:
+
+    ```json
+    {
+      "author": "Example Author",
+      "customAvatarPath": "/avatars/custom-<uuid>.jpg",
+      "effectiveAvatarPath": "/avatars/custom-<uuid>.jpg",
+      "defaultAvatarPath": "/avatars/youtube-example.author.jpg",
+      "avatarOrigin": "custom",
+      "videoCount": 12,
+      "multipleSources": false,
+      "avatarSources": [
+        { "platform": "youtube", "channelUrl": "https://www.youtube.com/@example" }
+      ]
+    }
+    ```
+
+  - Avatar paths can be `null`; `avatarOrigin` is `custom`, `auto`, or `none`. `videoCount` counts the entire author group, not a page's current tag filter.
+  - `avatarSources` lists deduplicated, currently available channel sources already associated with the author's videos. Platforms are `youtube`, `bilibili`, and `twitch`. Twitch avatar lookup requires both `twitchClientId` and `twitchClientSecret`; Twitch is omitted when either is missing or blank. Uploading an avatar and restoring cached defaults remain available without Twitch credentials. Local-only authors may have no source addresses.
+- `PUT /api/authors/avatar` - Save or replace a custom avatar
+  - Multipart form-data: `author` and one `avatar` file are required. No crop coordinates, remote URL, or filesystem path are accepted.
+  - The browser editor accepts original static JPEG/PNG/WebP images up to 5 MiB, 8192 pixels per side and 16 megapixels, then crops to a white-backed 512×512 PNG before uploading.
+  - The API upload limit is **2 MiB**, JPEG/PNG/WebP only, with content-signature validation. Decoded dimensions must be 1–1024 pixels per side. The server centers/crops and re-encodes to a metadata-free 512×512 JPEG at a new `/avatars/custom-<uuid>.jpg` path.
+  - Returns `{ success: true, data: AuthorProfile }`. The exact author group inherits the override, including future videos. Original automatic avatar fields and files are retained; concurrent saves use last successful write wins.
+  - New author names are limited to 200 characters; existing longer names remain editable when their exact key exists in videos or saved author profiles, including profiles with no remaining videos. Empty/whitespace-only names and NUL characters are rejected without rewriting the supplied name.
+- `DELETE /api/authors/avatar` - Restore the cached default
+  - JSON body: `{ "author": "Example Author" }`.
+  - Removes the custom override and its unreferenced file, preserving automatic artwork. Returns `{ success: true, data: AuthorProfile }`.
+  - **No network download occurs.** If no automatic avatar is available, the UI falls back to the author's initial.
+- `POST /api/authors/avatar/from-source` - Fetch a fresh channel avatar **for preview only**
+  - JSON body: `{ "author": "Example Author", "channelUrl": "https://www.youtube.com/@example" }`.
+  - `channelUrl` must exactly match an entry returned in that author's `avatarSources`. For multiple channels, callers must explicitly select one. Arbitrary image URLs, unrelated channels, and unsupported sources are rejected.
+  - Success is the **raw image body**, with `Content-Type: image/jpeg`, `image/png`, or `image/webp`, `Cache-Control: private, no-store`, and `X-Content-Type-Options: nosniff`; it is not a JSON success envelope. The downloaded image is limited to 5 MiB.
+  - Fetching does not modify profiles, video rows, automatic caches, or ETags. The UI previews/crops the image and applies it only through a subsequent `PUT /api/authors/avatar`. A saved source image becomes a custom override; restoring defaults still uses the original automatic cache.
+  - Honors configured network/proxy behavior. YouTube channel lookup has a 40-second deadline; image downloads have a 15-second timeout. Client cancellation aborts the preview request and cancels its YouTube subprocess.
+  - Limited to **10 requests per client IP per minute**. At most **2 YouTube avatar lookup processes** may be active per server process, including cancelled lookups that have not finished closing. Excess capacity is rejected without starting another process.
+
+Common errors: `400` invalid author/image/source, `401` missing administrator session, `403` insufficient role or API key, `413` avatar upload exceeds 2 MiB, `429` source-request rate limit (with `Retry-After`), `503` YouTube lookup capacity reached (`code: AUTHOR_AVATAR_SOURCE_BUSY`, `Retry-After: 2`), and `502` upstream source failure (`code: AUTHOR_AVATAR_SOURCE_UNAVAILABLE`). Failed uploads/fetches preserve the previous saved avatar.
+
+Video response DTOs also include `authorAvatarOrigin` (`custom` / `auto` / `none`); `authorAvatarPath` and `authorAvatarFilename` contain the effective artwork. Favorites use the same custom override. Avatar saves/restores invalidate video-list ETags. These are response projections: underlying automatic video fields remain unchanged.
 
 ## Download Queue & History
 
@@ -315,13 +366,15 @@ While a gesture credential exists, a settings update that disables password logi
   - Multipart form-data: `file`
 - `POST /api/settings/merge-database-preview` - Scan uploaded `.db` backup and return merge counts without modifying current DB
   - Multipart form-data: `file`
-  - Response `summary` includes `videos`, `collections`, `collectionLinks`, `subscriptions`, `downloadHistory`, `videoDownloads`, and `tags`; each item contains `{ merged, skipped }`
+  - Response `summary` includes `videos`, `collections`, `collectionLinks`, `subscriptions`, `downloadHistory`, `videoDownloads`, `tags`, and `authorProfiles`; each item contains `{ merged, skipped }`
 - `POST /api/settings/merge-database` - Merge uploaded `.db` backup into current DB while keeping existing records
   - Multipart form-data: `file`
   - Response includes the same merge `summary` shape as preview
 - `GET /api/settings/last-backup-info` - Get latest backup metadata
 - `POST /api/settings/restore-from-last-backup` - Restore from latest backup
 - `POST /api/settings/cleanup-backup-databases` - Cleanup backup DB files
+
+Author avatar overrides participate in `merge-database-preview` and `merge-database`. Their merge summary includes `authorProfiles: { merged, skipped }`. Profiles retain their exact author identity when defaults are restored (`custom_avatar_path = NULL`), so even legacy names remain editable after their last video is removed. Identity-only profiles participate in backups and merges. Exact author keys absent from the target are imported; an existing target profile wins a conflict, regardless of source timestamps. These conflict rules and counts apply only to merging. `import-database` replaces the entire database, including author profiles, and does not return merge counts. Older backups without `author_profiles` remain supported. Database imports/merges do not copy avatar image files: back up and restore the avatar directory as well; missing images fall back to automatic artwork.
 
 ## File Maintenance
 

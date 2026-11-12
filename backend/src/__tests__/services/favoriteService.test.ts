@@ -24,8 +24,9 @@ describe("favoriteService", () => {
     sqlite = new Database(":memory:");
     sqlite.pragma("foreign_keys = ON");
     sqlite.exec(`
+      CREATE TABLE author_profiles (author TEXT PRIMARY KEY, custom_avatar_path TEXT NOT NULL, updated_at INTEGER NOT NULL);
       CREATE TABLE collections (id text PRIMARY KEY, name text NOT NULL, title text, source_platform text);
-      CREATE TABLE videos (id text PRIMARY KEY, author text, visibility integer, created_at text NOT NULL);
+      CREATE TABLE videos (id text PRIMARY KEY, author text, visibility integer, author_avatar_path text, created_at text NOT NULL);
       CREATE TABLE collection_videos (
         collection_id text NOT NULL,
         video_id text NOT NULL,
@@ -54,6 +55,19 @@ describe("favoriteService", () => {
     mocks.db = drizzle(sqlite);
     mocks.isLoginRequired.mockReturnValue(true);
     favoriteService = await import("../../services/favoriteService");
+  });
+
+  it('never persists a custom avatar in favorite snapshots', () => {
+    favoriteService.addFavoriteAuthor('owner', { author: 'A', avatarPath: '/avatars/auto.jpg' });
+    favoriteService.addFavoriteAuthor('owner', { author: 'A', avatarPath: '/avatars/custom-new.jpg' });
+    expect(sqlite.prepare("SELECT avatar_path FROM favorite_authors WHERE user_id = 'owner'").get()).toEqual({ avatar_path: '/avatars/auto.jpg' });
+
+    favoriteService.addFavoriteAuthor('other', { author: 'A', avatarPath: '/avatars/custom-new.jpg' });
+    expect(sqlite.prepare("SELECT avatar_path FROM favorite_authors WHERE user_id = 'other'").get()).toEqual({ avatar_path: null });
+    sqlite.exec("UPDATE videos SET author_avatar_path = CASE WHEN visibility = 0 THEN '/avatars/private.jpg' ELSE '/avatars/auto.jpg' END WHERE author = 'AC/DC'");
+    favoriteService.addFavoriteAuthor('defaults', { author: 'AC/DC', avatarPath: '/avatars/custom-new.jpg' });
+    expect(favoriteService.listFavoriteAuthors('defaults', 'visitor')[0].avatarPath).toBe('/avatars/auto.jpg');
+    expect(favoriteService.listFavoriteAuthors('defaults', 'admin')[0].avatarPath).toBe('/avatars/private.jpg');
   });
 
   beforeEach(() => {

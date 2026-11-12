@@ -71,10 +71,11 @@ describe("avatarUtils", () => {
         input,
         "-vf",
         "scale=100:100:force_original_aspect_ratio=increase,crop=100:100",
+        "-map_metadata", "-1",
         "-frames:v",
         "1",
         output,
-      ]);
+      ], { timeout: 15000 });
     });
 
     it("should return false on ffmpeg failures", async () => {

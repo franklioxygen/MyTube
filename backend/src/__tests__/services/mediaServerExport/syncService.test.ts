@@ -1,3 +1,7 @@
+vi.mock('../../../services/authorAvatarService', () => ({
+  projectAuthorAvatar: (row: unknown) => row,
+  projectAuthorAvatars: (rows: unknown[]) => rows,
+}));
 import fs from "fs-extra";
 import os from "os";
 import path from "path";

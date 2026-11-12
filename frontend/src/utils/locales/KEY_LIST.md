@@ -11,12 +11,13 @@ UPDATE_KEY_LIST=1 npx vitest run src/utils/locales/__tests__/localeParity.test.t
 
 This list is intentionally unnumbered. When new keys are inserted, only the local section order changes.
 
-Total keys: 1469
+Total keys: 1499
 
 ## Summary
 
 | Section | Keys | First Key | Last Key |
 | --- | ---: | --- | --- |
+| Author avatar management | 30 | `authorAvatarSourceFetch` | `authorAvatarPending` |
 | Bulk video organization | 28 | `bulkInvalidVideos` | `bulkRequestUnknown` |
 | Header | 11 | `myTube` | `instruction` |
 | Home | 30 | `pasteUrl` | `views` |
@@ -64,6 +65,41 @@ Total keys: 1469
 | Filename template reference (information panel) | 45 | `filenameRefInformationTitle` | `filenameRefItemNestedPathDesc` |
 | Statistics | 87 | `statisticsTitle` | `openCollection` |
 | Gesture Login (admin only) | 51 | `or` | `danmakuDelete` |
+
+### Author avatar management
+
+| Key |
+| --- |
+| `authorAvatarSourceFetch` |
+| `authorAvatarSourceChannel` |
+| `authorAvatarSourceUnavailable` |
+| `authorAvatarSourceError` |
+| `authorAvatarSourcePreview` |
+| `authorAvatarSourceHint` |
+| `authorAvatarTitle` |
+| `authorAvatarChange` |
+| `authorAvatarSet` |
+| `authorAvatarScope` |
+| `authorAvatarMultipleSources` |
+| `authorAvatarMove` |
+| `authorAvatarZoom` |
+| `authorAvatarCenter` |
+| `authorAvatarSmall` |
+| `authorAvatarCustom` |
+| `authorAvatarAuto` |
+| `authorAvatarNone` |
+| `authorAvatarRestoring` |
+| `authorAvatarRestore` |
+| `authorAvatarSave` |
+| `authorAvatarSaved` |
+| `authorAvatarLoadError` |
+| `authorAvatarSaveError` |
+| `authorAvatarFormatHint` |
+| `authorAvatarFormatError` |
+| `authorAvatarDimensionsError` |
+| `authorAvatarUploadHint` |
+| `authorAvatarNewAuthor` |
+| `authorAvatarPending` |
 
 ### Bulk video organization
 

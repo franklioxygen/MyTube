@@ -4,6 +4,7 @@
 
 ## 认证与访问说明
 
+- 使用 Cookie 会话的写请求需要匹配的 `mytube_csrf` Cookie 和 `X-CSRF-Token` 请求头。从响应头 `X-CSRF-Token` 读取令牌，并在登录或会话变化后更新。
 - 浏览器认证使用 HTTP-only Cookie，其中保存不透明的服务端会话 ID。不支持 Bearer JWT。
 - 启用密码登录后，未认证用户只能访问与登录相关的公开端点。
 - 访客角色对大多数资源仅有只读权限。
@@ -57,17 +58,20 @@
 在目标未被并发更改时可以安全重复追加；网络超时不表示事务已回滚。两次请求间合集被改名/删除时，重试可能返回冲突或未找到。标签提交后尽力更新媒体元数据文件，逐条跳过损坏记录，仅在 TV 节目聚合时加载全库。单视频导出与重建使用相同的记录校验，孤立文件清理依据包括损坏记录在内的全部视频路径；导出失败或重启不撤销数据库结果。保存成功而后续列表刷新失败时，应提示已保存并允许刷新。
 
 - `POST /api/upload` - 上传单个本地视频文件
-  - 多部分表单数据: `video` (必需), `title` (可选), `author` (可选)
+  - 多部分表单数据: `video` (必需), `title` (可选), `author` (可选), `authorKey` (可选，已有作者的精确名称)
   - 说明:
     - 服务端会在接收后校验内容是否为受支持的视频。
     - 重复内容会按内容哈希跳过，不会重复入库。
 - `POST /api/upload/batch` - 在一个请求中批量上传多个本地视频文件
-  - 多部分表单数据: `videos` (一个或多个，必需), `title` (可选，仅在只上传 1 个文件时使用), `author` (可选)
+  - 多部分表单数据: `videos` (一个或多个，必需), `title` (可选，仅在只上传 1 个文件时使用), `author` (可选), `authorKey` (可选，已有作者的精确名称)
   - 响应数据结构: `{ results: Array<{ originalName, status, message, video? }>, summary: { total, uploaded, duplicates, failed } }`
   - 说明:
     - 适用于多文件选择和文件夹上传。
     - 文件夹上传只导入受支持的视频文件，不保留子目录结构。
     - 重复内容会按内容哈希跳过。
+
+以上两个上传接口中，`authorKey` 优先于 `author`，必须与已有视频的作者名完全一致（包括空白和大小写）；无效或已失效的选择返回 `400`。未提供时，`author` 会去除首尾空白，空值默认为 `Admin`。上传选择器只在选择已有作者时发送 `authorKey`。
+
 - `GET /api/videos` - 获取所有视频 (当前实现无服务器端分页/过滤)
   - 认证: 支持会话 Cookie，或 API Key (`X-API-Key` / `Authorization: ApiKey <key>`)
 - `GET /api/videos/:id` -通过 ID 获取单个视频
@@ -95,6 +99,53 @@
 - `GET /api/videos/author-channel-url` - 解析源 URL 中的频道/作者 URL
   - 查询参数: `sourceUrl` (必需)
   - 支持: YouTube、Bilibili 和 Twitch 源 URL
+
+## 作者头像
+
+以下四个端点为媒体库中 `author` **完全相同**的一组视频管理统一头像，包含下载视频和本地上传视频。名称区分大小写，接口不会去除首尾空格或重命名。启用登录时需要管理员会话；关闭登录时沿用现有单用户管理权限。均不接受 API key；会话写请求仍须遵循前述 CSRF 规则。
+
+- `GET /api/authors/profile?author=<URL 编码后的作者名>` - 获取编辑器所需资料，作者没有视频时也可读取
+  - 返回 `{ success: true, data: AuthorProfile }`，响应头包含 `Cache-Control: private, no-store`。
+  - `AuthorProfile` 结构如下：
+
+    ```json
+    {
+      "author": "示例作者",
+      "customAvatarPath": "/avatars/custom-<uuid>.jpg",
+      "effectiveAvatarPath": "/avatars/custom-<uuid>.jpg",
+      "defaultAvatarPath": "/avatars/youtube-example.author.jpg",
+      "avatarOrigin": "custom",
+      "videoCount": 12,
+      "multipleSources": false,
+      "avatarSources": [
+        { "platform": "youtube", "channelUrl": "https://www.youtube.com/@example" }
+      ]
+    }
+    ```
+
+  - 头像路径可为 `null`；`avatarOrigin` 为 `custom`、`auto` 或 `none`。`videoCount` 是整个作者组的视频数，不受当前页面的标签筛选影响。
+  - `avatarSources` 是作者视频已关联且当前可用的频道来源，经过规范化及去重。平台包括 `youtube`、`bilibili` 和 `twitch`。Twitch 头像获取需要同时配置 `twitchClientId` 和 `twitchClientSecret`；任一缺失或为空白时不返回 Twitch 来源。未配置 Twitch 凭据仍可上传头像或恢复缓存的默认头像。纯本地作者可能没有来源地址。
+- `PUT /api/authors/avatar` - 保存或替换自定义头像
+  - Multipart form-data：必填文本 `author` 和单张文件 `avatar`。不接收裁剪坐标、远程图片 URL 或服务器文件路径。
+  - 浏览器编辑器接受最大 5 MiB、单边不超过 8192 像素、总像素不超过 1600 万的静态 JPEG/PNG/WebP 原图；裁剪并填充白底后上传 512×512 PNG。
+  - **接口上传限制为 2 MiB**，仅支持 JPEG/PNG/WebP 并校验实际签名。宽高均须在 1–1024 像素内。服务端居中裁剪并重新编码为去除元数据的 512×512 JPEG，每次生成新的 `/avatars/custom-<uuid>.jpg` 路径。
+  - 返回 `{ success: true, data: AuthorProfile }`。整个精确同名作者组及其后新增的视频继承此覆盖。原自动头像字段和文件保留，并发保存以最后一次成功写入为准。
+  - 新作者名最多 200 个字符；只要精确名称仍存在于视频或已保存的作者资料中，已有的超长名称仍可编辑，包括已无视频的作者资料。不接受空白名称或 NUL 字符，不会静默改写传入名称。
+- `DELETE /api/authors/avatar` - 恢复缓存的默认头像
+  - JSON 请求体：`{ "author": "示例作者" }`。
+  - 移除自定义覆盖及其无引用文件，保留自动头像；返回 `{ success: true, data: AuthorProfile }`。
+  - **不发起网络下载**。没有自动头像时，界面回退为作者首字母。
+- `POST /api/authors/avatar/from-source` - 从频道重新获取图片，**仅用于预览**
+  - JSON 请求体：`{ "author": "示例作者", "channelUrl": "https://www.youtube.com/@example" }`。
+  - `channelUrl` 必须精确匹配该作者资料中 `avatarSources` 的一个条目。多个频道时需明确选择。任意图片 URL、不属于该作者的频道或不支持的来源均会被拒绝。
+  - 成功响应是**图片二进制内容**，不是 JSON 成功信封。`Content-Type` 为 `image/jpeg`、`image/png` 或 `image/webp`，附带 `Cache-Control: private, no-store` 和 `X-Content-Type-Options: nosniff`。下载图片最大 5 MiB。
+  - 获取不会修改资料、视频记录、自动缓存或 ETag。界面预览和裁剪后，必须再次调用 `PUT /api/authors/avatar` 才会保存。保存后属于自定义覆盖；恢复默认仍指向原自动缓存。
+  - 遵循已配置的网络及代理策略。YouTube 频道查询最多 40 秒，图片下载超时为 15 秒。客户端取消时会中止预览请求，并终止对应的 YouTube 子进程。
+  - 每个客户端 IP **每分钟最多 10 次**请求；每个服务端进程最多同时运行 **2 个 YouTube 头像查询进程**，尚未退出的已取消查询仍占用名额。容量不足时直接拒绝，不会额外启动进程。
+
+常见错误：`400` 作者、图片或来源无效；`401` 缺少管理员会话；`403` 角色权限不足或使用 API key；`413` 头像上传超过 2 MiB；`429` 来源请求频率超限（含 `Retry-After`）；`503` YouTube 查询容量已满（`code: AUTHOR_AVATAR_SOURCE_BUSY`，`Retry-After: 2`）；`502` 上游来源获取失败（`code: AUTHOR_AVATAR_SOURCE_UNAVAILABLE`）。上传或获取失败均保留此前已保存的头像。
+
+视频响应对象还包含 `authorAvatarOrigin`（`custom` / `auto` / `none`），其中 `authorAvatarPath` 和 `authorAvatarFilename` 表示当前有效头像；作者收藏使用同一自定义覆盖。保存或恢复头像会更新视频列表 ETag。这些属于响应投影，视频底层自动头像字段不会被覆盖。
 
 ## 下载队列与历史
 
@@ -300,13 +351,15 @@
   - 多部分表单数据: `file`
 - `POST /api/settings/merge-database-preview` - 扫描上传的 `.db` 备份文件并返回合并数量预览，不修改当前数据库
   - 多部分表单数据: `file`
-  - 响应中的 `summary` 包含 `videos`、`collections`、`collectionLinks`、`subscriptions`、`downloadHistory`、`videoDownloads` 和 `tags`；每项都包含 `{ merged, skipped }`
+  - 响应中的 `summary` 包含 `videos`、`collections`、`collectionLinks`、`subscriptions`、`downloadHistory`、`videoDownloads`、`tags` 和 `authorProfiles`；每项都包含 `{ merged, skipped }`
 - `POST /api/settings/merge-database` - 将上传的 `.db` 备份合并到当前数据库，同时保留现有记录
   - 多部分表单数据: `file`
   - 响应包含与预览相同结构的合并 `summary`
 - `GET /api/settings/last-backup-info` - 获取最新备份元数据
 - `POST /api/settings/restore-from-last-backup` - 从最新备份恢复
 - `POST /api/settings/cleanup-backup-databases` - 清理备份数据库文件
+
+作者头像覆盖也参与 `merge-database-preview` 和 `merge-database`，其合并汇总包含 `authorProfiles: { merged, skipped }`。恢复默认头像时保留精确作者身份（`custom_avatar_path = NULL`），因此即使最后一个视频已删除，历史作者名仍可继续编辑。仅保留身份的资料也参与备份和合并。目标库中不存在的精确作者名会被导入；同名冲突始终保留目标库资料，不按来源时间戳覆盖。这些冲突规则和计数仅适用于合并；`import-database` 会替换整个数据库（包括作者资料），不返回合并计数。兼容没有 `author_profiles` 表的旧备份。数据库导入或合并不会复制头像图片文件；需同时备份和恢复头像目录，缺失图片时回退自动头像。
 
 ## 文件维护
 

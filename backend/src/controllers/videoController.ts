@@ -1,4 +1,5 @@
 /// <reference path="../types/ass-to-vtt.d.ts" />
+import { projectAuthorAvatar, projectAuthorAvatars } from "../services/authorAvatarService";
 import crypto from "crypto";
 import { Request, Response } from "express";
 import fs from "fs-extra";
@@ -42,6 +43,7 @@ import {
   getUploadVideoPayload,
   getUploadedFilesFromRequest,
   readStringField,
+  readUploadAuthor,
   UploadResultItem,
 } from "./video/uploadHelpers";
 import {
@@ -116,7 +118,7 @@ export const getVideos = async (
   // library and its per-video description sizes grow.
   const videos = storageService.getVideoSummaries(role, page);
   // Return array directly for backward compatibility (frontend expects response.data to be Video[])
-  sendData(res, videos);
+  sendData(res, projectAuthorAvatars(videos));
 };
 
 /**
@@ -219,7 +221,7 @@ export const getVideoById = async (
   }
 
   // Return video object directly for backward compatibility (frontend expects response.data to be Video)
-  sendData(res, video);
+  sendData(res, projectAuthorAvatar(video));
 };
 
 /**
@@ -279,7 +281,7 @@ export const uploadVideo = async (
   }
 
   const title = readStringField(req.body?.title);
-  const author = readStringField(req.body?.author, "Admin");
+  const author = readUploadAuthor(req.body, [file]);
   const result = await getUploadVideoPayload(file, title, author);
 
   if (result.status === "failed") {
@@ -289,7 +291,7 @@ export const uploadVideo = async (
   const statusCode = result.status === "duplicate" ? 200 : 201;
   res
     .status(statusCode)
-    .json(successResponse({ video: result.video }, result.message));
+    .json(successResponse({ video: result.video ? projectAuthorAvatar(result.video) : result.video }, result.message));
 };
 
 export const uploadVideosBatch = async (
@@ -302,7 +304,7 @@ export const uploadVideosBatch = async (
   }
 
   const title = readStringField(req.body?.title);
-  const author = readStringField(req.body?.author, "Admin");
+  const author = readUploadAuthor(req.body, files);
   const results: UploadResultItem[] = [];
 
   for (const [index, file] of files.entries()) {
@@ -325,10 +327,13 @@ export const uploadVideosBatch = async (
   }
 
   const summary = getUploadSummary(results);
+  const projectedVideos = new Map(projectAuthorAvatars(
+    results.flatMap(result => result.video ? [result.video] : [])
+  ).map(video => [video.id, video]));
   res.status(200).json(
     successResponse(
       {
-        results,
+        results: results.map(result => ({ ...result, ...(result.video ? { video: projectedVideos.get(result.video.id) } : {}) })),
         summary,
       },
       buildUploadResponseMessage(summary)
@@ -348,7 +353,7 @@ export const updateVideoDetails = async (
   const updates = req.body;
 
   // Filter allowed updates
-  const allowedUpdates: Partial<import("../services/storageService").Video> = {};
+  const allowedUpdates: Partial<storageService.Video> = {};
   if (updates.title !== undefined) allowedUpdates.title = updates.title;
   if (updates.tags !== undefined) {
     if (!Array.isArray(updates.tags) || updates.tags.some((tag: unknown) => typeof tag !== "string")) {
@@ -410,7 +415,7 @@ export const updateVideoDetails = async (
   // Return format expected by frontend: { success: true, video: ... }
   sendData(res, {
     success: true,
-    video: updatedVideo,
+    video: projectAuthorAvatar(updatedVideo),
   });
 };
 
@@ -671,7 +676,7 @@ export const uploadSubtitle = async (
     successResponse(
       {
         subtitle: newSubtitle,
-        video: updatedVideo,
+        video: projectAuthorAvatar(updatedVideo),
       },
       "Subtitle uploaded successfully"
     )

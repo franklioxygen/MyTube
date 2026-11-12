@@ -30,6 +30,9 @@ export interface DownloadMediaInfo {
 }
 
 export interface Video {
+  author?: string;
+  authorAvatarPath?: string;
+  authorAvatarFilename?: string;
   id: string;
   title: string;
   sourceUrl: string;

@@ -10,6 +10,13 @@ import {
     uniqueIndex,
 } from "drizzle-orm/sqlite-core";
 
+// A library author group uses the exact author name, independently of platform.
+export const authorProfiles = sqliteTable("author_profiles", {
+  author: text("author").primaryKey().notNull(),
+  customAvatarPath: text("custom_avatar_path"),
+  updatedAt: integer("updated_at").notNull(),
+});
+
 export const videos = sqliteTable(
   "videos",
   {

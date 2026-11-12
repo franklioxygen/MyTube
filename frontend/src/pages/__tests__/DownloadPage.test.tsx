@@ -67,6 +67,8 @@ const {
 });
 
 // --- vi.mock calls ---
+vi.mock('../../contexts/VideoContext', () => ({ useVideo: () => ({ videos: [] }) }));
+vi.mock('../../hooks/useAuthorProfile', () => ({ useAuthorProfile: () => ({ canManage: false }) }));
 
 vi.mock('../../contexts/LanguageContext', () => ({
     useLanguage: () => ({ t: mockT }),

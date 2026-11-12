@@ -434,6 +434,8 @@ const DatabaseSettings: React.FC<DatabaseSettingsProps> = ({
                             {renderMergePreviewRow(t('mergeDatabasePreviewTags'), mergePreviewSummary.tags)}
                             {mergePreviewSummary.favoriteCollections &&
                                 renderMergePreviewRow(t('mergeDatabasePreviewFavoriteCollections'), mergePreviewSummary.favoriteCollections)}
+                            {mergePreviewSummary.authorProfiles &&
+                                renderMergePreviewRow(t('authorAvatarTitle'), mergePreviewSummary.authorProfiles)}
                             {mergePreviewSummary.favoriteAuthors &&
                                 renderMergePreviewRow(t('mergeDatabasePreviewFavoriteAuthors'), mergePreviewSummary.favoriteAuthors)}
                             <DialogContentText sx={{ mt: 2, color: 'text.secondary' }}>

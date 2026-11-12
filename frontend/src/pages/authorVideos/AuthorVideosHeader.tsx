@@ -1,4 +1,4 @@
-import { CreateNewFolder, Delete, LocalOffer, ViewSidebar } from '@mui/icons-material';
+import { PhotoCamera, CreateNewFolder, Delete, LocalOffer, ViewSidebar } from '@mui/icons-material';
 import { Avatar, Box, Button, IconButton, Tooltip, Typography } from '@mui/material';
 
 import FavoriteToggle from '../../components/FavoriteToggle';
@@ -7,6 +7,8 @@ import { authorAvatarFallbackSx } from '../../utils/authorAvatarStyles';
 
 interface AuthorVideosHeaderProps {
     authorDisplayName: string;
+    onEditAvatar?: () => void;
+    editAvatarLabel?: string;
     unknownAuthorLabel: string;
     avatarUrl: string | null;
     videoCountLabel: string;
@@ -31,6 +33,8 @@ interface AuthorVideosHeaderProps {
 }
 
 const AuthorVideosHeader: React.FC<AuthorVideosHeaderProps> = ({
+    onEditAvatar,
+    editAvatarLabel,
     authorDisplayName,
     unknownAuthorLabel,
     avatarUrl,
@@ -58,8 +62,8 @@ const AuthorVideosHeader: React.FC<AuthorVideosHeaderProps> = ({
     const displayName = authorDisplayName || unknownAuthorLabel;
 
     return (
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: { xs: 'flex-start', md: 'center' }, mb: 3 }}>
-            <Box sx={{ display: 'flex', alignItems: { xs: 'flex-start', md: 'center' }, flex: '1 1 auto', minWidth: 0 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: { xs: 'flex-start', md: 'center' }, flexWrap: 'wrap', gap: 2, mb: 3 }}>
+            <Box sx={{ display: 'flex', alignItems: { xs: 'flex-start', md: 'center' }, flex: '1 1 180px', minWidth: 0 }}>
                 <Button
                     onClick={onToggleSidebar}
                     variant="outlined"
@@ -130,7 +134,8 @@ const AuthorVideosHeader: React.FC<AuthorVideosHeaderProps> = ({
             </Box>
 
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexShrink: 0 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                    {onEditAvatar && <Tooltip title={editAvatarLabel}><IconButton color="primary" onClick={onEditAvatar} disabled={isBusy} aria-label={editAvatarLabel}><PhotoCamera /></IconButton></Tooltip>}
                     <Tooltip title={addTagsLabel}>
                         <IconButton
                             color="primary"

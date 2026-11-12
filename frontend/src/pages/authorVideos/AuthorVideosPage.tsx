@@ -1,3 +1,6 @@
+import { useAuthorProfile } from '../../hooks/useAuthorProfile';
+import AuthorAvatarEditor from '../../components/AuthorAvatarEditor';
+import { useAuth } from '../../contexts/AuthContext';
 import { Box, CircularProgress, Container } from '@mui/material';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
@@ -22,6 +25,8 @@ import { viewportHeight } from '../../utils/viewportUnits';
 
 const AuthorVideosPage: React.FC = () => {
     const { t } = useLanguage();
+    const { loginRequired, userRole } = useAuth();
+    const [editingAvatar, setEditingAvatar] = useState(false);
     const { authorName } = useParams<{ authorName: string }>();
     const { videos, loading, deleteVideo, availableTags: globalAvailableTags, updateVideo } = useVideo();
     const { collections, createCollection, addToCollection } = useCollection();
@@ -62,10 +67,12 @@ const AuthorVideosPage: React.FC = () => {
         defaultSort: 'dateDesc'
     });
 
-    const authorAvatarPath = useMemo(
+    const videoAvatarPath = useMemo(
         () => authorVideos.find((video) => video.authorAvatarPath)?.authorAvatarPath ?? null,
         [authorVideos]
     );
+    const authorProfile = useAuthorProfile(authorDisplayName, !videoAvatarPath && !loading);
+    const authorAvatarPath = videoAvatarPath ?? (authorProfile.canManage ? authorProfile.data?.effectiveAvatarPath : null);
     const avatarUrl = useCloudStorageUrl(authorAvatarPath, 'thumbnail') ?? null;
     const favoriteAuthorDraft = useMemo(() => ({
         author: authorDisplayName,
@@ -125,6 +132,8 @@ const AuthorVideosPage: React.FC = () => {
 
                 <Box sx={{ flex: 1, minWidth: 0 }}>
                     <AuthorVideosHeader
+                        onEditAvatar={!loginRequired || userRole === 'admin' ? () => setEditingAvatar(true) : undefined}
+                        editAvatarLabel={t(avatarUrl ? 'authorAvatarChange' : 'authorAvatarSet')}
                         authorDisplayName={authorDisplayName}
                         unknownAuthorLabel={t('unknownAuthor')}
                         avatarUrl={avatarUrl}
@@ -161,6 +170,8 @@ const AuthorVideosPage: React.FC = () => {
                     />
                 </Box>
             </Box>
+
+            {editingAvatar && <AuthorAvatarEditor key={authorDisplayName} author={authorDisplayName} onClose={() => setEditingAvatar(false)} />}
 
             <ConfirmationModal
                 isOpen={actions.isDeleteModalOpen}

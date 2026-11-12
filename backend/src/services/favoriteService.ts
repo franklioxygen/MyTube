@@ -1,3 +1,4 @@
+import { getCustomAvatarPaths, getDefaultAvatarPaths, isCustomAvatarPath } from "./authorAvatarService";
 import { Request } from "express";
 import {
   and,
@@ -208,10 +209,12 @@ export const listFavoriteAuthors = (
     .orderBy(desc(favoriteAuthors.createdAt))
     .all();
 
+  const overrides = getCustomAvatarPaths(rows.map(row => row.author));
+  const defaults = getDefaultAvatarPaths(rows.filter(row => !row.avatarPath).map(row => row.author), role);
   return rows.map((row) => ({
     author: row.author,
     displayName: row.displayName || row.author,
-    avatarPath: row.avatarPath ?? undefined,
+    avatarPath: overrides.get(row.author) ?? row.avatarPath ?? defaults.get(row.author),
     channelUrl: row.channelUrl ?? undefined,
     videoCount: countVisibleVideosForAuthor(row.author, role),
     favoritedAt: row.favoritedAt,
@@ -227,7 +230,7 @@ export const addFavoriteAuthor = (
       userId,
       author: input.author,
       displayName: input.displayName ?? null,
-      avatarPath: input.avatarPath ?? null,
+      avatarPath: isCustomAvatarPath(input.avatarPath) ? null : input.avatarPath ?? null,
       channelUrl: input.channelUrl ?? null,
       createdAt: Date.now(),
     })
@@ -235,7 +238,7 @@ export const addFavoriteAuthor = (
       target: [favoriteAuthors.userId, favoriteAuthors.author],
       set: {
         displayName: sql`excluded.display_name`,
-        avatarPath: sql`excluded.avatar_path`,
+        avatarPath: isCustomAvatarPath(input.avatarPath) ? favoriteAuthors.avatarPath : sql`excluded.avatar_path`,
         channelUrl: sql`excluded.channel_url`,
       },
     })

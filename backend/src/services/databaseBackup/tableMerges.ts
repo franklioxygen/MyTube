@@ -610,6 +610,32 @@ function mergeFavoriteAuthors(
   }
 }
 
+/** Preserve local choices on conflict; exact author keys are never trimmed or folded. */
+function mergeAuthorProfiles(
+  sourceDb: Database.Database,
+  targetDb: Database.Database,
+  summary: DatabaseMergeSummary,
+  options: MergeExecutionOptions
+): void {
+  const columns = getSharedColumns(sourceDb, targetDb, "author_profiles");
+  if (!["author", "custom_avatar_path", "updated_at"].every(column => columns.includes(column))) return;
+  const rows = readTableRows(sourceDb, "author_profiles", columns);
+  if (!rows.length) return;
+  const authors = new Set((targetDb.prepare("SELECT author FROM author_profiles").all() as MergeRow[]).map(row => row.author));
+  const insert = options.applyChanges ? buildInsertStatement(targetDb, "author_profiles", columns) : null;
+  for (const row of rows) {
+    if (typeof row.author !== "string" || !row.author.trim() || row.author.includes("\0") ||
+      (row.custom_avatar_path !== null && (typeof row.custom_avatar_path !== "string" || !/^\/avatars\/custom-[a-f0-9-]+\.jpg$/.test(row.custom_avatar_path))) ||
+      typeof row.updated_at !== "number" || !Number.isSafeInteger(row.updated_at) || row.updated_at < 0 || authors.has(row.author)) {
+      summary.authorProfiles.skipped++;
+      continue;
+    }
+    insert?.run(remapRow(row, columns));
+    authors.add(row.author);
+    summary.authorProfiles.merged++;
+  }
+}
+
 function mergeTagSettings(
   sourceDb: Database.Database,
   targetDb: Database.Database,
@@ -720,6 +746,7 @@ export function executeDatabaseMerge(
     validFavoriteOwnerIds,
     options
   );
+  mergeAuthorProfiles(sourceDb, targetDb, summary, options);
   mergeTagSettings(sourceDb, targetDb, summary, options);
 
   return summary;
