@@ -72,6 +72,8 @@ describe('author avatar HTTP contract', () => {
     const etag = getVideosListETag('all');
     const response = await fetch(url + '/authors/avatar/from-source', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ author: '作者 / 🎬', channelUrl: 'https://www.youtube.com/@test' }) });
     expect(response.status).toBe(200); expect(response.headers.get('cache-control')).toContain('no-store');
+    expect(response.headers.get('content-type')).toBe('image/png');
+    expect(response.headers.get('x-content-type-options')).toBe('nosniff');
     expect(Buffer.from(await response.arrayBuffer())).toEqual(png);
     expect(fs.readdirSync(state.dir)).toEqual([saved.data.customAvatarPath.split('/').pop()]);
     expect(getVideosListETag('all')).toBe(etag);
@@ -83,6 +85,17 @@ describe('author avatar HTTP contract', () => {
       expect(response.status).toBe(400);
     }
     expect(state.fetchSource).not.toHaveBeenCalled();
+  });
+  it('rejects unexpected preview response types without returning active content', async () => {
+    sqlite.prepare('INSERT INTO videos VALUES (?, ?, ?, ?, ?, ?)').run('v', '作者 / 🎬', 'youtube', 'https://youtube.com/@test', null, '2026');
+    for (const result of [{ buffer: Buffer.from('<script>alert(1)</script>'), mime: 'text/html' }, { buffer: '<script>alert(1)</script>', mime: 'image/png' }]) {
+      state.fetchSource.mockResolvedValueOnce(result);
+      const response = await fetch(url + '/authors/avatar/from-source', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ author: '作者 / 🎬', channelUrl: 'https://www.youtube.com/@test' }) });
+      expect(response.status).toBe(502);
+      expect(response.headers.get('content-type')).toContain('application/json');
+      expect(await response.text()).not.toContain('<script>');
+      expect(fs.readdirSync(state.dir)).toEqual([]);
+    }
   });
   it('keeps current state when the source is unavailable', async () => {
     sqlite.prepare('INSERT INTO videos VALUES (?, ?, ?, ?, ?, ?)').run('v', '作者 / 🎬', 'youtube', 'https://youtube.com/@test', '/avatars/auto.jpg', '2026');

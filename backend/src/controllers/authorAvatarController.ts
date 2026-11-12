@@ -99,9 +99,14 @@ export async function fetchSourceAvatar(req: Request, res: Response): Promise<vo
     const { fetchAuthorSourceAvatar } = await import("../services/authorAvatarFetchService");
     const result = await fetchAuthorSourceAvatar(source, controller.signal);
     if (controller.signal.aborted) return;
+    if (!Buffer.isBuffer(result.buffer) || !mimes.has(result.mime)) {
+      throw new Error("Source preview must be a supported binary image");
+    }
     res.set("Cache-Control", "private, no-store");
     res.set("X-Content-Type-Options", "nosniff");
-    res.type(result.mime).send(result.buffer);
+    // Bytes have passed image-signature validation in the source service.
+    // End the binary response directly, without Express's text/JSON inference.
+    res.type(result.mime).end(result.buffer);
   } catch (error) {
     if (controller.signal.aborted) return;
     if (error instanceof AvatarSourceBusyError) {
