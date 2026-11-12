@@ -622,8 +622,8 @@ export function ensureAuthorProfilesTable(): void {
   const columns = sqlite.prepare("PRAGMA table_info(author_profiles)").all() as Array<{ name: string; notnull: number }>;
   if (!columns.some(column => column.name === "custom_avatar_path" && column.notnull === 1)) return;
 
-  // An out-of-sync Drizzle journal may skip 0032 after an earlier duplicate
-  // column. Recover its nullable path without losing the existing profiles.
+  // Earlier revisions required an avatar path. Recover that schema even when
+  // its migration is already recorded and will not run again.
   sqlite.transaction(() => {
     sqlite.exec(`CREATE TABLE __new_author_profiles (
       author TEXT PRIMARY KEY NOT NULL, custom_avatar_path TEXT, updated_at INTEGER NOT NULL

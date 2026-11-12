@@ -105,7 +105,7 @@
           "name": "custom_avatar_path",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
+          "notNull": false,
           "autoincrement": false
         },
         "updated_at": {

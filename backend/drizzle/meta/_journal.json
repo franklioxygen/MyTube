@@ -225,13 +225,6 @@
       "when": 1794438115661,
       "tag": "0031_author_profiles",
       "breakpoints": true
-    },
-    {
-      "idx": 32,
-      "version": "6",
-      "when": 1794459650631,
-      "tag": "0032_author_profile_identity",
-      "breakpoints": true
     }
   ]
 }
