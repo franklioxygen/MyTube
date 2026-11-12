@@ -1358,6 +1358,8 @@ export const es = {
     "Este video fue descargado previamente pero ha sido eliminado.",
   downloadAgain: "Descargar de nuevo",
   downloadedOn: "Descargado el",
+  editDownloadTime: "Editar hora de descarga",
+  downloadTimeOffset: "Desfase UTC",
   deletedOn: "Eliminado el",
   existingVideo: "Video existente",
   skipped: "Omitido",

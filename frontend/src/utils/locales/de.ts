@@ -1360,6 +1360,8 @@ export const de = {
   videoWasDeleted: "Dieses Video wurde bereits heruntergeladen, aber gelöscht.",
   downloadAgain: "Erneut herunterladen",
   downloadedOn: "Heruntergeladen am",
+  editDownloadTime: "Downloadzeit bearbeiten",
+  downloadTimeOffset: "UTC-Abweichung",
   deletedOn: "Gelöscht am",
   existingVideo: "Vorhandenes Video",
   skipped: "Übersprungen",

@@ -1276,6 +1276,7 @@ export const zh = {
   downloadAgain: "再次下载",
   downloadedOn: "下载时间",
   editDownloadTime: "编辑下载时间",
+  downloadTimeOffset: "UTC 偏移",
   deletedOn: "删除时间",
   existingVideo: "已存在的视频",
   skipped: "已跳过",

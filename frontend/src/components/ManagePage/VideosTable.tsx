@@ -17,6 +17,7 @@ import {
     Checkbox,
     IconButton,
     InputAdornment,
+    MenuItem,
     Pagination,
     Paper,
     Table,
@@ -42,6 +43,7 @@ import { useThumbnailCandidates } from '../../hooks/useThumbnailCandidates';
 import { Video } from '../../types';
 import type { TranslationKey } from '../../utils/translations';
 import { formatDisplayDateTime, formatDuration, formatSize } from '../../utils/formatUtils';
+import { getLocalDateTimeOptions } from '../../utils/localDateTime';
 import VideoBatchToolbar from '../VideoBatchToolbar';
 import { useVideoSelection } from '../../hooks/useVideoSelection';
 import ConfirmationModal from '../ConfirmationModal';
@@ -185,10 +187,14 @@ const VideosTable: React.FC<VideosTableProps> = ({
     const [isSavingTitle, setIsSavingTitle] = useState<boolean>(false);
     const [editingDownloadTimeId, setEditingDownloadTimeId] = useState<string | null>(null);
     const [editDownloadTime, setEditDownloadTime] = useState('');
+    const [originalDownloadTime, setOriginalDownloadTime] = useState<number | null>(null);
+    const [downloadTimeOffset, setDownloadTimeOffset] = useState<number | null>(null);
     const [isSavingDownloadTime, setIsSavingDownloadTime] = useState(false);
     const [downloadTimeError, setDownloadTimeError] = useState('');
-    const isDownloadTimeValid = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?$/.test(editDownloadTime)
-        && Number.isFinite(new Date(editDownloadTime).getTime());
+    const downloadTimeOptions = getLocalDateTimeOptions(editDownloadTime);
+    const selectedDownloadTime = downloadTimeOptions.find((option) => option.offsetMinutes === downloadTimeOffset)
+        ?? downloadTimeOptions[0];
+    const isDownloadTimeValid = !!selectedDownloadTime;
 
     // Upload thumbnail state
     const [uploadThumbnailVideoId, setUploadThumbnailVideoId] = useState<string | null>(null);
@@ -229,20 +235,28 @@ const VideosTable: React.FC<VideosTableProps> = ({
     };
 
     const handleEditDownloadTime = (video: Video) => {
+        const value = formatDisplayDateTime(video.addedAt, '').replace(' ', 'T');
+        const date = new Date(video.addedAt);
         setEditingVideoId(null);
         setEditingDownloadTimeId(video.id);
-        setEditDownloadTime(formatDisplayDateTime(video.addedAt, '').replace(' ', 'T'));
+        setEditDownloadTime(value);
+        setOriginalDownloadTime(value ? date.getTime() : null);
+        setDownloadTimeOffset(value ? date.getTimezoneOffset() : null);
         setDownloadTimeError('');
     };
 
     const handleSaveDownloadTime = async (id: string) => {
-        if (!isDownloadTimeValid || isSavingDownloadTime) return;
+        if (!selectedDownloadTime || isSavingDownloadTime) return;
 
         setIsSavingDownloadTime(true);
         setDownloadTimeError('');
         try {
-            // datetime-local uses the browser's timezone; persist the same instant in UTC.
-            const result = await onUpdateVideo(id, { addedAt: new Date(editDownloadTime).toISOString() });
+            // Preserve both the original offset and sub-second precision when
+            // the displayed value is unchanged (including repeated DST hours).
+            const unchanged = originalDownloadTime !== null
+                && Math.floor(originalDownloadTime / 1000) * 1000 === selectedDownloadTime.timestamp;
+            const timestamp = unchanged ? originalDownloadTime : selectedDownloadTime.timestamp;
+            const result = await onUpdateVideo(id, { addedAt: new Date(timestamp).toISOString() });
             if (result?.success === false) {
                 setDownloadTimeError(result.error || t('videoUpdateFailed'));
                 return;
@@ -536,7 +550,7 @@ const VideosTable: React.FC<VideosTableProps> = ({
                                         )}
                                         {editingDownloadTimeId === video.id ? (
                                             <Box sx={{
-                                                display: { xs: 'grid', md: 'flex' }, alignItems: 'center', mt: 1,
+                                                display: { xs: 'grid', md: downloadTimeOptions.length > 1 ? 'grid' : 'flex' }, alignItems: 'center', mt: 1,
                                                 gridTemplateColumns: 'minmax(0, 1fr) auto auto',
                                             }}>
                                                 <TextField
@@ -560,6 +574,23 @@ const VideosTable: React.FC<VideosTableProps> = ({
                                                         if (event.key === 'Escape' && !isSavingDownloadTime) setEditingDownloadTimeId(null);
                                                     }}
                                                 />
+                                                {downloadTimeOptions.length > 1 && (
+                                                    <TextField
+                                                        select
+                                                        label={t('downloadTimeOffset')}
+                                                        value={selectedDownloadTime.offsetMinutes}
+                                                        onChange={(event) => setDownloadTimeOffset(Number(event.target.value))}
+                                                        disabled={isSavingDownloadTime}
+                                                        size="small"
+                                                        sx={{ minWidth: 0, gridColumn: '1 / -1', mt: 1 }}
+                                                    >
+                                                        {downloadTimeOptions.map((option) => (
+                                                            <MenuItem key={option.offsetMinutes} value={option.offsetMinutes}>
+                                                                {option.label}
+                                                            </MenuItem>
+                                                        ))}
+                                                    </TextField>
+                                                )}
                                                 <IconButton
                                                     size="small"
                                                     color="primary"

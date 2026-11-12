@@ -3,7 +3,7 @@ import { AxiosHeaders } from 'axios';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { BrowserRouter } from 'react-router';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Video } from '../../../types';
 import VideosTable from '../VideosTable';
 import { api } from '../../../utils/apiClient';
@@ -449,6 +449,47 @@ describe('VideosTable', () => {
         await user.click(within(firstRow).getByRole('button', { name: 'save' }));
         await waitFor(() => expect(screen.queryByLabelText('downloadedOn')).not.toBeInTheDocument());
         expect(onUpdateVideo).toHaveBeenCalledTimes(2);
+    });
+
+    describe('download times during daylight-saving transitions', () => {
+        beforeEach(() => vi.stubEnv('TZ', 'America/New_York'));
+        afterEach(() => vi.unstubAllEnvs());
+
+        it.each(['2024-11-03T05:30:00.123Z', '2024-11-03T06:30:00.456Z'])(
+            'preserves the unchanged instant and milliseconds for %s', async (addedAt) => {
+                const user = userEvent.setup();
+                renderTable({ displayedVideos: [{ ...mockVideos[0], addedAt }] });
+                await user.click(screen.getByRole('button', { name: 'editDownloadTime' }));
+                expect(screen.getByRole('combobox', { name: 'downloadTimeOffset' }))
+                    .toHaveTextContent(addedAt.includes('T05:') ? 'UTC-04:00' : 'UTC-05:00');
+                await user.click(screen.getByRole('button', { name: 'save' }));
+                await waitFor(() => expect(defaultProps.onUpdateVideo).toHaveBeenCalledWith('1', { addedAt }));
+            }
+        );
+
+        it('allows choosing either occurrence of an edited ambiguous local time', async () => {
+            const user = userEvent.setup();
+            renderTable({ displayedVideos: [{ ...mockVideos[0], addedAt: '2024-11-03T04:30:00Z' }] });
+            await user.click(screen.getByRole('button', { name: 'editDownloadTime' }));
+            fireEvent.change(screen.getByLabelText('downloadedOn'), { target: { value: '2024-11-03T01:45' } });
+            await user.click(screen.getByRole('combobox', { name: 'downloadTimeOffset' }));
+            await user.click(screen.getByRole('option', { name: 'UTC-05:00' }));
+            await user.click(screen.getByRole('button', { name: 'save' }));
+            await waitFor(() => expect(defaultProps.onUpdateVideo).toHaveBeenCalledWith('1', {
+                addedAt: '2024-11-03T06:45:00.000Z',
+            }));
+        });
+
+        it('rejects a local time skipped by spring-forward', async () => {
+            const user = userEvent.setup();
+            renderTable();
+            await user.click(within(screen.getAllByRole('row')[1]).getByRole('button', { name: 'editDownloadTime' }));
+            const input = screen.getByLabelText('downloadedOn');
+            fireEvent.change(input, { target: { value: '2024-03-10T02:30' } });
+            expect(screen.getByRole('button', { name: 'save' })).toBeDisabled();
+            fireEvent.keyDown(input, { key: 'Enter' });
+            expect(defaultProps.onUpdateVideo).not.toHaveBeenCalled();
+        });
     });
 
     it('triggers row-level thumbnail refresh, thumbnail re-download, delete, and video re-download actions', async () => {

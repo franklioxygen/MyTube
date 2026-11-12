@@ -1362,6 +1362,8 @@ export const fr = {
     "Cette vidéo a été précédemment téléchargée mais a été supprimée.",
   downloadAgain: "Télécharger à nouveau",
   downloadedOn: "Téléchargé le",
+  editDownloadTime: "Modifier la date de téléchargement",
+  downloadTimeOffset: "Décalage UTC",
   deletedOn: "Supprimé le",
   existingVideo: "Vidéo existante",
   skipped: "Ignoré",

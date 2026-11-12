@@ -1337,6 +1337,8 @@ export const ja = {
   videoWasDeleted: "この動画は以前ダウンロードされましたが、削除されました。",
   downloadAgain: "再ダウンロード",
   downloadedOn: "ダウンロード日",
+  editDownloadTime: "ダウンロード日時を編集",
+  downloadTimeOffset: "UTCオフセット",
   deletedOn: "削除日",
   existingVideo: "既存の動画",
   skipped: "スキップ",

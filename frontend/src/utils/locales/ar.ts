@@ -1313,6 +1313,8 @@ export const ar = {
   videoWasDeleted: "تم تنزيل هذا الفيديو سابقًا ولكن تم حذفه.",
   downloadAgain: "تنزيل مرة أخرى",
   downloadedOn: "تم التنزيل في",
+  editDownloadTime: "تعديل وقت التنزيل",
+  downloadTimeOffset: "إزاحة UTC",
   deletedOn: "تم الحذف في",
   existingVideo: "فيديو موجود",
   skipped: "تم التخطي",

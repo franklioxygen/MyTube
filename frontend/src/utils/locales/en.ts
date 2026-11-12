@@ -1308,6 +1308,7 @@ export const en = {
   downloadAgain: "Download Again",
   downloadedOn: "Downloaded on",
   editDownloadTime: "Edit download time",
+  downloadTimeOffset: "UTC offset",
   deletedOn: "Deleted on",
   existingVideo: "Existing Video",
   skipped: "Skipped",

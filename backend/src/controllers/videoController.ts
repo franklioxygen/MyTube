@@ -356,10 +356,15 @@ export const updateVideoDetails = async (
   const allowedUpdates: Partial<storageService.Video> = {};
   if (updates.title !== undefined) allowedUpdates.title = updates.title;
   if (updates.addedAt !== undefined) {
+    const dateParts = typeof updates.addedAt === "string"
+      ? /^(\d{4}-\d{2}-\d{2})T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?(?:Z|[+-]\d{2}:\d{2})$/.exec(updates.addedAt)
+      : null;
     if (
-      typeof updates.addedAt !== "string" ||
-      !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?(?:Z|[+-]\d{2}:\d{2})$/.test(updates.addedAt) ||
-      !Number.isFinite(Date.parse(updates.addedAt))
+      !dateParts ||
+      !Number.isFinite(Date.parse(updates.addedAt)) ||
+      // Parse the submitted calendar date separately so timezone offsets cannot
+      // hide normalization of impossible dates such as February 30.
+      new Date(`${dateParts[1]}T00:00:00Z`).toISOString().slice(0, 10) !== dateParts[1]
     ) {
       throw new ValidationError("addedAt must be a valid ISO date-time with a timezone", "addedAt");
     }

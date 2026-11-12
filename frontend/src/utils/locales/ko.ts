@@ -1321,6 +1321,8 @@ export const ko = {
   videoWasDeleted: "이 비디오는 이전에 다운로드되었지만 삭제되었습니다.",
   downloadAgain: "다시 다운로드",
   downloadedOn: "다운로드 날짜",
+  editDownloadTime: "다운로드 시간 편집",
+  downloadTimeOffset: "UTC 오프셋",
   deletedOn: "삭제 날짜",
   existingVideo: "기존 동영상",
   skipped: "건너뜀",

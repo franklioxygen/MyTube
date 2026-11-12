@@ -1347,6 +1347,8 @@ export const pt = {
   videoWasDeleted: "Este vídeo foi baixado anteriormente, mas foi excluído.",
   downloadAgain: "Baixar novamente",
   downloadedOn: "Baixado em",
+  editDownloadTime: "Editar horário de download",
+  downloadTimeOffset: "Deslocamento UTC",
   deletedOn: "Excluído em",
   existingVideo: "Vídeo existente",
   skipped: "Pular",

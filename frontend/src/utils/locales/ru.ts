@@ -1341,6 +1341,8 @@ export const ru = {
   videoWasDeleted: "Это видео было ранее загружено, но удалено.",
   downloadAgain: "Скачать снова",
   downloadedOn: "Скачано",
+  editDownloadTime: "Изменить время загрузки",
+  downloadTimeOffset: "Смещение UTC",
   deletedOn: "Удалено",
   existingVideo: "Существующее видео",
   skipped: "Пропущено",
