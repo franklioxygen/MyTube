@@ -8,7 +8,7 @@ import path from "path";
 import fs from "fs-extra";
 import { eq } from "drizzle-orm";
 import { db } from "../db";
-import { videos } from "../db/schema";
+import { authorProfiles, videos } from "../db/schema";
 import { AVATARS_DIR } from "../config/paths";
 import { ValidationError } from "../errors/DownloadErrors";
 import { getAuthorProfile, saveAuthorAvatar } from "../services/authorAvatarService";
@@ -32,7 +32,9 @@ export const avatarUpload = multer({ storage: multer.memoryStorage(), limits: { 
 function readAuthor(value: unknown): string {
   if (typeof value !== "string" || !value.trim() || value.includes("\0")) throw new ValidationError("A valid author name is required", "author");
   // Preserve legacy exact names, including surrounding whitespace and long names.
-  if (value.length > 200 && !db.select({ id: videos.id }).from(videos).where(eq(videos.author, value)).limit(1).get())
+  if (value.length > 200
+    && !db.select({ id: videos.id }).from(videos).where(eq(videos.author, value)).limit(1).get()
+    && !db.select({ author: authorProfiles.author }).from(authorProfiles).where(eq(authorProfiles.author, value)).get())
     throw new ValidationError("New author names must be at most 200 characters", "author");
   return value;
 }

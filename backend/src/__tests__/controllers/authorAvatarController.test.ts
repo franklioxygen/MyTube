@@ -46,6 +46,36 @@ beforeEach(() => { avatarSourceLimiter.resetKey('127.0.0.1'); sqlite.exec('DELET
 afterAll(async () => { await new Promise<void>(resolve => server.close(() => resolve())); sqlite.close(); fs.removeSync(state.dir); });
 
 describe('author avatar HTTP contract', () => {
+  it('keeps a long legacy profile readable, replaceable, and removable after its last video is deleted', async () => {
+    const author = ` ${'作'.repeat(201)} `;
+    const avatarForm = () => { const body = form(); body.set('author', author); return body; };
+    const profileUrl = url + '/authors/profile?author=' + encodeURIComponent(author);
+    sqlite.prepare('INSERT INTO videos VALUES (?, ?, ?, ?, ?, ?)').run('legacy', author, 'local', null, null, '2026');
+    const first = await fetch(url + '/authors/avatar', { method: 'PUT', body: avatarForm() });
+    expect(first.status).toBe(200);
+    const firstProfile = (await first.json() as any).data;
+    sqlite.prepare('DELETE FROM videos WHERE id = ?').run('legacy');
+
+    const read = await fetch(profileUrl);
+    expect(read.status).toBe(200);
+    expect((await read.json() as any).data).toMatchObject({ author, videoCount: 0, customAvatarPath: firstProfile.customAvatarPath });
+    // An unknown exact key still cannot bypass the limit for new names.
+    expect((await fetch(url + '/authors/profile?author=' + encodeURIComponent(author.trim()))).status).toBe(400);
+
+    const replaced = await fetch(url + '/authors/avatar', { method: 'PUT', body: avatarForm() });
+    expect(replaced.status).toBe(200);
+    const replacedProfile = (await replaced.json() as any).data;
+    expect(replacedProfile.author).toBe(author);
+    expect(replacedProfile.customAvatarPath).not.toBe(firstProfile.customAvatarPath);
+    expect(fs.readdirSync(state.dir)).toEqual([replacedProfile.customAvatarPath.split('/').pop()]);
+
+    const removed = await fetch(url + '/authors/avatar', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ author }) });
+    expect(removed.status).toBe(200);
+    expect((await removed.json() as any).data).toMatchObject({ author, customAvatarPath: null, videoCount: 0 });
+    expect(sqlite.prepare('SELECT author FROM author_profiles').all()).toEqual([]);
+    expect(fs.readdirSync(state.dir)).toEqual([]);
+  });
+
   it('saves and restores an exact Unicode name, leaving video storage untouched and changing ETags', async () => {
     sqlite.prepare('INSERT INTO videos VALUES (?, ?, ?, ?, ?, ?)').run('v', '作者 / 🎬', 'local', null, '/avatars/auto.jpg', '2026');
     const etag = getVideosListETag('all');

@@ -130,7 +130,7 @@ These four endpoints manage a library-wide avatar for the **exact** `author` str
   - The browser editor accepts original static JPEG/PNG/WebP images up to 5 MiB, 8192 pixels per side and 16 megapixels, then crops to a white-backed 512×512 PNG before uploading.
   - The API upload limit is **2 MiB**, JPEG/PNG/WebP only, with content-signature validation. Decoded dimensions must be 1–1024 pixels per side. The server centers/crops and re-encodes to a metadata-free 512×512 JPEG at a new `/avatars/custom-<uuid>.jpg` path.
   - Returns `{ success: true, data: AuthorProfile }`. The exact author group inherits the override, including future videos. Original automatic avatar fields and files are retained; concurrent saves use last successful write wins.
-  - New author names are limited to 200 characters; existing longer names remain editable. Empty/whitespace-only names and NUL characters are rejected without rewriting the supplied name.
+  - New author names are limited to 200 characters; existing longer names remain editable when their exact key exists in videos or saved author profiles, including profiles with no remaining videos. Empty/whitespace-only names and NUL characters are rejected without rewriting the supplied name.
 - `DELETE /api/authors/avatar` - Restore the cached default
   - JSON body: `{ "author": "Example Author" }`.
   - Removes the custom override and its unreferenced file, preserving automatic artwork. Returns `{ success: true, data: AuthorProfile }`.
