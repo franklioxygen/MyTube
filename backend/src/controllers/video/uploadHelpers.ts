@@ -93,7 +93,7 @@ export interface UploadResultItem {
   originalName: string;
   status: UploadStatus;
   message: string;
-  video?: import("../../services/storageService").Video;
+  video?: storageService.Video;
 }
 
 export interface UploadSummary {
@@ -179,7 +179,7 @@ export const buildUploadFailureResult = (
 
 const buildUploadDuplicateResult = (
   file: Pick<UploadedVideoFile, "originalname">,
-  video: import("../../services/storageService").Video
+  video: storageService.Video
 ): UploadResultItem => ({
   originalName: path.basename(file.originalname),
   status: "duplicate",
@@ -189,7 +189,7 @@ const buildUploadDuplicateResult = (
 
 const buildUploadSuccessResult = (
   file: Pick<UploadedVideoFile, "originalname">,
-  video: import("../../services/storageService").Video,
+  video: storageService.Video,
   status: Exclude<UploadStatus, "failed"> = "uploaded"
 ): UploadResultItem => ({
   originalName: path.basename(file.originalname),

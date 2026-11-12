@@ -353,7 +353,7 @@ export const updateVideoDetails = async (
   const updates = req.body;
 
   // Filter allowed updates
-  const allowedUpdates: Partial<import("../services/storageService").Video> = {};
+  const allowedUpdates: Partial<storageService.Video> = {};
   if (updates.title !== undefined) allowedUpdates.title = updates.title;
   if (updates.tags !== undefined) {
     if (!Array.isArray(updates.tags) || updates.tags.some((tag: unknown) => typeof tag !== "string")) {
