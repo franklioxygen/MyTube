@@ -11,7 +11,7 @@ UPDATE_KEY_LIST=1 npx vitest run src/utils/locales/__tests__/localeParity.test.t
 
 This list is intentionally unnumbered. When new keys are inserted, only the local section order changes.
 
-Total keys: 1499
+Total keys: 1502
 
 ## Summary
 
@@ -52,7 +52,7 @@ Total keys: 1499
 | Issue #368.2 — subscribe-only / history choice | 6 | `subscribeOnlyNewPlaylistVideos` | `playlistBaselineFailed` |
 | Instruction Page | 39 | `instructionSection1Title` | `instructionSection3Item3Text` |
 | Disclaimer | 3 | `disclaimerTitle` | `history` |
-| Existing Video Detection | 16 | `existingVideoDetected` | `changeSettings` |
+| Existing Video Detection | 19 | `existingVideoDetected` | `changeSettings` |
 | Sorting | 11 | `select` | `random` |
 | yt-dlp Configuration | 62 | `ytDlpConfiguration` | `cleanupAuthorCollectionsFailed` |
 | Cloudflare Tunnel | 16 | `cloudflaredTunnel` | `managedInDashboard` |
@@ -1292,6 +1292,9 @@ Total keys: 1499
 | `videoWasDeleted` |
 | `downloadAgain` |
 | `downloadedOn` |
+| `editDownloadTime` |
+| `downloadTimeOffset` |
+| `downloadTimeAutoDeleteWarning` |
 | `deletedOn` |
 | `existingVideo` |
 | `skipped` |

@@ -3,12 +3,16 @@ import { AxiosHeaders } from 'axios';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { BrowserRouter } from 'react-router';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Video } from '../../../types';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Settings, Video } from '../../../types';
 import VideosTable from '../VideosTable';
 import { api } from '../../../utils/apiClient';
+import { formatDisplayDateTime } from '../../../utils/formatUtils';
 
 let mockUserRole = 'admin';
+let mockSettings: Partial<Settings> | undefined = {};
+let mockSettingsError = false;
+const mockRefetchSettings = vi.fn();
 let mockCollections = [
     { id: 'collection-1', name: 'Collection 1', videos: [] },
     { id: 'collection-2', name: 'Collection 2', videos: [] },
@@ -31,6 +35,10 @@ vi.mock('../../../contexts/LanguageContext', () => ({
 
 vi.mock('../../../contexts/AuthContext', () => ({
     useAuth: () => ({ userRole: mockUserRole }),
+}));
+
+vi.mock('../../../hooks/useSettings', () => ({
+    useSettings: () => ({ data: mockSettings, isError: mockSettingsError, refetch: mockRefetchSettings }),
 }));
 
 vi.mock('../../../contexts/VideoContext', () => ({
@@ -198,6 +206,8 @@ describe('VideosTable', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         mockUserRole = 'admin';
+        mockSettings = {};
+        mockSettingsError = false;
         mockCollections = [
             { id: 'collection-1', name: 'Collection 1', videos: [] },
             { id: 'collection-2', name: 'Collection 2', videos: [] },
@@ -227,6 +237,9 @@ describe('VideosTable', () => {
         expect(screen.getByText('Video 1')).toBeInTheDocument();
         expect(screen.getByText('Author 1')).toBeInTheDocument();
         expect(screen.getByAltText('Video 1')).toHaveAttribute('src', '/images-small/thumb-1.jpg?t=123');
+        const titleCell = screen.getByText('Video 1').closest('td')!;
+        expect(within(titleCell).getByText(formatDisplayDateTime(mockVideos[0].addedAt)).parentElement)
+            .toHaveTextContent(`downloadedOn: ${formatDisplayDateTime(mockVideos[0].addedAt)}`);
     });
 
     it('appends a cache-bust token to the rendered thumbnail src when provided', () => {
@@ -259,6 +272,9 @@ describe('VideosTable', () => {
         expect(screen.queryByLabelText('select all videos')).not.toBeInTheDocument();
         expect(screen.queryByLabelText('Refresh all file sizes')).not.toBeInTheDocument();
         expect(screen.queryAllByRole('button', { name: 'Re-download Video' })).toHaveLength(0);
+        expect(screen.queryByRole('button', { name: 'editDownloadTime' })).not.toBeInTheDocument();
+        expect(screen.getByText(formatDisplayDateTime(mockVideos[0].addedAt)).parentElement)
+            .toHaveTextContent(`downloadedOn: ${formatDisplayDateTime(mockVideos[0].addedAt)}`);
     });
 
     it('shows a spinner for the refresh file sizes action while refreshing', () => {
@@ -379,6 +395,166 @@ describe('VideosTable', () => {
         await waitFor(() => {
             expect(screen.queryByDisplayValue('Video 2')).not.toBeInTheDocument();
         });
+    });
+
+    it.each(['button', 'Enter'])('saves a local download time as UTC using %s', async (method) => {
+        const user = userEvent.setup();
+        renderTable();
+        const firstRow = screen.getAllByRole('row')[1];
+        await user.click(within(firstRow).getByRole('button', { name: 'editDownloadTime' }));
+        const input = screen.getByLabelText('downloadedOn') as HTMLInputElement;
+        expect(new Date(input.value).getTime()).toBe(new Date(mockVideos[0].addedAt).getTime());
+        fireEvent.change(input, { target: { value: '2026-11-12T10:30:45' } });
+
+        if (method === 'Enter') fireEvent.keyDown(input, { key: 'Enter' });
+        else await user.click(within(firstRow).getByRole('button', { name: 'save' }));
+
+        await waitFor(() => expect(defaultProps.onUpdateVideo).toHaveBeenCalledExactlyOnceWith('1', {
+            addedAt: new Date('2026-11-12T10:30:45').toISOString(),
+        }));
+        await waitFor(() => expect(screen.queryByLabelText('downloadedOn')).not.toBeInTheDocument());
+    });
+
+    it.each(['button', 'Escape'])('cancels download time editing using %s without saving', async (method) => {
+        const user = userEvent.setup();
+        renderTable();
+        const firstRow = screen.getAllByRole('row')[1];
+        await user.click(within(firstRow).getByRole('button', { name: 'editDownloadTime' }));
+        const input = screen.getByLabelText('downloadedOn');
+        fireEvent.change(input, { target: { value: '2026-11-12T10:30:45' } });
+        if (method === 'Escape') fireEvent.keyDown(input, { key: 'Escape' });
+        else await user.click(within(firstRow).getByRole('button', { name: 'cancel' }));
+        expect(screen.queryByLabelText('downloadedOn')).not.toBeInTheDocument();
+        expect(defaultProps.onUpdateVideo).not.toHaveBeenCalled();
+    });
+
+    it('rejects an empty download time and allows adding a missing timestamp', async () => {
+        const user = userEvent.setup();
+        renderTable({ displayedVideos: [{ ...mockVideos[0], addedAt: '' }] });
+        expect(screen.getByText('unknownDate').parentElement).toHaveTextContent('downloadedOn: unknownDate');
+        await user.click(screen.getByRole('button', { name: 'editDownloadTime' }));
+        const input = screen.getByLabelText('downloadedOn');
+        expect(input).toHaveValue('');
+        expect(screen.getByRole('button', { name: 'save' })).toBeDisabled();
+        fireEvent.keyDown(input, { key: 'Enter' });
+        expect(defaultProps.onUpdateVideo).not.toHaveBeenCalled();
+        fireEvent.change(input, { target: { value: '2026-11-12T10:30:45' } });
+        expect(screen.getByRole('button', { name: 'save' })).toBeEnabled();
+    });
+
+    it('retains the draft on failure and allows retrying', async () => {
+        const user = userEvent.setup();
+        const onUpdateVideo = vi.fn()
+            .mockResolvedValueOnce({ success: false, error: 'videoUpdateFailed' })
+            .mockResolvedValueOnce({ success: true });
+        renderTable({ onUpdateVideo });
+        const firstRow = screen.getAllByRole('row')[1];
+        await user.click(within(firstRow).getByRole('button', { name: 'editDownloadTime' }));
+        fireEvent.change(screen.getByLabelText('downloadedOn'), { target: { value: '2026-11-12T10:30:45' } });
+        await user.click(within(firstRow).getByRole('button', { name: 'save' }));
+        expect(await screen.findByText('videoUpdateFailed')).toBeInTheDocument();
+        expect(new Date((screen.getByLabelText('downloadedOn') as HTMLInputElement).value).getTime())
+            .toBe(new Date('2026-11-12T10:30:45').getTime());
+        await user.click(within(firstRow).getByRole('button', { name: 'save' }));
+        await waitFor(() => expect(screen.queryByLabelText('downloadedOn')).not.toBeInTheDocument());
+        expect(onUpdateVideo).toHaveBeenCalledTimes(2);
+    });
+
+    describe('download times during daylight-saving transitions', () => {
+        beforeEach(() => vi.stubEnv('TZ', 'America/New_York'));
+        afterEach(() => vi.unstubAllEnvs());
+
+        it.each(['2024-11-03T05:30:00.123Z', '2024-11-03T06:30:00.456Z'])(
+            'preserves the unchanged instant and milliseconds for %s', async (addedAt) => {
+                const user = userEvent.setup();
+                renderTable({ displayedVideos: [{ ...mockVideos[0], addedAt }] });
+                await user.click(screen.getByRole('button', { name: 'editDownloadTime' }));
+                expect(screen.getByRole('combobox', { name: 'downloadTimeOffset' }))
+                    .toHaveTextContent(addedAt.includes('T05:') ? 'UTC-04:00' : 'UTC-05:00');
+                await user.click(screen.getByRole('button', { name: 'save' }));
+                await waitFor(() => expect(defaultProps.onUpdateVideo).toHaveBeenCalledWith('1', { addedAt }));
+            }
+        );
+
+        it('allows choosing either occurrence of an edited ambiguous local time', async () => {
+            const user = userEvent.setup();
+            renderTable({ displayedVideos: [{ ...mockVideos[0], addedAt: '2024-11-03T04:30:00Z' }] });
+            await user.click(screen.getByRole('button', { name: 'editDownloadTime' }));
+            fireEvent.change(screen.getByLabelText('downloadedOn'), { target: { value: '2024-11-03T01:45' } });
+            await user.click(screen.getByRole('combobox', { name: 'downloadTimeOffset' }));
+            await user.click(screen.getByRole('option', { name: 'UTC-05:00' }));
+            await user.click(screen.getByRole('button', { name: 'save' }));
+            await waitFor(() => expect(defaultProps.onUpdateVideo).toHaveBeenCalledWith('1', {
+                addedAt: '2024-11-03T06:45:00.000Z',
+            }));
+        });
+
+        it('rejects a local time skipped by spring-forward', async () => {
+            const user = userEvent.setup();
+            renderTable();
+            await user.click(within(screen.getAllByRole('row')[1]).getByRole('button', { name: 'editDownloadTime' }));
+            const input = screen.getByLabelText('downloadedOn');
+            fireEvent.change(input, { target: { value: '2024-03-10T02:30' } });
+            expect(screen.getByRole('button', { name: 'save' })).toBeDisabled();
+            fireEvent.keyDown(input, { key: 'Enter' });
+            expect(defaultProps.onUpdateVideo).not.toHaveBeenCalled();
+        });
+    });
+
+    it('warns before saving an unlocked video past the auto-delete cutoff without changing its lock', async () => {
+        const user = userEvent.setup();
+        mockSettings = { autoDeleteEnabled: true, autoDeleteIntervalDays: 30 };
+        renderTable({ displayedVideos: [{ ...mockVideos[0], addedAt: new Date().toISOString() }] });
+        await user.click(screen.getByRole('button', { name: 'editDownloadTime' }));
+        expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+        fireEvent.change(screen.getByLabelText('downloadedOn'), { target: { value: '2020-01-01T12:00' } });
+        expect(screen.getByRole('alert')).toHaveTextContent('downloadTimeAutoDeleteWarning');
+        expect(defaultProps.onUpdateVideo).not.toHaveBeenCalled();
+        await user.click(screen.getByRole('button', { name: 'save' }));
+        await waitFor(() => expect(defaultProps.onUpdateVideo).toHaveBeenCalledExactlyOnceWith('1', {
+            addedAt: new Date('2020-01-01T12:00').toISOString(),
+        }));
+    });
+
+    it.each([false, true])('blocks download-time saves until settings load (failed: %s)', async (failed) => {
+        const user = userEvent.setup();
+        mockSettings = undefined;
+        mockSettingsError = failed;
+        renderTable({ displayedVideos: [mockVideos[0]] });
+        await user.click(screen.getByRole('button', { name: 'editDownloadTime' }));
+        const input = screen.getByLabelText('downloadedOn');
+        fireEvent.change(input, { target: { value: '2020-01-01T12:00' } });
+        expect(screen.getByRole('alert')).toHaveTextContent(failed ? 'error' : 'loading');
+        expect(screen.getByRole('button', { name: 'save' })).toBeDisabled();
+        fireEvent.keyDown(input, { key: 'Enter' });
+        expect(defaultProps.onUpdateVideo).not.toHaveBeenCalled();
+        if (failed) {
+            await user.click(screen.getByRole('button', { name: 'retry' }));
+            expect(mockRefetchSettings).toHaveBeenCalledOnce();
+        }
+
+        mockSettings = { autoDeleteEnabled: true, autoDeleteIntervalDays: 30 };
+        mockSettingsError = false;
+        fireEvent.change(input, { target: { value: '2020-01-02T12:00' } });
+        expect(screen.getByRole('alert')).toHaveTextContent('downloadTimeAutoDeleteWarning');
+        expect(screen.getByRole('button', { name: 'save' })).toBeEnabled();
+        await user.click(screen.getByRole('button', { name: 'save' }));
+        await waitFor(() => expect(defaultProps.onUpdateVideo).toHaveBeenCalledExactlyOnceWith('1', {
+            addedAt: new Date('2020-01-02T12:00').toISOString(),
+        }));
+    });
+
+    it.each([
+        [false, 30, null],
+        [true, 30, 1],
+        [true, 0, null],
+        [true, 3651, null],
+    ])('does not warn when auto-delete is disabled, invalid, or the video is locked (%s, %s, %s)', async (enabled, days, locked) => {
+        const user = userEvent.setup();
+        mockSettings = { autoDeleteEnabled: enabled, autoDeleteIntervalDays: days };
+        renderTable({ displayedVideos: [{ ...mockVideos[0], addedAt: '2020-01-01T12:00:00Z', autoDeleteLocked: locked }] });
+        await user.click(screen.getByRole('button', { name: 'editDownloadTime' }));
+        expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     });
 
     it('triggers row-level thumbnail refresh, thumbnail re-download, delete, and video re-download actions', async () => {

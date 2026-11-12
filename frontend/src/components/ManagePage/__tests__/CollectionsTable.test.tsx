@@ -55,9 +55,9 @@ describe('CollectionsTable', () => {
         expect(screen.getByText('10 MB')).toBeInTheDocument();
     });
 
-    it('shows the video count as a bare number', () => {
+    it('shows the collection video count with its mobile label', () => {
         renderTable();
-        expect(screen.getByRole('cell', { name: '1' })).toBeInTheDocument();
+        expect(screen.getByText('1', { selector: 'span' }).closest('td')).toHaveTextContent('videos: 1');
     });
 
     it('disables the cleanup button when no collection is empty', () => {

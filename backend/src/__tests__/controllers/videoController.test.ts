@@ -598,6 +598,40 @@ describe("VideoController", () => {
   });
 
   describe("updateVideoDetails", () => {
+    it.each([
+      ["2026-11-12T10:30:45-05:00", "2026-11-12T15:30:45.000Z"],
+      ["2024-02-29T23:30:45-05:00", "2024-03-01T04:30:45.000Z"],
+      ["2000-02-29T00:30:45+05:30", "2000-02-28T19:00:45.000Z"],
+    ])("updates and normalizes the download timestamp %s", async (addedAt, normalized) => {
+      req.params = { id: "1" };
+      req.body = { addedAt };
+      const mockVideo = { id: "1", addedAt: normalized };
+      vi.mocked(storageService.updateVideo).mockReturnValue(mockVideo as any);
+
+      await updateVideoDetails(req as Request, res as Response);
+
+      expect(storageService.updateVideo).toHaveBeenCalledWith("1", {
+        addedAt: normalized,
+      });
+      expect(status).toHaveBeenCalledWith(200);
+    });
+
+    it.each([
+      null, 123, {}, [], "", "not-a-date", "2026-13-12T10:30:45Z", "2026-11-12T10:30:45",
+      "2026-02-29T10:00:00Z", "2026-02-30T10:30:45Z", "2026-04-31T10:00:00Z",
+      "1900-02-29T00:30:45+05:30", "2026-04-31T23:30:45-05:00",
+    ])(
+      "rejects an invalid download timestamp %p without updating storage",
+      async (addedAt) => {
+        req.params = { id: "1" };
+        req.body = { addedAt };
+        await expect(updateVideoDetails(req as Request, res as Response)).rejects.toMatchObject({
+          name: "ValidationError",
+        });
+        expect(storageService.updateVideo).not.toHaveBeenCalled();
+      }
+    );
+
     it("should update video details", () => {
       req.params = { id: "1" };
       req.body = { title: "New Title" };
