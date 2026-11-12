@@ -1,5 +1,11 @@
 export const pt = {
   // Author avatar management
+  authorAvatarSourceFetch: "Obter novamente da fonte",
+  authorAvatarSourceChannel: "Canal de origem",
+  authorAvatarSourceUnavailable: "Não há endereço de canal disponível. Escolha uma imagem local.",
+  authorAvatarSourceError: "Não foi possível obter o avatar. O atual não mudou. Verifique a conexão, os cookies ou as configurações da plataforma.",
+  authorAvatarSourcePreview: "Prévia da nova imagem. Salve para substituir o avatar; restaurar ainda usará o cache original.",
+  authorAvatarSourceHint: "A obtenção gera apenas uma prévia. O avatar muda somente ao salvar.",
   authorAvatarTitle: "Avatar do autor",
   authorAvatarChange: "Alterar avatar",
   authorAvatarSet: "Definir avatar",

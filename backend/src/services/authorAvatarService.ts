@@ -1,3 +1,4 @@
+import { collectAvatarSources, type AuthorAvatarSource } from "../utils/authorAvatarSources";
 import { and, eq, inArray, desc, sql, or, isNull } from "drizzle-orm";
 import path from "path";
 import { db } from "../db";
@@ -16,6 +17,7 @@ export interface AuthorProfile {
   avatarOrigin: AvatarOrigin;
   videoCount: number;
   multipleSources: boolean;
+  avatarSources: AuthorAvatarSource[];
 }
 
 export const isCustomAvatarPath = (value: unknown): value is string =>
@@ -76,6 +78,7 @@ export function getAuthorProfile(author: string): AuthorProfile {
     effectiveAvatarPath: customAvatarPath || defaultAvatarPath,
     avatarOrigin: customAvatarPath ? "custom" : defaultAvatarPath ? "auto" : "none",
     videoCount: rows.length,
+    avatarSources: collectAvatarSources(rows.map(row => row.channel)),
     multipleSources: new Set(rows.map(row => `${row.source || ""}:${row.channel || ""}`)).size > 1,
   };
 }

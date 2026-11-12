@@ -37,6 +37,18 @@ describe('author avatar persistence and projection', () => {
     expect(raw[0].authorAvatarPath).toBe('/avatars/auto.jpg');
     expect(raw[1]).not.toHaveProperty('authorAvatarPath');
   });
+  it('offers deduplicated supported channels without inferring a channel for local-only authors', () => {
+    const insert = sqlite.prepare('INSERT INTO videos VALUES (?, ?, ?, ?, ?, ?)');
+    insert.run('one', 'A', 'youtube', 'https://youtube.com/@test/videos', null, '2026');
+    insert.run('two', 'A', 'local', 'https://www.youtube.com/@test', null, '2026');
+    insert.run('three', 'A', 'bilibili', 'https://space.bilibili.com/123', null, '2026');
+    insert.run('four', 'A', 'local', 'http://127.0.0.1/private', null, '2026');
+    expect(getAuthorProfile('A').avatarSources).toEqual([
+      { platform: 'youtube', channelUrl: 'https://www.youtube.com/@test' },
+      { platform: 'bilibili', channelUrl: 'https://space.bilibili.com/123' },
+    ]);
+    expect(getAuthorProfile('local').avatarSources).toEqual([]);
+  });
   it('restores defaults, deletes only replaced custom assets, and invalidates ETags', () => {
     sqlite.prepare('INSERT INTO videos VALUES (?, ?, ?, ?, ?, ?)').run('v1', '作者 / 🎬', 'youtube', null, '/avatars/auto.jpg', '2026-01-01');
     const before = getVideosListETag('all');

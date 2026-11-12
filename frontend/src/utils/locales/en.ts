@@ -1,5 +1,11 @@
 export const en = {
   // Author avatar management
+  authorAvatarSourceFetch: "Fetch from source",
+  authorAvatarSourceChannel: "Source channel",
+  authorAvatarSourceUnavailable: "No channel address is available. Choose a local image instead.",
+  authorAvatarSourceError: "Could not fetch the avatar. Your current avatar is unchanged. Check the connection, cookies or platform settings and retry.",
+  authorAvatarSourcePreview: "New source image preview. Save to replace the author avatar; restoring defaults will still use the original cache.",
+  authorAvatarSourceHint: "Fetching creates a preview. Your saved avatar changes only after you save.",
   authorAvatarTitle: "Author avatar",
   authorAvatarChange: "Change avatar",
   authorAvatarSet: "Set avatar",

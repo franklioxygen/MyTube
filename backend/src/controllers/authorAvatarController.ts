@@ -78,3 +78,26 @@ export async function uploadAvatar(req: Request, res: Response): Promise<void> {
   }
   refreshedProfile(author, res);
 }
+
+/** Return a preview only. The existing upload endpoint applies it after confirmation. */
+export async function fetchSourceAvatar(req: Request, res: Response): Promise<void> {
+  const author = readAuthor(req.body?.author);
+  const sources = getAuthorProfile(author).avatarSources;
+  const source = sources.find(item => item.channelUrl === req.body?.channelUrl);
+  if (!source) throw new ValidationError("Choose a channel associated with this author", "channelUrl");
+  const controller = new AbortController();
+  const abort = () => controller.abort();
+  res.on("close", abort);
+  try {
+    const { fetchAuthorSourceAvatar } = await import("../services/authorAvatarFetchService");
+    const result = await fetchAuthorSourceAvatar(source, controller.signal);
+    if (controller.signal.aborted) return;
+    res.set("Cache-Control", "private, no-store");
+    res.set("X-Content-Type-Options", "nosniff");
+    res.type(result.mime).send(result.buffer);
+  } catch (error) {
+    if (controller.signal.aborted) return;
+    logger.warn("Could not fetch author avatar from source", error);
+    res.status(502).json({ error: "Could not fetch the channel avatar. Your saved avatar has not changed.", code: "AUTHOR_AVATAR_SOURCE_UNAVAILABLE" });
+  } finally { res.removeListener("close", abort); }
+}

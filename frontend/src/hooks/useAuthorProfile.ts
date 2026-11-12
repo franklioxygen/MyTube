@@ -10,6 +10,7 @@ export interface AuthorProfile {
     avatarOrigin: 'custom' | 'auto' | 'none';
     videoCount: number;
     multipleSources: boolean;
+    avatarSources: Array<{ platform: "youtube" | "bilibili" | "twitch"; channelUrl: string }>;
 }
 
 export function useAuthorProfile(author: string, enabled = true) {
@@ -44,5 +45,11 @@ export function useAuthorProfile(author: string, enabled = true) {
         ]);
         return profile;
     };
-    return { ...query, canManage, save };
+    const fetchFromSource = async (channelUrl: string, signal?: AbortSignal) => {
+        const response = await api.post<Blob>('/authors/avatar/from-source', { author, channelUrl }, {
+            responseType: 'blob', timeout: 65000, signal,
+        });
+        return new File([response.data], 'channel-avatar', { type: response.data.type });
+    };
+    return { ...query, canManage, save, fetchFromSource };
 }

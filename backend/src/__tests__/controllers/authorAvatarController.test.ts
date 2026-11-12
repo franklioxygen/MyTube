@@ -5,18 +5,19 @@ import express from "express";
 import fs from "fs-extra";
 import type { Server } from "http";
 
-const state = vi.hoisted(() => ({ db: undefined as any, dir: '', login: false, dimensions: { width: 512, height: 512 }, fail: false }));
+const state = vi.hoisted(() => ({ db: undefined as any, dir: '', login: false, dimensions: { width: 512, height: 512 }, fail: false, fetchSource: vi.fn() }));
 vi.mock('../../db', () => ({ get db() { return state.db; } }));
 vi.mock('../../config/paths', async importOriginal => {
   const fs = await import('fs'); const os = await import('os'); const path = await import('path');
   state.dir = fs.mkdtempSync(path.join(os.tmpdir(), 'avatar-controller-'));
   return { ...await importOriginal<object>(), AVATARS_DIR: state.dir };
 });
+vi.mock('../../services/authorAvatarFetchService', () => ({ fetchAuthorSourceAvatar: state.fetchSource }));
 vi.mock('../../services/passwordService', () => ({ isLoginRequired: () => state.login }));
 vi.mock('../../services/mediaServerExport/bulkArtifactRefresh', () => ({ queueBulkArtifactRefresh: vi.fn() }));
 vi.mock('../../utils/security', async importOriginal => ({ ...await importOriginal<object>(), execFileSafe: async () => ({ stdout: JSON.stringify({ streams: [state.dimensions] }) }) }));
 vi.mock('../../utils/avatarUtils', () => ({ resizeAvatar: async (_input: string, output: string) => { if (state.fail) return false; await fs.writeFile(output, 'jpeg-output'); return true; } }));
-import { avatarUpload, readProfile, uploadAvatar, removeAvatar } from '../../controllers/authorAvatarController';
+import { avatarUpload, readProfile, uploadAvatar, removeAvatar, fetchSourceAvatar } from '../../controllers/authorAvatarController';
 import { requireAdmin } from '../../middleware/requireAdmin';
 import { asyncHandler, errorHandler } from '../../middleware/errorHandler';
 import { getVideosListETag } from '../../services/storageService/videoListRevision';
@@ -33,6 +34,7 @@ beforeAll(async () => {
   state.db = drizzle(sqlite);
   const app = express(); app.use(express.json());
   app.use((req, _res, next) => { if (req.headers['x-test-role']) req.user = { role: req.headers['x-test-role'] as 'admin' | 'visitor' }; if (req.headers['x-api-key']) req.apiKeyAuthenticated = true; next(); });
+  app.post('/authors/avatar/from-source', requireAdmin, asyncHandler(fetchSourceAvatar));
   app.get('/authors/profile', requireAdmin, asyncHandler(readProfile));
   app.put('/authors/avatar', requireAdmin, avatarUpload.single('avatar'), asyncHandler(uploadAvatar));
   app.delete('/authors/avatar', requireAdmin, asyncHandler(removeAvatar));
@@ -40,7 +42,7 @@ beforeAll(async () => {
   await new Promise<void>(resolve => { server = app.listen(0, '127.0.0.1', () => resolve()); });
   url = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
 });
-beforeEach(() => { sqlite.exec('DELETE FROM author_profiles; DELETE FROM videos'); fs.emptyDirSync(state.dir); state.login = false; state.fail = false; state.dimensions = { width: 512, height: 512 }; });
+beforeEach(() => { sqlite.exec('DELETE FROM author_profiles; DELETE FROM videos'); fs.emptyDirSync(state.dir); state.login = false; state.fail = false; state.dimensions = { width: 512, height: 512 }; state.fetchSource.mockReset().mockResolvedValue({ buffer: png, mime: 'image/png' }); });
 afterAll(async () => { await new Promise<void>(resolve => server.close(() => resolve())); sqlite.close(); fs.removeSync(state.dir); });
 
 describe('author avatar HTTP contract', () => {
@@ -63,6 +65,36 @@ describe('author avatar HTTP contract', () => {
     expect(responses.map(response => response.status)).toEqual([200, 200]);
     const current = (await (await fetch(url + '/authors/profile?author=' + encodeURIComponent('作者 / 🎬'))).json() as any).data;
     expect(fs.readdirSync(state.dir)).toEqual([current.customAvatarPath.split('/').pop()]);
+  });
+  it('fetches a source preview without changing saved avatars, files or ETags', async () => {
+    sqlite.prepare('INSERT INTO videos VALUES (?, ?, ?, ?, ?, ?)').run('v', '作者 / 🎬', 'youtube', 'https://youtube.com/@test/videos', '/avatars/auto.jpg', '2026');
+    const saved = await (await fetch(url + '/authors/avatar', { method: 'PUT', body: form() })).json() as any;
+    const etag = getVideosListETag('all');
+    const response = await fetch(url + '/authors/avatar/from-source', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ author: '作者 / 🎬', channelUrl: 'https://www.youtube.com/@test' }) });
+    expect(response.status).toBe(200); expect(response.headers.get('cache-control')).toContain('no-store');
+    expect(Buffer.from(await response.arrayBuffer())).toEqual(png);
+    expect(fs.readdirSync(state.dir)).toEqual([saved.data.customAvatarPath.split('/').pop()]);
+    expect(getVideosListETag('all')).toBe(etag);
+    expect(state.fetchSource).toHaveBeenCalledWith({ platform: 'youtube', channelUrl: 'https://www.youtube.com/@test' }, expect.any(AbortSignal));
+  });
+  it('rejects arbitrary or unrelated source URLs before any network call', async () => {
+    for (const channelUrl of ['http://127.0.0.1/private', 'https://youtube.com/@other']) {
+      const response = await fetch(url + '/authors/avatar/from-source', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ author: '作者 / 🎬', channelUrl }) });
+      expect(response.status).toBe(400);
+    }
+    expect(state.fetchSource).not.toHaveBeenCalled();
+  });
+  it('keeps current state when the source is unavailable', async () => {
+    sqlite.prepare('INSERT INTO videos VALUES (?, ?, ?, ?, ?, ?)').run('v', '作者 / 🎬', 'youtube', 'https://youtube.com/@test', '/avatars/auto.jpg', '2026');
+    state.fetchSource.mockRejectedValueOnce(new Error('offline'));
+    const response = await fetch(url + '/authors/avatar/from-source', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ author: '作者 / 🎬', channelUrl: 'https://www.youtube.com/@test' }) });
+    expect(response.status).toBe(502); expect(fs.readdirSync(state.dir)).toEqual([]);
+    expect(sqlite.prepare('SELECT author_avatar_path AS path FROM videos').get()).toEqual({ path: '/avatars/auto.jpg' });
+  });
+  it.each([['visitor', 403], ['', 401]])('rejects source fetch for %s', async (role, status) => {
+    state.login = true;
+    const response = await fetch(url + '/authors/avatar/from-source', { method: 'POST', headers: { 'Content-Type': 'application/json', ...(role ? { 'x-test-role': role } : {}) }, body: JSON.stringify({ author: '作者 / 🎬' }) });
+    expect(response.status).toBe(status); expect(state.fetchSource).not.toHaveBeenCalled();
   });
   it.each([['visitor', 403], ['', 401]])('rejects %s before multipart parsing', async (role, status) => {
     state.login = true;

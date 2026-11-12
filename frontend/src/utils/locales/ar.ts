@@ -1,5 +1,11 @@
 export const ar = {
   // Author avatar management
+  authorAvatarSourceFetch: "إعادة الجلب من المصدر",
+  authorAvatarSourceChannel: "قناة المصدر",
+  authorAvatarSourceUnavailable: "لا يتوفر عنوان للقناة. اختر صورة محلية.",
+  authorAvatarSourceError: "تعذر جلب الصورة. لم تتغير الصورة الحالية. تحقق من الاتصال أو ملفات تعريف الارتباط أو إعدادات المنصة.",
+  authorAvatarSourcePreview: "معاينة الصورة الجديدة. احفظ لاستبدال صورة المؤلف؛ الاستعادة ستستخدم النسخة الأصلية المخزنة.",
+  authorAvatarSourceHint: "الجلب ينشئ معاينة فقط. لا تتغير الصورة المحفوظة إلا بعد الحفظ.",
   authorAvatarTitle: "صورة المؤلف",
   authorAvatarChange: "تغيير الصورة",
   authorAvatarSet: "تعيين الصورة",

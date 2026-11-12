@@ -1,5 +1,11 @@
 export const de = {
   // Author avatar management
+  authorAvatarSourceFetch: "Von Quelle neu laden",
+  authorAvatarSourceChannel: "Quellkanal",
+  authorAvatarSourceUnavailable: "Keine Kanaladresse verfügbar. Stattdessen ein lokales Bild wählen.",
+  authorAvatarSourceError: "Bild konnte nicht geladen werden. Das aktuelle Bild bleibt erhalten. Verbindung, Cookies oder Plattformeinstellungen prüfen.",
+  authorAvatarSourcePreview: "Vorschau des neuen Bildes. Speichern ersetzt das Autorenbild; der Standard bleibt das ursprüngliche gespeicherte Bild.",
+  authorAvatarSourceHint: "Das Laden erzeugt eine Vorschau. Erst Speichern ändert das Bild.",
   authorAvatarTitle: "Autorenbild",
   authorAvatarChange: "Bild ändern",
   authorAvatarSet: "Bild festlegen",

@@ -1,5 +1,11 @@
 export const ru = {
   // Author avatar management
+  authorAvatarSourceFetch: "Загрузить заново из источника",
+  authorAvatarSourceChannel: "Канал источника",
+  authorAvatarSourceUnavailable: "Адрес канала недоступен. Выберите локальное изображение.",
+  authorAvatarSourceError: "Не удалось получить аватар. Текущий не изменён. Проверьте подключение, cookie или настройки платформы.",
+  authorAvatarSourcePreview: "Предпросмотр нового изображения. Сохраните для замены аватара; восстановление использует исходный кеш.",
+  authorAvatarSourceHint: "Получение создаёт предпросмотр. Аватар меняется только после сохранения.",
   authorAvatarTitle: "Аватар автора",
   authorAvatarChange: "Изменить аватар",
   authorAvatarSet: "Задать аватар",

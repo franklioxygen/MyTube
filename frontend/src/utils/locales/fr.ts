@@ -1,5 +1,11 @@
 export const fr = {
   // Author avatar management
+  authorAvatarSourceFetch: "Récupérer depuis la source",
+  authorAvatarSourceChannel: "Chaîne source",
+  authorAvatarSourceUnavailable: "Aucune adresse de chaîne disponible. Choisissez une image locale.",
+  authorAvatarSourceError: "Impossible de récupérer l’avatar. L’avatar actuel est inchangé. Vérifiez la connexion, les cookies ou les réglages de la plateforme.",
+  authorAvatarSourcePreview: "Aperçu de la nouvelle image. Enregistrez pour remplacer l’avatar ; le rétablissement utilisera toujours le cache initial.",
+  authorAvatarSourceHint: "La récupération crée un aperçu. L’avatar change uniquement après enregistrement.",
   authorAvatarTitle: "Avatar de l’auteur",
   authorAvatarChange: "Changer l’avatar",
   authorAvatarSet: "Définir l’avatar",

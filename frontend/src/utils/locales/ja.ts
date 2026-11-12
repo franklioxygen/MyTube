@@ -1,5 +1,11 @@
 export const ja = {
   // Author avatar management
+  authorAvatarSourceFetch: "配信元から再取得",
+  authorAvatarSourceChannel: "配信元チャンネル",
+  authorAvatarSourceUnavailable: "チャンネルのアドレスがありません。ローカル画像を選択してください。",
+  authorAvatarSourceError: "アバターを取得できませんでした。現在の画像は変更されていません。接続、Cookie、プラットフォーム設定を確認してください。",
+  authorAvatarSourcePreview: "取得した画像のプレビューです。保存すると変更されます。既定に戻すと元のキャッシュが使われます。",
+  authorAvatarSourceHint: "取得のみでは変更されません。保存すると適用されます。",
   authorAvatarTitle: "作者のアバター",
   authorAvatarChange: "アバターを変更",
   authorAvatarSet: "アバターを設定",

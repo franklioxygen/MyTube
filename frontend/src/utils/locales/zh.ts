@@ -1,5 +1,11 @@
 export const zh = {
   // Author avatar management
+  authorAvatarSourceFetch: "从来源重新获取",
+  authorAvatarSourceChannel: "来源频道",
+  authorAvatarSourceUnavailable: "没有可用的频道地址，请选择本地图片。",
+  authorAvatarSourceError: "无法重新获取头像，当前头像未改变。请检查网络、Cookie 或平台设置后重试。",
+  authorAvatarSourcePreview: "已重新获取。保存后会替换作者头像；恢复默认仍使用原缓存。",
+  authorAvatarSourceHint: "获取只用于预览，点击保存才会替换当前头像。",
   authorAvatarTitle: "作者头像",
   authorAvatarChange: "更换头像",
   authorAvatarSet: "设置头像",

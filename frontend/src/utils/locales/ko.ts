@@ -1,5 +1,11 @@
 export const ko = {
   // Author avatar management
+  authorAvatarSourceFetch: "출처에서 다시 가져오기",
+  authorAvatarSourceChannel: "출처 채널",
+  authorAvatarSourceUnavailable: "채널 주소가 없습니다. 로컬 이미지를 선택하세요.",
+  authorAvatarSourceError: "아바타를 가져오지 못했습니다. 현재 아바타는 변경되지 않았습니다. 연결, 쿠키 또는 플랫폼 설정을 확인하세요.",
+  authorAvatarSourcePreview: "새 이미지 미리보기입니다. 저장하면 아바타가 바뀝니다. 기본값 복원은 원래 캐시를 사용합니다.",
+  authorAvatarSourceHint: "가져오기는 미리보기만 생성합니다. 저장해야 변경됩니다.",
   authorAvatarTitle: "작성자 아바타",
   authorAvatarChange: "아바타 변경",
   authorAvatarSet: "아바타 설정",
