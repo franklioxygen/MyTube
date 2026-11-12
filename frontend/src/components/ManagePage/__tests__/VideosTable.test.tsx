@@ -10,7 +10,9 @@ import { api } from '../../../utils/apiClient';
 import { formatDisplayDateTime } from '../../../utils/formatUtils';
 
 let mockUserRole = 'admin';
-let mockSettings: Partial<Settings> = {};
+let mockSettings: Partial<Settings> | undefined = {};
+let mockSettingsError = false;
+const mockRefetchSettings = vi.fn();
 let mockCollections = [
     { id: 'collection-1', name: 'Collection 1', videos: [] },
     { id: 'collection-2', name: 'Collection 2', videos: [] },
@@ -36,7 +38,7 @@ vi.mock('../../../contexts/AuthContext', () => ({
 }));
 
 vi.mock('../../../hooks/useSettings', () => ({
-    useSettings: () => ({ data: mockSettings }),
+    useSettings: () => ({ data: mockSettings, isError: mockSettingsError, refetch: mockRefetchSettings }),
 }));
 
 vi.mock('../../../contexts/VideoContext', () => ({
@@ -205,6 +207,7 @@ describe('VideosTable', () => {
         vi.clearAllMocks();
         mockUserRole = 'admin';
         mockSettings = {};
+        mockSettingsError = false;
         mockCollections = [
             { id: 'collection-1', name: 'Collection 1', videos: [] },
             { id: 'collection-2', name: 'Collection 2', videos: [] },
@@ -510,6 +513,34 @@ describe('VideosTable', () => {
         await user.click(screen.getByRole('button', { name: 'save' }));
         await waitFor(() => expect(defaultProps.onUpdateVideo).toHaveBeenCalledExactlyOnceWith('1', {
             addedAt: new Date('2020-01-01T12:00').toISOString(),
+        }));
+    });
+
+    it.each([false, true])('blocks download-time saves until settings load (failed: %s)', async (failed) => {
+        const user = userEvent.setup();
+        mockSettings = undefined;
+        mockSettingsError = failed;
+        renderTable({ displayedVideos: [mockVideos[0]] });
+        await user.click(screen.getByRole('button', { name: 'editDownloadTime' }));
+        const input = screen.getByLabelText('downloadedOn');
+        fireEvent.change(input, { target: { value: '2020-01-01T12:00' } });
+        expect(screen.getByRole('alert')).toHaveTextContent(failed ? 'error' : 'loading');
+        expect(screen.getByRole('button', { name: 'save' })).toBeDisabled();
+        fireEvent.keyDown(input, { key: 'Enter' });
+        expect(defaultProps.onUpdateVideo).not.toHaveBeenCalled();
+        if (failed) {
+            await user.click(screen.getByRole('button', { name: 'retry' }));
+            expect(mockRefetchSettings).toHaveBeenCalledOnce();
+        }
+
+        mockSettings = { autoDeleteEnabled: true, autoDeleteIntervalDays: 30 };
+        mockSettingsError = false;
+        fireEvent.change(input, { target: { value: '2020-01-02T12:00' } });
+        expect(screen.getByRole('alert')).toHaveTextContent('downloadTimeAutoDeleteWarning');
+        expect(screen.getByRole('button', { name: 'save' })).toBeEnabled();
+        await user.click(screen.getByRole('button', { name: 'save' }));
+        await waitFor(() => expect(defaultProps.onUpdateVideo).toHaveBeenCalledExactlyOnceWith('1', {
+            addedAt: new Date('2020-01-02T12:00').toISOString(),
         }));
     });
 

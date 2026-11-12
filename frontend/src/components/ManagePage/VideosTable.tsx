@@ -138,7 +138,7 @@ const VideosTable: React.FC<VideosTableProps> = ({
 }) => {
     const { t } = useLanguage();
     const { userRole } = useAuth();
-    const { data: settings } = useSettings();
+    const { data: settings, isError: settingsError, refetch: refetchSettings } = useSettings();
     const { deleteVideos, availableTags } = useVideo();
     const { activeDownloads, queuedDownloads } = useDownload();
     const isVisitor = userRole === 'visitor';
@@ -263,7 +263,7 @@ const VideosTable: React.FC<VideosTableProps> = ({
     };
 
     const handleSaveDownloadTime = async (id: string) => {
-        if (downloadTimestamp === undefined || isSavingDownloadTime) return;
+        if (downloadTimestamp === undefined || isSavingDownloadTime || settings === undefined) return;
 
         setIsSavingDownloadTime(true);
         setDownloadTimeError('');
@@ -562,9 +562,20 @@ const VideosTable: React.FC<VideosTableProps> = ({
                                         )}
                                         {editingDownloadTimeId === video.id ? (
                                             <Box sx={{
-                                                display: { xs: 'grid', md: downloadTimeOptions.length > 1 || showDownloadTimeAutoDeleteWarning ? 'grid' : 'flex' }, alignItems: 'center', mt: 1,
+                                                display: { xs: 'grid', md: downloadTimeOptions.length > 1 || showDownloadTimeAutoDeleteWarning || settings === undefined ? 'grid' : 'flex' }, alignItems: 'center', mt: 1,
                                                 gridTemplateColumns: 'minmax(0, 1fr) auto auto',
                                             }}>
+                                                {settings === undefined && (
+                                                    <Alert
+                                                        severity={settingsError ? 'error' : 'info'}
+                                                        sx={{ gridColumn: '1 / -1', mb: 1 }}
+                                                        action={settingsError ? (
+                                                            <Button onClick={() => void refetchSettings()} size="small" color="inherit">{t('retry')}</Button>
+                                                        ) : undefined}
+                                                    >
+                                                        {t('autoDelete')}: {t(settingsError ? 'error' : 'loading')}
+                                                    </Alert>
+                                                )}
                                                 {showDownloadTimeAutoDeleteWarning && (
                                                     <Alert severity="warning" sx={{ gridColumn: '1 / -1', mb: 1 }}>
                                                         {t('downloadTimeAutoDeleteWarning', { days: autoDeleteDays! })}
@@ -620,7 +631,7 @@ const VideosTable: React.FC<VideosTableProps> = ({
                                                     aria-label={t('save')}
                                                     onClick={() => void handleSaveDownloadTime(video.id)}
                                                     loading={isSavingDownloadTime}
-                                                    disabled={!isDownloadTimeValid}
+                                                    disabled={!isDownloadTimeValid || settings === undefined}
                                                     sx={{ gridColumn: 2 }}
                                                 >
                                                     <Check />
