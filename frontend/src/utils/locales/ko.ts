@@ -1323,6 +1323,7 @@ export const ko = {
   downloadedOn: "다운로드 날짜",
   editDownloadTime: "다운로드 시간 편집",
   downloadTimeOffset: "UTC 오프셋",
+  downloadTimeAutoDeleteWarning: "{days}일 후 자동 삭제가 활성화되어 있습니다. 이 동영상은 잠겨 있지 않습니다. 이전 다운로드 시간을 저장하면 예약된 정리 작업에서 동영상과 파일이 영구적으로 삭제될 수 있습니다.",
   deletedOn: "삭제 날짜",
   existingVideo: "기존 동영상",
   skipped: "건너뜀",

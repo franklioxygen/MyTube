@@ -40,6 +40,7 @@ import { useLanguage } from '../../contexts/LanguageContext';
 import { useVideo } from '../../contexts/VideoContext';
 import { usePaginationSwipeNavigation } from '../../hooks/usePaginationSwipeNavigation';
 import { useThumbnailCandidates } from '../../hooks/useThumbnailCandidates';
+import { useSettings } from '../../hooks/useSettings';
 import { Video } from '../../types';
 import type { TranslationKey } from '../../utils/translations';
 import { formatDisplayDateTime, formatDuration, formatSize } from '../../utils/formatUtils';
@@ -137,6 +138,7 @@ const VideosTable: React.FC<VideosTableProps> = ({
 }) => {
     const { t } = useLanguage();
     const { userRole } = useAuth();
+    const { data: settings } = useSettings();
     const { deleteVideos, availableTags } = useVideo();
     const { activeDownloads, queuedDownloads } = useDownload();
     const isVisitor = userRole === 'visitor';
@@ -189,12 +191,26 @@ const VideosTable: React.FC<VideosTableProps> = ({
     const [editDownloadTime, setEditDownloadTime] = useState('');
     const [originalDownloadTime, setOriginalDownloadTime] = useState<number | null>(null);
     const [downloadTimeOffset, setDownloadTimeOffset] = useState<number | null>(null);
+    const [downloadTimeNow, setDownloadTimeNow] = useState(0);
     const [isSavingDownloadTime, setIsSavingDownloadTime] = useState(false);
     const [downloadTimeError, setDownloadTimeError] = useState('');
     const downloadTimeOptions = getLocalDateTimeOptions(editDownloadTime);
     const selectedDownloadTime = downloadTimeOptions.find((option) => option.offsetMinutes === downloadTimeOffset)
         ?? downloadTimeOptions[0];
     const isDownloadTimeValid = !!selectedDownloadTime;
+    // Preserve both the original offset and sub-second precision when the
+    // displayed value is unchanged (including repeated DST hours).
+    const unchangedDownloadTime = originalDownloadTime !== null
+        && Math.floor(originalDownloadTime / 1000) * 1000 === selectedDownloadTime?.timestamp;
+    const downloadTimestamp = unchangedDownloadTime ? originalDownloadTime : selectedDownloadTime?.timestamp;
+    const autoDeleteDays = settings?.autoDeleteIntervalDays;
+    const autoDeleteCutoff = settings?.autoDeleteEnabled === true
+        && typeof autoDeleteDays === 'number' && Number.isInteger(autoDeleteDays)
+        && autoDeleteDays >= 1 && autoDeleteDays <= 3650
+        ? downloadTimeNow - autoDeleteDays * 86_400_000 : null;
+    const editedVideo = displayedVideos.find((video) => video.id === editingDownloadTimeId);
+    const showDownloadTimeAutoDeleteWarning = editedVideo !== undefined && editedVideo.autoDeleteLocked !== 1
+        && autoDeleteCutoff !== null && downloadTimestamp !== undefined && downloadTimestamp < autoDeleteCutoff;
 
     // Upload thumbnail state
     const [uploadThumbnailVideoId, setUploadThumbnailVideoId] = useState<string | null>(null);
@@ -242,21 +258,17 @@ const VideosTable: React.FC<VideosTableProps> = ({
         setEditDownloadTime(value);
         setOriginalDownloadTime(value ? date.getTime() : null);
         setDownloadTimeOffset(value ? date.getTimezoneOffset() : null);
+        setDownloadTimeNow(Date.now());
         setDownloadTimeError('');
     };
 
     const handleSaveDownloadTime = async (id: string) => {
-        if (!selectedDownloadTime || isSavingDownloadTime) return;
+        if (downloadTimestamp === undefined || isSavingDownloadTime) return;
 
         setIsSavingDownloadTime(true);
         setDownloadTimeError('');
         try {
-            // Preserve both the original offset and sub-second precision when
-            // the displayed value is unchanged (including repeated DST hours).
-            const unchanged = originalDownloadTime !== null
-                && Math.floor(originalDownloadTime / 1000) * 1000 === selectedDownloadTime.timestamp;
-            const timestamp = unchanged ? originalDownloadTime : selectedDownloadTime.timestamp;
-            const result = await onUpdateVideo(id, { addedAt: new Date(timestamp).toISOString() });
+            const result = await onUpdateVideo(id, { addedAt: new Date(downloadTimestamp).toISOString() });
             if (result?.success === false) {
                 setDownloadTimeError(result.error || t('videoUpdateFailed'));
                 return;
@@ -550,14 +562,22 @@ const VideosTable: React.FC<VideosTableProps> = ({
                                         )}
                                         {editingDownloadTimeId === video.id ? (
                                             <Box sx={{
-                                                display: { xs: 'grid', md: downloadTimeOptions.length > 1 ? 'grid' : 'flex' }, alignItems: 'center', mt: 1,
+                                                display: { xs: 'grid', md: downloadTimeOptions.length > 1 || showDownloadTimeAutoDeleteWarning ? 'grid' : 'flex' }, alignItems: 'center', mt: 1,
                                                 gridTemplateColumns: 'minmax(0, 1fr) auto auto',
                                             }}>
+                                                {showDownloadTimeAutoDeleteWarning && (
+                                                    <Alert severity="warning" sx={{ gridColumn: '1 / -1', mb: 1 }}>
+                                                        {t('downloadTimeAutoDeleteWarning', { days: autoDeleteDays! })}
+                                                    </Alert>
+                                                )}
                                                 <TextField
                                                     label={t('downloadedOn')}
                                                     type="datetime-local"
                                                     value={editDownloadTime}
-                                                    onChange={(event) => setEditDownloadTime(event.target.value)}
+                                                    onChange={(event) => {
+                                                        setEditDownloadTime(event.target.value);
+                                                        setDownloadTimeNow(Date.now());
+                                                    }}
                                                     size="small"
                                                     fullWidth
                                                     sx={{ minWidth: 0, gridColumn: '1 / -1' }}
@@ -579,7 +599,10 @@ const VideosTable: React.FC<VideosTableProps> = ({
                                                         select
                                                         label={t('downloadTimeOffset')}
                                                         value={selectedDownloadTime.offsetMinutes}
-                                                        onChange={(event) => setDownloadTimeOffset(Number(event.target.value))}
+                                                        onChange={(event) => {
+                                                            setDownloadTimeOffset(Number(event.target.value));
+                                                            setDownloadTimeNow(Date.now());
+                                                        }}
                                                         disabled={isSavingDownloadTime}
                                                         size="small"
                                                         sx={{ minWidth: 0, gridColumn: '1 / -1', mt: 1 }}

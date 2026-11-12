@@ -1277,6 +1277,7 @@ export const zh = {
   downloadedOn: "下载时间",
   editDownloadTime: "编辑下载时间",
   downloadTimeOffset: "UTC 偏移",
+  downloadTimeAutoDeleteWarning: "已启用保留 {days} 天的自动删除。此视频未锁定；保存这个较早的下载时间后，定时清理可能永久删除此视频及其文件。",
   deletedOn: "删除时间",
   existingVideo: "已存在的视频",
   skipped: "已跳过",

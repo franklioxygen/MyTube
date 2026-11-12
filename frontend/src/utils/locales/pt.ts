@@ -1349,6 +1349,7 @@ export const pt = {
   downloadedOn: "Baixado em",
   editDownloadTime: "Editar horário de download",
   downloadTimeOffset: "Deslocamento UTC",
+  downloadTimeAutoDeleteWarning: "A exclusão automática após {days} dias está ativada. Este vídeo está desbloqueado; salvar esta data de download mais antiga pode fazer com que uma limpeza agendada exclua permanentemente o vídeo e seus arquivos.",
   deletedOn: "Excluído em",
   existingVideo: "Vídeo existente",
   skipped: "Pular",

@@ -1309,6 +1309,7 @@ export const en = {
   downloadedOn: "Downloaded on",
   editDownloadTime: "Edit download time",
   downloadTimeOffset: "UTC offset",
+  downloadTimeAutoDeleteWarning: "Auto delete is enabled after {days} days. This video is unlocked; saving this older download time may cause a scheduled cleanup to permanently delete the video and its files.",
   deletedOn: "Deleted on",
   existingVideo: "Existing Video",
   skipped: "Skipped",

@@ -1362,6 +1362,7 @@ export const de = {
   downloadedOn: "Heruntergeladen am",
   editDownloadTime: "Downloadzeit bearbeiten",
   downloadTimeOffset: "UTC-Abweichung",
+  downloadTimeAutoDeleteWarning: "Automatisches Löschen nach {days} Tagen ist aktiviert. Dieses Video ist nicht gesperrt. Wenn Sie diese ältere Downloadzeit speichern, kann eine geplante Bereinigung das Video und seine Dateien dauerhaft löschen.",
   deletedOn: "Gelöscht am",
   existingVideo: "Vorhandenes Video",
   skipped: "Übersprungen",

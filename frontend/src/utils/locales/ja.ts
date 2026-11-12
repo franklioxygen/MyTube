@@ -1339,6 +1339,7 @@ export const ja = {
   downloadedOn: "ダウンロード日",
   editDownloadTime: "ダウンロード日時を編集",
   downloadTimeOffset: "UTCオフセット",
+  downloadTimeAutoDeleteWarning: "{days} 日後の自動削除が有効です。この動画はロックされていません。古いダウンロード日時を保存すると、定期クリーンアップで動画とファイルが完全に削除される可能性があります。",
   deletedOn: "削除日",
   existingVideo: "既存の動画",
   skipped: "スキップ",

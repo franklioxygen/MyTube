@@ -4,12 +4,13 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import userEvent from '@testing-library/user-event';
 import { BrowserRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Video } from '../../../types';
+import type { Settings, Video } from '../../../types';
 import VideosTable from '../VideosTable';
 import { api } from '../../../utils/apiClient';
 import { formatDisplayDateTime } from '../../../utils/formatUtils';
 
 let mockUserRole = 'admin';
+let mockSettings: Partial<Settings> = {};
 let mockCollections = [
     { id: 'collection-1', name: 'Collection 1', videos: [] },
     { id: 'collection-2', name: 'Collection 2', videos: [] },
@@ -32,6 +33,10 @@ vi.mock('../../../contexts/LanguageContext', () => ({
 
 vi.mock('../../../contexts/AuthContext', () => ({
     useAuth: () => ({ userRole: mockUserRole }),
+}));
+
+vi.mock('../../../hooks/useSettings', () => ({
+    useSettings: () => ({ data: mockSettings }),
 }));
 
 vi.mock('../../../contexts/VideoContext', () => ({
@@ -199,6 +204,7 @@ describe('VideosTable', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         mockUserRole = 'admin';
+        mockSettings = {};
         mockCollections = [
             { id: 'collection-1', name: 'Collection 1', videos: [] },
             { id: 'collection-2', name: 'Collection 2', videos: [] },
@@ -490,6 +496,34 @@ describe('VideosTable', () => {
             fireEvent.keyDown(input, { key: 'Enter' });
             expect(defaultProps.onUpdateVideo).not.toHaveBeenCalled();
         });
+    });
+
+    it('warns before saving an unlocked video past the auto-delete cutoff without changing its lock', async () => {
+        const user = userEvent.setup();
+        mockSettings = { autoDeleteEnabled: true, autoDeleteIntervalDays: 30 };
+        renderTable({ displayedVideos: [{ ...mockVideos[0], addedAt: new Date().toISOString() }] });
+        await user.click(screen.getByRole('button', { name: 'editDownloadTime' }));
+        expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+        fireEvent.change(screen.getByLabelText('downloadedOn'), { target: { value: '2020-01-01T12:00' } });
+        expect(screen.getByRole('alert')).toHaveTextContent('downloadTimeAutoDeleteWarning');
+        expect(defaultProps.onUpdateVideo).not.toHaveBeenCalled();
+        await user.click(screen.getByRole('button', { name: 'save' }));
+        await waitFor(() => expect(defaultProps.onUpdateVideo).toHaveBeenCalledExactlyOnceWith('1', {
+            addedAt: new Date('2020-01-01T12:00').toISOString(),
+        }));
+    });
+
+    it.each([
+        [false, 30, null],
+        [true, 30, 1],
+        [true, 0, null],
+        [true, 3651, null],
+    ])('does not warn when auto-delete is disabled, invalid, or the video is locked (%s, %s, %s)', async (enabled, days, locked) => {
+        const user = userEvent.setup();
+        mockSettings = { autoDeleteEnabled: enabled, autoDeleteIntervalDays: days };
+        renderTable({ displayedVideos: [{ ...mockVideos[0], addedAt: '2020-01-01T12:00:00Z', autoDeleteLocked: locked }] });
+        await user.click(screen.getByRole('button', { name: 'editDownloadTime' }));
+        expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     });
 
     it('triggers row-level thumbnail refresh, thumbnail re-download, delete, and video re-download actions', async () => {

@@ -1364,6 +1364,7 @@ export const fr = {
   downloadedOn: "Téléchargé le",
   editDownloadTime: "Modifier la date de téléchargement",
   downloadTimeOffset: "Décalage UTC",
+  downloadTimeAutoDeleteWarning: "La suppression automatique après {days} jours est activée. Cette vidéo n’est pas verrouillée ; enregistrer cette date de téléchargement antérieure peut entraîner la suppression définitive de la vidéo et de ses fichiers lors d’un nettoyage programmé.",
   deletedOn: "Supprimé le",
   existingVideo: "Vidéo existante",
   skipped: "Ignoré",

@@ -1315,6 +1315,7 @@ export const ar = {
   downloadedOn: "تم التنزيل في",
   editDownloadTime: "تعديل وقت التنزيل",
   downloadTimeOffset: "إزاحة UTC",
+  downloadTimeAutoDeleteWarning: "الحذف التلقائي بعد {days} يوم مفعّل. هذا الفيديو غير مقفل؛ قد يؤدي حفظ وقت التنزيل الأقدم هذا إلى حذف الفيديو وملفاته نهائيًا أثناء عملية تنظيف مجدولة.",
   deletedOn: "تم الحذف في",
   existingVideo: "فيديو موجود",
   skipped: "تم التخطي",

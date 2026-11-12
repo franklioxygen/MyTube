@@ -1360,6 +1360,7 @@ export const es = {
   downloadedOn: "Descargado el",
   editDownloadTime: "Editar hora de descarga",
   downloadTimeOffset: "Desfase UTC",
+  downloadTimeAutoDeleteWarning: "La eliminación automática está activada después de {days} días. Este vídeo no está bloqueado; guardar esta fecha de descarga anterior puede hacer que una limpieza programada elimine permanentemente el vídeo y sus archivos.",
   deletedOn: "Eliminado el",
   existingVideo: "Video existente",
   skipped: "Omitido",
