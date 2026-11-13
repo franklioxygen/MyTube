@@ -64,7 +64,11 @@ describe("federation protocol router", () => {
         policyRevision: token.policyRevision,
         expiresAt: null,
       },
-      features: ["snapshots"],
+      features: ["snapshots", "details", "assets"],
+      assets: {
+        kinds: ["media", "thumbnail", "avatar", "subtitle"],
+        mediaStorage: ["local", "mount"],
+      },
       limits: { snapshotPageSize: 500, snapshotTtlMs: 600000 },
     });
   });

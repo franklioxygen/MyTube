@@ -88,6 +88,13 @@ describe("configureRateLimiting", () => {
     const federationOptions = (mocked.createdLimiters[10] as any).__options;
     expect(federationOptions.max).toBe(30);
     expect(federationOptions.skipSuccessfulRequests).toBe(true);
+    // Only failed authentication counts: an authenticated consumer's 404 for
+    // a missing thumbnail is normal traffic and must not lock it out.
+    expect(federationOptions.requestWasSuccessful({}, { statusCode: 401 })).toBe(false);
+    expect(
+      federationOptions.requestWasSuccessful({ federationPrincipal: {} }, { statusCode: 404 })
+    ).toBe(true);
+    expect(federationOptions.requestWasSuccessful({}, { statusCode: 200 })).toBe(true);
     const status = vi.fn(() => ({ json: vi.fn() }));
     federationOptions.handler({ method: "GET", path: "/capabilities" }, { status });
     expect(status).toHaveBeenCalledWith(429);
@@ -114,8 +121,9 @@ describe("configureRateLimiting", () => {
     middleware({ path: "/api/settings/password-enabled" }, {}, next);
     middleware({ path: "/feed/token" }, {}, next);
     middleware({ path: "/api/rss/feed/token" }, {}, next);
+    middleware({ path: "/api/federation/v1/videos/v1/assets/media" }, {}, next);
 
-    expect(next).toHaveBeenCalledTimes(9);
+    expect(next).toHaveBeenCalledTimes(10);
     expect(generalLimiter).not.toHaveBeenCalled();
   });
 

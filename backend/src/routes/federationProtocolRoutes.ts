@@ -4,6 +4,8 @@ import {
   getCapabilities,
   getLibraryRevision,
   getSnapshotPage,
+  getVideoAsset,
+  getVideoDetail,
   postSnapshot,
 } from "../controllers/federationProtocolController";
 import {
@@ -30,6 +32,10 @@ router.get("/library/revision", libraryRead, getLibraryRevision);
 router.post("/snapshots", libraryRead, postSnapshot);
 router.get("/snapshots/:snapshotId/videos", libraryRead, getSnapshotPage);
 router.delete("/snapshots/:snapshotId", libraryRead, deleteSnapshot);
+router.get("/videos/:nativeId", libraryRead, getVideoDetail);
+
+// GET routes also answer HEAD.
+router.get("/videos/:nativeId/assets/:kind", requireFederationScope("media:read"), getVideoAsset);
 
 router.use((_req, res) => {
   res.status(404).json({

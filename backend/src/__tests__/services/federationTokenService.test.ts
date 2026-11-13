@@ -1,7 +1,13 @@
-import { beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { EventEmitter } from "events";
+import type { Response } from "express";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { sqlite } from "../../db";
 import { ensureFederationTables } from "../../services/storageService/migrations/schemaMigrations";
 import { getInstanceId, isInstanceId } from "../../services/federation/instanceIdentity";
+import {
+  countFederationStreams,
+  trackFederationStream,
+} from "../../services/federation/activeStreams";
 import {
   authenticateFederationRequest,
   deleteFederationToken,
@@ -375,5 +381,56 @@ describe("rotation, revocation, deletion", () => {
       ok: false,
       reason: "invalid_credential",
     });
+  });
+});
+
+describe("active transfers", () => {
+  /** Stands in for an asset response: destroying it closes it. */
+  const transfer = (tokenId: string) => {
+    const res = Object.assign(new EventEmitter(), {
+      destroy: vi.fn(function (this: EventEmitter) {
+        this.emit("close");
+      }),
+    });
+    trackFederationStream(tokenId, res as unknown as Response);
+    return res;
+  };
+
+  it("end when their token is rotated, revoked or deleted, and only theirs", () => {
+    const a = mintFederationToken(input(), NOW).token;
+    const b = mintFederationToken(input(), NOW).token;
+    const c = mintFederationToken(input(), NOW).token;
+    const [fromA, fromB, fromC] = [transfer(a.id), transfer(b.id), transfer(c.id)];
+
+    rotateFederationToken(a.id, NOW + 1);
+    expect(fromA.destroy).toHaveBeenCalledOnce();
+    expect(fromB.destroy).not.toHaveBeenCalled();
+
+    revokeFederationToken(b.id, NOW + 2);
+    expect(fromB.destroy).toHaveBeenCalledOnce();
+
+    deleteFederationToken(c.id);
+    expect(fromC.destroy).toHaveBeenCalledOnce();
+    expect(countFederationStreams()).toBe(0);
+  });
+
+  it("all end when a restore suspends tokens or the identity is reset", () => {
+    const a = mintFederationToken(input(), NOW).token;
+    const b = mintFederationToken(input(), NOW).token;
+
+    const first = transfer(a.id);
+    suspendUsableFederationTokens(NOW + 1);
+    expect(first.destroy).toHaveBeenCalledOnce();
+
+    const second = transfer(b.id);
+    resetFederationIdentity(NOW + 2);
+    expect(second.destroy).toHaveBeenCalledOnce();
+    expect(countFederationStreams()).toBe(0);
+  });
+
+  it("forget transfers that finish on their own", () => {
+    const a = mintFederationToken(input(), NOW).token;
+    transfer(a.id).emit("close");
+    expect(countFederationStreams()).toBe(0);
   });
 });

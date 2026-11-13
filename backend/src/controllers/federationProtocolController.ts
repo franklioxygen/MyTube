@@ -1,14 +1,26 @@
 import { Request, Response } from "express";
+import path from "path";
+import { trackFederationStream } from "../services/federation/activeStreams";
+import {
+  FEDERATION_ASSET_KINDS,
+  isFederationAssetKind,
+  isRegularFile,
+  locateFederationAsset,
+} from "../services/federation/assetService";
 import { getInstanceId } from "../services/federation/instanceIdentity";
 import {
-  createSnapshot,
   effectiveAudience,
   isFederationAudience,
+  readExportRow,
+  toDetail,
+  type FederationAudience,
+} from "../services/federation/libraryExport";
+import {
+  createSnapshot,
   readSnapshotPage,
   releaseSnapshot,
   SNAPSHOT_PAGE_SIZE,
   SNAPSHOT_TTL_MS,
-  type FederationAudience,
 } from "../services/federation/snapshotService";
 import type { FederationPrincipal } from "../services/federation/tokenService";
 import { getLibraryExportRevision } from "../services/storageService/videoListRevision";
@@ -21,7 +33,10 @@ export const FEDERATION_PROTOCOL_VERSIONS = [1] as const;
  * Optional protocol features this instance serves. Consumers negotiate on
  * this list rather than on the app version.
  */
-export const FEDERATION_FEATURES: readonly string[] = ["snapshots"];
+export const FEDERATION_FEATURES: readonly string[] = ["snapshots", "details", "assets"];
+
+/** Media storage this instance can stream to consumers. */
+export const FEDERATION_MEDIA_STORAGE: readonly string[] = ["local", "mount"];
 
 const sendError = (res: Response, status: number, code: string, error: string): void => {
   res.status(status).json({ success: false, code, error });
@@ -57,9 +72,97 @@ export function getCapabilities(req: Request, res: Response): void {
       expiresAt: principal.expiresAt,
     },
     features: FEDERATION_FEATURES,
+    assets: { kinds: FEDERATION_ASSET_KINDS, mediaStorage: FEDERATION_MEDIA_STORAGE },
     limits: { snapshotPageSize: SNAPSHOT_PAGE_SIZE, snapshotTtlMs: SNAPSHOT_TTL_MS },
   });
 }
+
+/** Missing and hidden-from-this-audience are deliberately indistinguishable. */
+const sendVideoNotFound = (res: Response): void =>
+  sendError(res, 404, "FEDERATION_VIDEO_NOT_FOUND", "Unknown video.");
+
+/** GET /api/federation/v1/videos/:nativeId?audience=: fresh, authorized detail. */
+export function getVideoDetail(req: Request, res: Response): void {
+  const principal = requirePrincipal(req, res);
+  if (!principal) return;
+  const requested = readAudience(req.query.audience, res);
+  if (!requested) return;
+
+  const row = readExportRow(
+    getStringParam(req.params.nativeId) ?? "",
+    effectiveAudience(requested, principal.visibilityCeiling)
+  );
+  if (!row) {
+    sendVideoNotFound(res);
+    return;
+  }
+  res.json(toDetail(row));
+}
+
+/**
+ * GET|HEAD /api/federation/v1/videos/:nativeId/assets/:kind?audience=&track=
+ * Visibility is checked on every request, including Range and conditional
+ * ones; send handles Range, If-Range, validators, 206/304/416 and HEAD.
+ */
+export async function getVideoAsset(req: Request, res: Response): Promise<void> {
+  const principal = requirePrincipal(req, res);
+  if (!principal) return;
+  const kind = getStringParam(req.params.kind);
+  if (!isFederationAssetKind(kind)) {
+    sendError(res, 400, "FEDERATION_INVALID_ASSET_KIND", `kind must be one of: ${FEDERATION_ASSET_KINDS.join(", ")}.`);
+    return;
+  }
+  const requested = readAudience(req.query.audience, res);
+  if (!requested) return;
+  const track = req.query.track;
+  if (track !== undefined && typeof track !== "string") {
+    sendError(res, 400, "FEDERATION_INVALID_TRACK", "track must be a single value.");
+    return;
+  }
+
+  const row = readExportRow(
+    getStringParam(req.params.nativeId) ?? "",
+    effectiveAudience(requested, principal.visibilityCeiling)
+  );
+  if (!row) {
+    sendVideoNotFound(res);
+    return;
+  }
+
+  const asset = locateFederationAsset(row, kind, track);
+  if (!asset || !(await isRegularFile(asset.absolutePath))) {
+    // Only this asset is unavailable; it says nothing about the video.
+    sendError(res, 404, "FEDERATION_ASSET_UNAVAILABLE", "This asset is not available.");
+    return;
+  }
+
+  trackFederationStream(principal.tokenId, res);
+  res.sendFile(
+    path.basename(asset.absolutePath),
+    {
+      root: path.dirname(asset.absolutePath),
+      // Keep the router's no-store; send still emits ETag/Last-Modified.
+      cacheControl: false,
+      headers: {
+        "X-Content-Type-Options": "nosniff",
+        ...(asset.contentType ? { "Content-Type": asset.contentType } : {}),
+      },
+    },
+    (error?: SendError | null) => {
+      if (!error || res.headersSent) return;
+      // Precondition and range failures keep their status and headers (e.g.
+      // `Content-Range: bytes */size` on 416); anything else means the file
+      // could not be read.
+      if (error.status === 412 || error.status === 416) {
+        res.set(error.headers ?? {}).status(error.status).end();
+        return;
+      }
+      sendError(res, 404, "FEDERATION_ASSET_UNAVAILABLE", "This asset is not available.");
+    }
+  );
+}
+
+type SendError = Error & { status?: number; headers?: Record<string, string> };
 
 /**
  * GET /api/federation/v1/library/revision?audience=public|owner

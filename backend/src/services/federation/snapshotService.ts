@@ -1,10 +1,17 @@
 import crypto from "crypto";
-import { asc, desc, eq, inArray, isNull, or } from "drizzle-orm";
+import { asc, desc } from "drizzle-orm";
 import { db } from "../../db";
 import { videos } from "../../db/schema";
-import { projectAuthorAvatars } from "../authorAvatarService";
 import { getLibraryExportRevision } from "../storageService/videoListRevision";
-import type { FederationPrincipal, FederationVisibilityCeiling } from "./tokenService";
+import {
+  effectiveAudience,
+  publicOnly,
+  readExportRows,
+  toSummary,
+  type FederationAudience,
+  type FederationVideoSummary,
+} from "./libraryExport";
+import type { FederationPrincipal } from "./tokenService";
 
 /**
  * Native-library snapshots served to federation consumers (design §5.1).
@@ -17,49 +24,10 @@ import type { FederationPrincipal, FederationVisibilityCeiling } from "./tokenSe
  * change, or missing row answers "stale" and the consumer starts over.
  */
 
-export type FederationAudience = FederationVisibilityCeiling;
-
 export const SNAPSHOT_PAGE_SIZE = 500;
 export const SNAPSHOT_TTL_MS = 10 * 60 * 1000;
 export const MAX_SNAPSHOTS_PER_TOKEN = 2;
 export const MAX_SNAPSHOTS = 8;
-
-export const isFederationAudience = (value: unknown): value is FederationAudience =>
-  value === "public" || value === "owner";
-
-/** The narrower of what the consumer asks for and what its credential allows. */
-export const effectiveAudience = (
-  requested: FederationAudience,
-  ceiling: FederationVisibilityCeiling
-): FederationAudience => (requested === "owner" && ceiling === "owner" ? "owner" : "public");
-
-export interface FederationVideoSummary {
-  id: string;
-  title: string;
-  author: string | null;
-  date: string | null;
-  source: string | null;
-  sourceUrl: string | null;
-  sourceVideoId: string | null;
-  channelUrl: string | null;
-  addedAt: string | null;
-  createdAt: string;
-  updatedAt: string | null;
-  partNumber: number | null;
-  totalParts: number | null;
-  seriesTitle: string | null;
-  rating: number | null;
-  duration: string | null;
-  width: number | null;
-  height: number | null;
-  fileSize: string | null;
-  mediaType: string;
-  tags: string[];
-  visibility: 0 | 1;
-  assets: { media: boolean; thumbnail: boolean; avatar: boolean; subtitles: boolean };
-  /** Changes whenever any asset reference of the item does. */
-  assetRevision: string;
-}
 
 interface Snapshot {
   id: string;
@@ -73,109 +41,6 @@ interface Snapshot {
 }
 
 const snapshots = new Map<string, Snapshot>();
-
-// Visibility 0 is hidden; NULL is public, as everywhere else in the library.
-const publicOnly = () => or(eq(videos.visibility, 1), isNull(videos.visibility));
-
-const exportColumns = () => ({
-  id: videos.id,
-  title: videos.title,
-  author: videos.author,
-  date: videos.date,
-  source: videos.source,
-  sourceUrl: videos.sourceUrl,
-  sourceVideoId: videos.sourceVideoId,
-  channelUrl: videos.channelUrl,
-  addedAt: videos.addedAt,
-  createdAt: videos.createdAt,
-  updatedAt: videos.updatedAt,
-  partNumber: videos.partNumber,
-  totalParts: videos.totalParts,
-  seriesTitle: videos.seriesTitle,
-  rating: videos.rating,
-  duration: videos.duration,
-  width: videos.width,
-  height: videos.height,
-  fileSize: videos.fileSize,
-  mediaType: videos.mediaType,
-  tags: videos.tags,
-  visibility: videos.visibility,
-  // Read only to derive availability and the asset revision; never exported.
-  videoPath: videos.videoPath,
-  videoFilename: videos.videoFilename,
-  thumbnailPath: videos.thumbnailPath,
-  thumbnailUrl: videos.thumbnailUrl,
-  thumbnailFilename: videos.thumbnailFilename,
-  subtitles: videos.subtitles,
-  authorAvatarPath: videos.authorAvatarPath,
-  authorAvatarFilename: videos.authorAvatarFilename,
-});
-
-type ExportRow = ReturnType<typeof readRows>[number];
-
-const readRows = (ids: string[]) =>
-  db.select(exportColumns()).from(videos).where(inArray(videos.id, ids)).all();
-
-/** Unreadable JSON exports as empty rather than dropping the item. */
-const parseArray = (value: string | null): unknown[] => {
-  try {
-    const parsed: unknown = value ? JSON.parse(value) : [];
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-};
-
-const toSummary = (row: ExportRow & { authorAvatarPath?: string | null }): FederationVideoSummary => {
-  const assetRevision = crypto
-    .createHash("sha256")
-    .update(
-      JSON.stringify([
-        row.videoPath,
-        row.videoFilename,
-        row.thumbnailPath,
-        row.thumbnailUrl,
-        row.thumbnailFilename,
-        row.subtitles,
-        row.authorAvatarPath,
-        row.updatedAt,
-      ])
-    )
-    .digest("base64url")
-    .slice(0, 16);
-
-  return {
-    id: row.id,
-    title: row.title,
-    author: row.author,
-    date: row.date,
-    source: row.source,
-    sourceUrl: row.sourceUrl,
-    sourceVideoId: row.sourceVideoId,
-    channelUrl: row.channelUrl,
-    addedAt: row.addedAt,
-    createdAt: row.createdAt,
-    updatedAt: row.updatedAt,
-    partNumber: row.partNumber,
-    totalParts: row.totalParts,
-    seriesTitle: row.seriesTitle,
-    rating: row.rating,
-    duration: row.duration,
-    width: row.width,
-    height: row.height,
-    fileSize: row.fileSize,
-    mediaType: row.mediaType ?? "video",
-    tags: parseArray(row.tags).filter((tag): tag is string => typeof tag === "string"),
-    visibility: row.visibility === 0 ? 0 : 1,
-    assets: {
-      media: Boolean(row.videoPath || row.videoFilename),
-      thumbnail: Boolean(row.thumbnailPath || row.thumbnailUrl || row.thumbnailFilename),
-      avatar: Boolean(row.authorAvatarPath),
-      subtitles: parseArray(row.subtitles).length > 0,
-    },
-    assetRevision,
-  };
-};
 
 const pruneExpired = (now: number): void => {
   for (const [id, snapshot] of snapshots) {
@@ -316,8 +181,7 @@ export function readSnapshotPage(
   }
 
   const pageIds = snapshot.ids.slice(offset, offset + SNAPSHOT_PAGE_SIZE);
-  const rows = pageIds.length > 0 ? readRows(pageIds) : [];
-  const byId = new Map(projectAuthorAvatars(rows).map((row) => [row.id, row]));
+  const byId = new Map(readExportRows(pageIds).map((row) => [row.id, row]));
 
   const items: FederationVideoSummary[] = [];
   for (const id of pageIds) {

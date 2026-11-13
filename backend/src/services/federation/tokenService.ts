@@ -1,5 +1,6 @@
 import crypto from "crypto";
 import { sqlite } from "../../db";
+import { endFederationStreams } from "./activeStreams";
 import { getInstanceId, isInstanceId, writeInstanceId } from "./instanceIdentity";
 
 /**
@@ -241,6 +242,8 @@ export function rotateFederationToken(
   const token = readToken(id, now);
   if (!token) return { ok: false, reason: "not_found" };
   if (changed === 0) return { ok: false, reason: "not_usable" };
+  // Transfers started with the old secret must not outlive it.
+  endFederationStreams([id]);
   return { ok: true, issued: { token, credential: `${id}.${secret}` } };
 }
 
@@ -279,13 +282,16 @@ export function resumeFederationToken(
  * brings back waits for the owner instead of silently working again.
  */
 export function suspendUsableFederationTokens(now = Date.now()): number {
-  return sqlite
+  const suspended = sqlite
     .prepare(
       `UPDATE federation_tokens
          SET suspended_at = ?, updated_at = ?, policy_revision = ${NEW_POLICY_REVISION_SQL}
        WHERE suspended_at IS NULL AND ${USABLE_TOKEN}`
     )
     .run(now, now, now).changes;
+  // Only usable tokens can be streaming, and none is usable now.
+  endFederationStreams();
+  return suspended;
 }
 
 /**
@@ -305,6 +311,7 @@ export function resetFederationIdentity(
       )
       .run(now, now).changes;
   })();
+  endFederationStreams();
   return { instanceId, revokedTokens };
 }
 
@@ -317,13 +324,15 @@ export function revokeFederationToken(id: string, now = Date.now()): FederationT
        WHERE id = ?`
     )
     .run(now, now, id);
+  endFederationStreams([id]);
   return readToken(id, now);
 }
 
 export function deleteFederationToken(id: string): boolean {
-  return (
-    sqlite.prepare("DELETE FROM federation_tokens WHERE id = ?").run(id).changes > 0
-  );
+  const deleted =
+    sqlite.prepare("DELETE FROM federation_tokens WHERE id = ?").run(id).changes > 0;
+  endFederationStreams([id]);
+  return deleted;
 }
 
 type CredentialCheck =

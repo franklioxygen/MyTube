@@ -166,9 +166,10 @@ const createLiveTranslationSessionLimiter = (): RequestHandler => {
   });
 };
 
-// Counts only rejected federation requests. Secrets are 256-bit, so this is
-// about bounding noise from misconfigured or probing clients, and it is looser
-// than the interactive login limiters because consumers poll on a schedule.
+// Counts only requests that fail authentication. Secrets are 256-bit, so this
+// bounds noise from misconfigured or probing clients. An authenticated
+// consumer's 404s (a missing thumbnail) or 409s (a stale snapshot) are normal
+// protocol traffic and must not lock it out.
 const FEDERATION_MAX_FAILED_REQUESTS = 30;
 
 const createFederationProtocolLimiter = (): RequestHandler =>
@@ -178,6 +179,8 @@ const createFederationProtocolLimiter = (): RequestHandler =>
     standardHeaders: true,
     legacyHeaders: false,
     skipSuccessfulRequests: true,
+    requestWasSuccessful: (req, res) =>
+      res.statusCode < 400 || req.federationPrincipal !== undefined,
     keyGenerator: (req) => getClientIp(req),
     validate: RATE_LIMIT_VALIDATE_OPTIONS,
     handler: (req, res) => {
@@ -222,6 +225,9 @@ export const configureRateLimiting = (app: Express): AuthLimiters => {
       req.path.startsWith("/images/") ||
       req.path.startsWith("/subtitles/") ||
       req.path.startsWith("/avatars/") ||
+      // Authenticated server-to-server traffic (thumbnails, Range seeks) with
+      // its own failed-authentication limiter.
+      req.path.startsWith("/api/federation/v1/") ||
       req.path.startsWith("/api/download") ||
       req.path.startsWith("/api/check-video-download") ||
       req.path.startsWith("/api/check-bilibili") ||
