@@ -19,8 +19,12 @@ const lookup = (hostname: string, options: LookupOptions,
   }).catch(error => callback(error, ""));
 };
 
-/** Pin direct lookups; retain Axios' own proxies, TLS, streams and redirects. */
-export function publicAxiosGet<T = unknown>(url: string, config: AxiosRequestConfig = {}, trustedOrigin?: string): Promise<AxiosResponse<T>> {
+/**
+ * Pin direct lookups; retain Axios' own proxies, TLS, streams and redirects.
+ * `trustedOrigin` is an administrator-configured origin (a storage server or a
+ * LAN federation peer) that may skip the public-address checks.
+ */
+function guardedConfig(url: string, config: AxiosRequestConfig, trustedOrigin?: string): AxiosRequestConfig {
   // Only an administrator-configured storage origin may opt out of public-IP checks.
   const origin = trustedOrigin ? new URL(trustedOrigin).origin : undefined;
   const checkTarget = (target: URL) => {
@@ -38,8 +42,7 @@ export function publicAxiosGet<T = unknown>(url: string, config: AxiosRequestCon
   const initialAgent = parsed.protocol === "https:" ? config.httpsAgent : config.httpAgent;
   const proxied = isProxyAgent(initialAgent) || Boolean(config.proxy || (config.proxy !== false && getProxyForUrl(url)));
   // Public direct sockets use validated lookups; administrator proxies/storage origins are trusted.
-  // nosemgrep: rules_lgpl_javascript_ssrf_rule-node-ssrf
-  return axios.get<T>(url, {
+  return {
     ...config, adapter: "http", httpVersion: 1,
     lookup: proxied || trusted ? undefined : lookup,
     beforeRedirect(options, response, request) {
@@ -54,5 +57,21 @@ export function publicAxiosGet<T = unknown>(url: string, config: AxiosRequestCon
       const trustedHop = checkTarget(target);
       options.lookup = throughProxy || trustedHop ? undefined : lookup;
     },
-  });
+  };
+}
+
+export function publicAxiosGet<T = unknown>(url: string, config: AxiosRequestConfig = {}, trustedOrigin?: string): Promise<AxiosResponse<T>> {
+  const guarded = guardedConfig(url, config, trustedOrigin);
+  // nosemgrep: rules_lgpl_javascript_ssrf_rule-node-ssrf
+  return axios.get<T>(url, guarded);
+}
+
+/** Any method, under the same guards as publicAxiosGet. */
+export function publicAxiosRequest<T = unknown>(
+  config: AxiosRequestConfig & { url: string },
+  trustedOrigin?: string
+): Promise<AxiosResponse<T>> {
+  const guarded = guardedConfig(config.url, config, trustedOrigin);
+  // nosemgrep: rules_lgpl_javascript_ssrf_rule-node-ssrf
+  return axios.request<T>({ ...guarded, url: config.url });
 }
