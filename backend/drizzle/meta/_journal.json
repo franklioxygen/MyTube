@@ -225,6 +225,13 @@
       "when": 1794438115661,
       "tag": "0031_author_profiles",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "6",
+      "when": 1794599551271,
+      "tag": "0032_federation_identity_tokens",
+      "breakpoints": true
     }
   ]
 }

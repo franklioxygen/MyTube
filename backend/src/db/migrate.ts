@@ -438,6 +438,7 @@ export async function runMigrations(options: RunMigrationsOptions = {}) {
       ensureFavoritesTables,
       ensureGestureCredentialTable,
       ensureAuthorProfilesTable,
+      ensureFederationTables,
     } = await import(
       "../services/storageService/migrations/schemaMigrations"
     );
@@ -458,6 +459,9 @@ export async function runMigrations(options: RunMigrationsOptions = {}) {
     // Imports/restores also need the author schema when an earlier migration
     // aborted the batch; initializeStorage is not rerun on these paths.
     ensureAuthorProfilesTable();
+
+    // Same self-heal for migration 0032's federation identity and tokens.
+    ensureFederationTables();
 
     const { migrateLegacySharedVisitorPassword } = await import(
       "../services/userService"

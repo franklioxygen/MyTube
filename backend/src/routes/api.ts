@@ -6,6 +6,7 @@ import * as collectionController from "../controllers/collectionController";
 import * as bulkVideoOrganizationController from "../controllers/bulkVideoOrganizationController";
 import * as downloadController from "../controllers/downloadController";
 import * as favoriteController from "../controllers/favoriteController";
+import * as federationManagementController from "../controllers/federationManagementController";
 import * as mediaCollisionAuditController from "../controllers/mediaCollisionAuditController";
 import * as mediaIntegrityAuditController from "../controllers/mediaIntegrityAuditController";
 import * as recommendationController from "../controllers/recommendationController";
@@ -20,6 +21,7 @@ import * as videoDownloadController from "../controllers/videoDownloadController
 import * as videoMetadataController from "../controllers/videoMetadataController";
 import { authorSearchLimiter, searchAuthors } from "../controllers/authorSearchController";
 import { asyncHandler } from "../middleware/errorHandler";
+import { federationNoStore } from "../middleware/federationAuthMiddleware";
 import { requireAdmin } from "../middleware/requireAdmin";
 import * as danmakuController from "../controllers/danmakuController";
 
@@ -33,6 +35,13 @@ export type ApiRouteDefinition = {
 };
 
 const apiRouteDefinitions: ApiRouteDefinition[] = [
+  // Federation credentials this instance issues (issue #354). Session admins
+  // only; responses may carry a one-time secret, so they are never cached.
+  { method: "get", path: "/federation/tokens", handlers: [requireAdmin, federationNoStore, federationManagementController.listTokens] },
+  { method: "post", path: "/federation/tokens", handlers: [requireAdmin, federationNoStore, federationManagementController.createToken] },
+  { method: "post", path: "/federation/tokens/:id/rotate", handlers: [requireAdmin, federationNoStore, federationManagementController.rotateToken] },
+  { method: "post", path: "/federation/tokens/:id/revoke", handlers: [requireAdmin, federationNoStore, federationManagementController.revokeToken] },
+  { method: "delete", path: "/federation/tokens/:id", handlers: [requireAdmin, federationNoStore, federationManagementController.deleteToken] },
   { method: "post", path: "/authors/avatar/from-source", allowApiKey: false, handlers: [requireAdmin, authorAvatarController.avatarSourceLimiter, asyncHandler(authorAvatarController.fetchSourceAvatar)] },
   { method: "get", path: "/authors/profile", allowApiKey: false, handlers: [requireAdmin, asyncHandler(authorAvatarController.readProfile)] },
   { method: "put", path: "/authors/avatar", allowApiKey: false, handlers: [requireAdmin, authorAvatarController.avatarUpload.single("avatar"), asyncHandler(authorAvatarController.uploadAvatar)] },

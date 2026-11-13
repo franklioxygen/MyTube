@@ -14,6 +14,7 @@ export interface AuthLimiters {
   feedLimiter: RequestHandler;
   statisticsIngestionLimiter: RequestHandler;
   liveTranslationSessionLimiter: RequestHandler;
+  federationProtocolLimiter: RequestHandler;
 }
 
 type RateLimitedRequest = Request & {
@@ -165,6 +166,34 @@ const createLiveTranslationSessionLimiter = (): RequestHandler => {
   });
 };
 
+// Counts only rejected federation requests. Secrets are 256-bit, so this is
+// about bounding noise from misconfigured or probing clients, and it is looser
+// than the interactive login limiters because consumers poll on a schedule.
+const FEDERATION_MAX_FAILED_REQUESTS = 30;
+
+const createFederationProtocolLimiter = (): RequestHandler =>
+  rateLimit({
+    windowMs: AUTH_WINDOW_MS,
+    max: FEDERATION_MAX_FAILED_REQUESTS,
+    standardHeaders: true,
+    legacyHeaders: false,
+    skipSuccessfulRequests: true,
+    keyGenerator: (req) => getClientIp(req),
+    validate: RATE_LIMIT_VALIDATE_OPTIONS,
+    handler: (req, res) => {
+      logger.warn("Federation protocol rate limit triggered", {
+        ip: getClientIp(req),
+        method: req.method,
+        path: req.path,
+      });
+      res.status(429).json({
+        success: false,
+        code: "FEDERATION_RATE_LIMITED",
+        error: "Too many rejected federation requests. Please retry later.",
+      });
+    },
+  });
+
 export const configureRateLimiting = (app: Express): AuthLimiters => {
   const generalLimiter = createGeneralLimiter();
   const authLimiters: AuthLimiters = {
@@ -180,6 +209,7 @@ export const configureRateLimiting = (app: Express): AuthLimiters => {
     statisticsIngestionLimiter: createStatisticsIngestionLimiter(),
     // Ticket minting has per-use Gemini cost; rate limit it per client.
     liveTranslationSessionLimiter: createLiveTranslationSessionLimiter(),
+    federationProtocolLimiter: createFederationProtocolLimiter(),
   };
 
   app.use((req, res, next) => {

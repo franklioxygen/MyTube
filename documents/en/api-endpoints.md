@@ -242,6 +242,24 @@ Favorites are scoped to the authenticated owner. When login protection is disabl
   - Empty or missing `sources` means all sources, including future or unknown source values
   - `maxItems` accepts `1` through `200`; the settings UI exposes a friendlier `10` through `200` slider
 
+## Federation (Peer Side)
+
+Groundwork for connecting several MyTube instances (issue #354). This instance can issue credentials that another MyTube server presents to it.
+
+- Token management requires an admin session (or login-disabled mode). API key authentication is rejected. Responses return `Cache-Control: no-store`.
+- `GET /api/federation/tokens` - `{ instanceId, tokens }`. Secrets are never listed.
+- `POST /api/federation/tokens` - Mint a credential
+  - Body: `{ label?: string, scopes: ("library:read" | "media:read")[], visibilityCeiling?: "public" | "owner", expiresAt?: number | null }`
+  - `visibilityCeiling` defaults to `public`; hidden content is shared only with an explicit `owner` ceiling. `expiresAt` is epoch milliseconds, at most ten years ahead.
+  - `201` response: `{ token, credential }`. `credential` (`<id>.<secret>`) is shown only in this response.
+- `POST /api/federation/tokens/:id/rotate` - Replace the secret of an active token; the old secret stops working immediately and `policyRevision` increases. Returns `{ token, credential }`; `409` for revoked or expired tokens.
+- `POST /api/federation/tokens/:id/revoke` - Revoke immediately (idempotent)
+- `DELETE /api/federation/tokens/:id` - Delete a token
+
+Protocol endpoints live under `/api/federation/v1` and accept only `Authorization: Federation <id>.<secret>` plus an `X-MyTube-Instance-Id: <consumer instance UUID>` header. Sessions and API keys are never accepted there. The first consumer to use a token is pinned to it; another instance, or this instance itself, is refused. Errors carry a `code` such as `FEDERATION_UNAUTHORIZED`, `FEDERATION_TOKEN_REVOKED`, `FEDERATION_TOKEN_EXPIRED`, `FEDERATION_CONSUMER_REQUIRED`, `FEDERATION_CONSUMER_MISMATCH`, or `FEDERATION_SELF_CONNECTION`.
+
+- `GET /api/federation/v1/capabilities` - Handshake: `{ protocol, protocolVersions, instanceId, credential: { id, scopes, visibilityCeiling, policyRevision, expiresAt }, features }`
+
 ## Settings
 
 - `GET /api/settings` - Get app settings (password hashes are excluded)

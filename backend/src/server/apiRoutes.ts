@@ -7,6 +7,7 @@ import { serveFeed } from "../controllers/rssController";
 import apiRoutes, { apiKeyRoutes } from "../routes/api";
 import settingsRoutes from "../routes/settingsRoutes";
 import liveTranslationRoutes from "../routes/liveTranslationRoutes";
+import federationProtocolRoutes from "../routes/federationProtocolRoutes";
 import { AuthLimiters } from "./rateLimit";
 
 type RegisterApiRoutesOptions = {
@@ -86,6 +87,15 @@ export const registerApiRoutes = (
   app.post(
     "/api/live-translation/sessions",
     authLimiters.liveTranslationSessionLimiter
+  );
+
+  // Federation protocol (issue #354). Mounted ahead of the session/API-key
+  // stack and terminal, so neither a cookie session nor a legacy API key can
+  // reach, satisfy, or be widened by these endpoints.
+  app.use(
+    "/api/federation/v1",
+    authLimiters.federationProtocolLimiter,
+    federationProtocolRoutes
   );
 
   app.use("/api", authMiddleware);

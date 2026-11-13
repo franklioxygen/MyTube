@@ -51,7 +51,7 @@ describe("configureRateLimiting", () => {
 
     const authLimiters = configureRateLimiting(app);
 
-    expect(mocked.rateLimitFactory).toHaveBeenCalledTimes(10);
+    expect(mocked.rateLimitFactory).toHaveBeenCalledTimes(11);
     expect(mocked.createdLimiters[1]).toBe(authLimiters.adminPasswordLimiter);
     expect(mocked.createdLimiters[2]).toBe(authLimiters.visitorPasswordLimiter);
     expect(mocked.createdLimiters[3]).toBe(authLimiters.adminReauthLimiter);
@@ -63,6 +63,7 @@ describe("configureRateLimiting", () => {
     expect(mocked.createdLimiters[9]).toBe(
       authLimiters.liveTranslationSessionLimiter
     );
+    expect(mocked.createdLimiters[10]).toBe(authLimiters.federationProtocolLimiter);
 
     // The gesture bucket must stay separate from the password bucket, or an
     // attacker could burn the password recovery allowance by drawing gestures.
@@ -81,6 +82,15 @@ describe("configureRateLimiting", () => {
     expect(liveTranslationOptions.max).toBe(5);
     expect(liveTranslationOptions.skipSuccessfulRequests).toBeUndefined();
     expect(typeof authOptions.handler).toBe("function");
+
+    // Federation consumers poll on a schedule, so only rejected requests
+    // count, with a looser budget than interactive logins.
+    const federationOptions = (mocked.createdLimiters[10] as any).__options;
+    expect(federationOptions.max).toBe(30);
+    expect(federationOptions.skipSuccessfulRequests).toBe(true);
+    const status = vi.fn(() => ({ json: vi.fn() }));
+    federationOptions.handler({ method: "GET", path: "/capabilities" }, { status });
+    expect(status).toHaveBeenCalledWith(429);
 
     const req = { path: "/api/anything" } as any;
     expect(generalOptions.keyGenerator(req)).toBe("203.0.113.1");

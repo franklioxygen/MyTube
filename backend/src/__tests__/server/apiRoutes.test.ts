@@ -7,6 +7,7 @@ import { roleBasedSettingsMiddleware } from "../../middleware/roleBasedSettingsM
 import apiRoutes, { apiKeyRoutes } from "../../routes/api";
 import settingsRoutes from "../../routes/settingsRoutes";
 import liveTranslationRoutes from "../../routes/liveTranslationRoutes";
+import federationProtocolRoutes from "../../routes/federationProtocolRoutes";
 
 vi.mock("../../middleware/authMiddleware", () => ({
   authMiddleware: vi.fn(),
@@ -33,6 +34,10 @@ vi.mock("../../routes/liveTranslationRoutes", () => ({
   default: { __router: "liveTranslation" },
 }));
 
+vi.mock("../../routes/federationProtocolRoutes", () => ({
+  default: { __router: "federationProtocol" },
+}));
+
 vi.mock("../../controllers/rssController", () => ({
   serveFeed: vi.fn(),
 }));
@@ -54,6 +59,7 @@ describe("registerApiRoutes", () => {
       statisticsIngestionLimiter: vi.fn(),
       feedLimiter: vi.fn(),
       liveTranslationSessionLimiter: vi.fn(),
+      federationProtocolLimiter: vi.fn(),
     };
 
     registerApiRoutes(app, authLimiters as any);
@@ -118,22 +124,30 @@ describe("registerApiRoutes", () => {
       authLimiters.liveTranslationSessionLimiter
     );
 
-    expect(app.use).toHaveBeenNthCalledWith(1, "/api", authMiddleware);
-    expect(app.use).toHaveBeenNthCalledWith(2, "/api", apiKeyRoutes);
+    // The federation protocol must be mounted before the session/API-key
+    // stack so that stack can never admit or reinterpret its requests.
     expect(app.use).toHaveBeenNthCalledWith(
-      3,
+      1,
+      "/api/federation/v1",
+      authLimiters.federationProtocolLimiter,
+      federationProtocolRoutes
+    );
+    expect(app.use).toHaveBeenNthCalledWith(2, "/api", authMiddleware);
+    expect(app.use).toHaveBeenNthCalledWith(3, "/api", apiKeyRoutes);
+    expect(app.use).toHaveBeenNthCalledWith(
+      4,
       "/api/live-translation",
       roleBasedAuthMiddleware,
       liveTranslationRoutes
     );
     expect(app.use).toHaveBeenNthCalledWith(
-      4,
+      5,
       "/api",
       roleBasedAuthMiddleware,
       apiRoutes
     );
     expect(app.use).toHaveBeenNthCalledWith(
-      5,
+      6,
       "/api/settings",
       roleBasedSettingsMiddleware,
       settingsRoutes
@@ -141,7 +155,7 @@ describe("registerApiRoutes", () => {
 
     expect(app.post).toHaveBeenCalledTimes(12);
     expect(app.get).toHaveBeenCalledTimes(2);
-    expect(app.use).toHaveBeenCalledTimes(5);
+    expect(app.use).toHaveBeenCalledTimes(6);
   });
 
   it("can skip feed registration when it is registered before static routes", () => {
@@ -156,13 +170,14 @@ describe("registerApiRoutes", () => {
       statisticsIngestionLimiter: vi.fn(),
       feedLimiter: vi.fn(),
       liveTranslationSessionLimiter: vi.fn(),
+      federationProtocolLimiter: vi.fn(),
     };
 
     registerApiRoutes(app, authLimiters as any, { includeFeedRoute: false });
 
     expect(app.get).not.toHaveBeenCalled();
     expect(app.post).toHaveBeenCalledTimes(12);
-    expect(app.use).toHaveBeenCalledTimes(5);
+    expect(app.use).toHaveBeenCalledTimes(6);
   });
 
   it("registers the public feed route independently", () => {

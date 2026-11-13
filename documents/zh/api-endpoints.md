@@ -227,6 +227,24 @@
   - `sources` 为空或缺失表示不限制来源，也会包含未来新增或未知的来源值
   - `maxItems` 接受 `1` 到 `200`；设置页 UI 使用更适合常规操作的 `10` 到 `200` 滑块
 
+## 联邦（对等节点侧）
+
+多个 MyTube 实例互联的基础能力（issue #354）。本实例可以签发凭证，供另一台 MyTube 服务器访问本实例时出示。
+
+- 令牌管理要求管理员会话（或未启用登录）。API Key 认证会被拒绝。响应返回 `Cache-Control: no-store`。
+- `GET /api/federation/tokens` - 返回 `{ instanceId, tokens }`，列表中永不包含密钥。
+- `POST /api/federation/tokens` - 签发凭证
+  - 请求体: `{ label?: string, scopes: ("library:read" | "media:read")[], visibilityCeiling?: "public" | "owner", expiresAt?: number | null }`
+  - `visibilityCeiling` 默认为 `public`；只有显式指定 `owner` 才会共享隐藏内容。`expiresAt` 为毫秒时间戳，最长十年。
+  - 返回 `201`：`{ token, credential }`。`credential`（`<id>.<secret>`）只在此响应中出现一次。
+- `POST /api/federation/tokens/:id/rotate` - 为有效令牌更换密钥；旧密钥立即失效，`policyRevision` 递增。返回 `{ token, credential }`；已吊销或已过期的令牌返回 `409`。
+- `POST /api/federation/tokens/:id/revoke` - 立即吊销（可重复调用）
+- `DELETE /api/federation/tokens/:id` - 删除令牌
+
+协议端点位于 `/api/federation/v1` 下，只接受 `Authorization: Federation <id>.<secret>`，并要求请求头 `X-MyTube-Instance-Id: <调用方实例 UUID>`。这里永远不接受会话或 API Key。令牌首次被使用时绑定调用方实例；其他实例或本实例自身的请求会被拒绝。错误响应带有 `code`，例如 `FEDERATION_UNAUTHORIZED`、`FEDERATION_TOKEN_REVOKED`、`FEDERATION_TOKEN_EXPIRED`、`FEDERATION_CONSUMER_REQUIRED`、`FEDERATION_CONSUMER_MISMATCH`、`FEDERATION_SELF_CONNECTION`。
+
+- `GET /api/federation/v1/capabilities` - 握手：`{ protocol, protocolVersions, instanceId, credential: { id, scopes, visibilityCeiling, policyRevision, expiresAt }, features }`
+
 ## 设置
 
 - `GET /api/settings` - 获取应用设置 (不包含密码哈希)

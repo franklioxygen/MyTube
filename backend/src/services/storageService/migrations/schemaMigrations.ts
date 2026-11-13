@@ -553,6 +553,50 @@ export function ensureGestureCredentialTable(): void {
   }
 }
 
+/**
+ * Self-heal for migration 0032's federation tables. Like the gesture table,
+ * a new table is not recovered by the column checks when drizzle aborts its
+ * batch, so every federation request would fail with "no such table".
+ */
+export function ensureFederationTables(): void {
+  try {
+    sqlite.exec(`
+      CREATE TABLE IF NOT EXISTS federation_instance (
+        id integer PRIMARY KEY NOT NULL,
+        instance_id text NOT NULL,
+        created_at integer NOT NULL,
+        CONSTRAINT "federation_instance_singleton_check" CHECK("federation_instance"."id" = 1)
+      );
+      CREATE TABLE IF NOT EXISTS federation_tokens (
+        id text PRIMARY KEY NOT NULL,
+        secret_hash text NOT NULL,
+        label text DEFAULT '' NOT NULL,
+        scopes text NOT NULL,
+        visibility_ceiling text DEFAULT 'public' NOT NULL,
+        policy_revision integer DEFAULT 1 NOT NULL,
+        consumer_instance_id text,
+        expires_at integer,
+        revoked_at integer,
+        last_used_at integer,
+        created_at integer NOT NULL,
+        updated_at integer NOT NULL,
+        CONSTRAINT "federation_tokens_visibility_check" CHECK("federation_tokens"."visibility_ceiling" IN ('public', 'owner')),
+        CONSTRAINT "federation_tokens_policy_revision_check" CHECK("federation_tokens"."policy_revision" >= 1)
+      );
+    `);
+  } catch (error) {
+    logger.error(
+      "Error ensuring federation tables exist",
+      error instanceof Error ? error : new Error(String(error))
+    );
+    throw new MigrationError(
+      "Failed to ensure federation tables",
+      "federation_tables",
+      error instanceof Error ? error : new Error(String(error))
+    );
+  }
+}
+
 export function ensureFavoritesTables(): void {
   try {
     sqlite
