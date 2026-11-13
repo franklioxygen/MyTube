@@ -165,30 +165,35 @@ export async function getVideoAsset(req: Request, res: Response): Promise<void> 
     return;
   }
 
-  trackFederationStream(principal.tokenId, res);
-  res.sendFile(
-    path.basename(asset.absolutePath),
-    {
-      root: path.dirname(asset.absolutePath),
-      // Keep the router's no-store; send still emits ETag/Last-Modified.
-      cacheControl: false,
-      headers: {
-        "X-Content-Type-Options": "nosniff",
-        ...(asset.contentType ? { "Content-Type": asset.contentType } : {}),
-      },
+  const fileName = path.basename(asset.absolutePath);
+  const sendOptions = {
+    root: path.dirname(asset.absolutePath),
+    // Keep the router's no-store; send still emits ETag/Last-Modified.
+    cacheControl: false,
+    headers: {
+      "X-Content-Type-Options": "nosniff",
+      ...(asset.contentType ? { "Content-Type": asset.contentType } : {}),
     },
-    (error?: SendError | null) => {
-      if (!error || res.headersSent) return;
-      // Precondition and range failures keep their status and headers (e.g.
-      // `Content-Range: bytes */size` on 416); anything else means the file
-      // could not be read.
-      if (error.status === 412 || error.status === 416) {
-        res.set(error.headers ?? {}).status(error.status).end();
-        return;
-      }
-      sendError(res, 404, "FEDERATION_ASSET_UNAVAILABLE", "This asset is not available.");
+  };
+  const onSent = (error?: SendError | null) => {
+    if (!error || res.headersSent) return;
+    // Precondition and range failures keep their status and headers (e.g.
+    // `Content-Range: bytes */size` on 416); anything else means the file
+    // could not be read.
+    if (error.status === 412 || error.status === 416) {
+      res.set(error.headers ?? {}).status(error.status).end();
+      return;
     }
-  );
+    sendError(res, 404, "FEDERATION_ASSET_UNAVAILABLE", "This asset is not available.");
+  };
+
+  trackFederationStream(principal.tokenId, res);
+  // The path is never consumer input: it comes only from the video's stored
+  // reference, confined to the media roots by resolveSafeChildPath or
+  // resolveMountFilePath. The consumer picks an allowlisted kind and a track
+  // id matched by equality, and send gets a basename under a fixed root.
+  // nosemgrep: javascript.express.security.audit.express-res-sendfile.express-res-sendfile
+  res.sendFile(fileName, sendOptions, onSent);
 }
 
 type SendError = Error & { status?: number; headers?: Record<string, string> };
