@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import path from "path";
 import { trackFederationStream } from "../services/federation/activeStreams";
+import { proxyCloudAsset } from "../services/federation/cloudAssetProxy";
 import {
   FEDERATION_ASSET_KINDS,
   isFederationAssetKind,
@@ -10,6 +11,7 @@ import {
 import { getInstanceId } from "../services/federation/instanceIdentity";
 import {
   effectiveAudience,
+  isCloudStorageAvailable,
   isFederationAudience,
   readExportRow,
   toDetail,
@@ -72,7 +74,12 @@ export function getCapabilities(req: Request, res: Response): void {
       expiresAt: principal.expiresAt,
     },
     features: FEDERATION_FEATURES,
-    assets: { kinds: FEDERATION_ASSET_KINDS, mediaStorage: FEDERATION_MEDIA_STORAGE },
+    assets: {
+      kinds: FEDERATION_ASSET_KINDS,
+      mediaStorage: isCloudStorageAvailable()
+        ? [...FEDERATION_MEDIA_STORAGE, "cloud"]
+        : FEDERATION_MEDIA_STORAGE,
+    },
     limits: { snapshotPageSize: SNAPSHOT_PAGE_SIZE, snapshotTtlMs: SNAPSHOT_TTL_MS },
   });
 }
@@ -129,10 +136,32 @@ export async function getVideoAsset(req: Request, res: Response): Promise<void> 
     return;
   }
 
-  const asset = locateFederationAsset(row, kind, track);
-  if (!asset || !(await isRegularFile(asset.absolutePath))) {
-    // Only this asset is unavailable; it says nothing about the video.
+  // Only this asset is unavailable; it says nothing about the video.
+  const unavailable = () =>
     sendError(res, 404, "FEDERATION_ASSET_UNAVAILABLE", "This asset is not available.");
+
+  const asset = locateFederationAsset(row, kind, track);
+  if (!asset) {
+    unavailable();
+    return;
+  }
+
+  if (asset.type === "cloud") {
+    trackFederationStream(principal.tokenId, res);
+    await proxyCloudAsset(req, res, asset.filename, asset.fileType, (reason) => {
+      if (reason === "unavailable") {
+        unavailable();
+      } else if (reason === "upstream_timeout") {
+        sendError(res, 504, "FEDERATION_UPSTREAM_TIMEOUT", "Cloud storage did not respond in time.");
+      } else {
+        sendError(res, 502, "FEDERATION_UPSTREAM_ERROR", "Cloud storage could not serve this asset.");
+      }
+    });
+    return;
+  }
+
+  if (!(await isRegularFile(asset.absolutePath))) {
+    unavailable();
     return;
   }
 

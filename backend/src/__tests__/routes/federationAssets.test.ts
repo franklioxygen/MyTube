@@ -150,7 +150,7 @@ describe("video detail", () => {
     }
   });
 
-  it("reports cloud media as unavailable until it can be streamed", async () => {
+  it("reports cloud media as unavailable while cloud storage is not configured", async () => {
     const response = await get(mint().credential, "/videos/cloud?audience=public");
     expect(response.body.assets).toMatchObject({ media: false, thumbnail: false });
   });
@@ -253,8 +253,8 @@ describe("video assets", () => {
 
   it.each([
     ["a missing file", "/videos/missing-file/assets/media"],
-    ["cloud media", "/videos/cloud/assets/media"],
-    ["cloud thumbnails", "/videos/cloud/assets/thumbnail"],
+    ["cloud media without cloud storage", "/videos/cloud/assets/media"],
+    ["cloud thumbnails without cloud storage", "/videos/cloud/assets/thumbnail"],
     ["a stored path that escapes its root", "/videos/traversal/assets/media"],
     ["a subtitle without a track", "/videos/local/assets/subtitle"],
     ["an unknown track", "/videos/local/assets/subtitle?track=unknown"],
@@ -278,7 +278,7 @@ describe("video assets", () => {
 
   it("ends a transfer as soon as its token is revoked", async () => {
     const { token, credential } = mint();
-    const server = app().listen(0, "127.0.0.1");
+    const server = app().listen(0);
     await new Promise((resolve) => server.once("listening", resolve));
     const { port } = server.address() as AddressInfo;
 

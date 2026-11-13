@@ -3,6 +3,7 @@ import { and, eq, inArray, isNull, or } from "drizzle-orm";
 import { db } from "../../db";
 import { videos } from "../../db/schema";
 import { projectAuthorAvatar, projectAuthorAvatars } from "../authorAvatarService";
+import { CLOUD_PREFIX, getCloudStorageOrigin } from "./cloudAssetProxy";
 import type { FederationVisibilityCeiling } from "./tokenService";
 
 /**
@@ -143,12 +144,24 @@ export const MOUNT_PREFIX = "mount:";
 const hasPrefix = (value: string | null | undefined, prefixes: readonly string[]) =>
   typeof value === "string" && prefixes.some((prefix) => value.startsWith(prefix));
 
-/** Media this instance can stream: managed files and mounted directories. */
-export const isServableMedia = (videoPath: string | null | undefined): boolean =>
-  hasPrefix(videoPath, LOCAL_ASSET_PREFIXES.media) || hasPrefix(videoPath, [MOUNT_PREFIX]);
+/** True when cloud references can currently be streamed. Read once per batch. */
+export const isCloudStorageAvailable = (): boolean => getCloudStorageOrigin() !== null;
 
-export const isServableThumbnail = (thumbnailPath: string | null | undefined): boolean =>
-  hasPrefix(thumbnailPath, LOCAL_ASSET_PREFIXES.thumbnail);
+/** Media this instance can stream: managed files, mounts, configured cloud. */
+export const isServableMedia = (
+  videoPath: string | null | undefined,
+  cloudAvailable: boolean
+): boolean =>
+  hasPrefix(videoPath, LOCAL_ASSET_PREFIXES.media) ||
+  hasPrefix(videoPath, [MOUNT_PREFIX]) ||
+  (cloudAvailable && hasPrefix(videoPath, [CLOUD_PREFIX]));
+
+export const isServableThumbnail = (
+  thumbnailPath: string | null | undefined,
+  cloudAvailable: boolean
+): boolean =>
+  hasPrefix(thumbnailPath, LOCAL_ASSET_PREFIXES.thumbnail) ||
+  (cloudAvailable && hasPrefix(thumbnailPath, [CLOUD_PREFIX]));
 
 export const isServableAvatar = (avatarPath: string | null | undefined): boolean =>
   hasPrefix(avatarPath, LOCAL_ASSET_PREFIXES.avatar);
@@ -180,7 +193,10 @@ export function servableSubtitles(
   return tracks;
 }
 
-export function toSummary(row: ExportRow): FederationVideoSummary {
+export function toSummary(
+  row: ExportRow,
+  cloudAvailable = isCloudStorageAvailable()
+): FederationVideoSummary {
   const assetRevision = crypto
     .createHash("sha256")
     .update(
@@ -223,8 +239,8 @@ export function toSummary(row: ExportRow): FederationVideoSummary {
     visibility: row.visibility === 0 ? 0 : 1,
     // Only what the asset endpoint actually serves counts as available.
     assets: {
-      media: isServableMedia(row.videoPath),
-      thumbnail: isServableThumbnail(row.thumbnailPath),
+      media: isServableMedia(row.videoPath, cloudAvailable),
+      thumbnail: isServableThumbnail(row.thumbnailPath, cloudAvailable),
       avatar: isServableAvatar(row.authorAvatarPath),
       subtitles: servableSubtitles(row.subtitles).length > 0,
     },

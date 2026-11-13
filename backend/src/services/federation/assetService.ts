@@ -1,6 +1,8 @@
 import { AVATARS_DIR, IMAGES_DIR, SUBTITLES_DIR, VIDEOS_DIR } from "../../config/paths";
 import { resolveMountFilePath } from "../../controllers/video/mountVideo";
-import { resolveSafeChildPath, statTrusted } from "../../utils/security";
+import { resolveSafeChildPath, statTrusted, validateCloudThumbnailCachePath } from "../../utils/security";
+import { getCachedThumbnail } from "../cloudStorage/cloudThumbnailCache";
+import { CLOUD_PREFIX, type CloudFileType } from "./cloudAssetProxy";
 import {
   LOCAL_ASSET_PREFIXES,
   MOUNT_PREFIX,
@@ -35,11 +37,14 @@ const SUBTITLE_CONTENT_TYPES: Record<string, string> = {
   ssa: "text/x-ssa; charset=utf-8",
 };
 
-export interface LocatedAsset {
-  absolutePath: string;
-  /** Overrides the extension-based type where browsers need a precise one. */
-  contentType?: string;
-}
+export type LocatedAsset =
+  | {
+      type: "file";
+      absolutePath: string;
+      /** Overrides the extension-based type where browsers need a precise one. */
+      contentType?: string;
+    }
+  | { type: "cloud"; filename: string; fileType: CloudFileType };
 
 const resolveLocal = (webPath: string | null, prefixes: readonly string[]): string | null => {
   const prefix = webPath ? prefixes.find((candidate) => webPath.startsWith(candidate)) : undefined;
@@ -51,8 +56,25 @@ const resolveLocal = (webPath: string | null, prefixes: readonly string[]): stri
   }
 };
 
-const located = (absolutePath: string | null, contentType?: string): LocatedAsset | null =>
-  absolutePath ? { absolutePath, ...(contentType ? { contentType } : {}) } : null;
+const file = (absolutePath: string | null, contentType?: string): LocatedAsset | null =>
+  absolutePath
+    ? { type: "file", absolutePath, ...(contentType ? { contentType } : {}) }
+    : null;
+
+const cloud = (reference: string, fileType: CloudFileType): LocatedAsset | null => {
+  const filename = reference.slice(CLOUD_PREFIX.length);
+  return filename ? { type: "cloud", filename, fileType } : null;
+};
+
+/** A cloud thumbnail this instance already cached locally. */
+const cachedCloudThumbnail = (reference: string): string | null => {
+  try {
+    const cached = getCachedThumbnail(reference);
+    return cached ? validateCloudThumbnailCachePath(cached) : null;
+  } catch {
+    return null;
+  }
+};
 
 /** Where the asset lives, or null when this instance does not serve it. */
 export function locateFederationAsset(
@@ -62,24 +84,33 @@ export function locateFederationAsset(
 ): LocatedAsset | null {
   switch (kind) {
     case "media": {
-      if (row.videoPath?.startsWith(MOUNT_PREFIX)) {
+      const reference = row.videoPath;
+      if (reference?.startsWith(MOUNT_PREFIX)) {
         try {
-          return located(resolveMountFilePath(row.videoPath.slice(MOUNT_PREFIX.length)));
+          return file(resolveMountFilePath(reference.slice(MOUNT_PREFIX.length)));
         } catch {
           return null;
         }
       }
-      return located(resolveLocal(row.videoPath, LOCAL_ASSET_PREFIXES.media));
+      if (reference?.startsWith(CLOUD_PREFIX)) {
+        return cloud(reference, row.mediaType === "audio" ? "audio" : "video");
+      }
+      return file(resolveLocal(reference, LOCAL_ASSET_PREFIXES.media));
     }
-    case "thumbnail":
-      return located(resolveLocal(row.thumbnailPath, LOCAL_ASSET_PREFIXES.thumbnail));
+    case "thumbnail": {
+      const reference = row.thumbnailPath;
+      if (reference?.startsWith(CLOUD_PREFIX)) {
+        return file(cachedCloudThumbnail(reference)) ?? cloud(reference, "thumbnail");
+      }
+      return file(resolveLocal(reference, LOCAL_ASSET_PREFIXES.thumbnail));
+    }
     case "avatar":
       // The row carries the author's effective avatar, custom override first.
-      return located(resolveLocal(row.authorAvatarPath, LOCAL_ASSET_PREFIXES.avatar));
+      return file(resolveLocal(row.authorAvatarPath, LOCAL_ASSET_PREFIXES.avatar));
     case "subtitle": {
       const track = servableSubtitles(row.subtitles).find((entry) => entry.trackId === trackId);
       if (!track) return null;
-      return located(
+      return file(
         resolveLocal(track.path, LOCAL_ASSET_PREFIXES.subtitle),
         SUBTITLE_CONTENT_TYPES[track.format]
       );

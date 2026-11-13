@@ -5,6 +5,7 @@ import { videos } from "../../db/schema";
 import { getLibraryExportRevision } from "../storageService/videoListRevision";
 import {
   effectiveAudience,
+  isCloudStorageAvailable,
   publicOnly,
   readExportRows,
   toSummary,
@@ -182,6 +183,7 @@ export function readSnapshotPage(
 
   const pageIds = snapshot.ids.slice(offset, offset + SNAPSHOT_PAGE_SIZE);
   const byId = new Map(readExportRows(pageIds).map((row) => [row.id, row]));
+  const cloudAvailable = isCloudStorageAvailable();
 
   const items: FederationVideoSummary[] = [];
   for (const id of pageIds) {
@@ -191,7 +193,7 @@ export function readSnapshotPage(
       snapshots.delete(snapshot.id);
       return { ok: false, reason: "stale" };
     }
-    items.push(toSummary(row));
+    items.push(toSummary(row, cloudAvailable));
   }
 
   const nextOffset = offset + pageIds.length;

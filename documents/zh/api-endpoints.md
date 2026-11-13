@@ -256,7 +256,7 @@
   - 条目：`{ id, title, author, date, source, sourceUrl, sourceVideoId, channelUrl, addedAt, createdAt, updatedAt, partNumber, totalParts, seriesTitle, rating, duration, width, height, fileSize, mediaType, tags, visibility, assets: { media, thumbnail, avatar, subtitles }, assetRevision }`。条目的任一资源（包括作者当前生效的头像）变化时，`assetRevision` 都会改变。
 - `DELETE /api/federation/v1/snapshots/:snapshotId` - 提前释放已读完的快照。
 - `GET /api/federation/v1/videos/:nativeId?audience=`（需要 `library:read`）- 实时详情：快照条目加上 `description` 和 `subtitles: [{ trackId, language, format }]`。对 public 范围而言，隐藏视频与不存在的视频一样返回 `404 FEDERATION_VIDEO_NOT_FOUND`。
-- `GET`/`HEAD /api/federation/v1/videos/:nativeId/assets/:kind?audience=&track=`（需要 `media:read`）- 获取 `media`、`thumbnail`、`avatar`（作者当前生效的头像）或 `subtitle`（`track` 为详情中的 `trackId`）的内容。每次请求都会检查可见性。支持 `Range`/`If-Range`、`ETag`/`Last-Modified` 条件请求、`206`/`304`/`412`/`416` 和 `HEAD`；响应为 `no-store`。媒体可来自托管文件和挂载目录（见 `capabilities.assets.mediaStorage`）；云端媒体以及远程 URL 形式的缩略图或字幕报告为不可用。资源缺失时返回 `404 FEDERATION_ASSET_UNAVAILABLE`，不代表视频本身不存在。吊销、暂停、轮换或删除令牌会立即中断其正在进行的传输。
+- `GET`/`HEAD /api/federation/v1/videos/:nativeId/assets/:kind?audience=&track=`（需要 `media:read`）- 获取 `media`、`thumbnail`、`avatar`（作者当前生效的头像）或 `subtitle`（`track` 为详情中的 `trackId`）的内容。每次请求都会检查可见性。支持 `Range`/`If-Range`、`ETag`/`Last-Modified` 条件请求、`206`/`304`/`412`/`416` 和 `HEAD`；响应为 `no-store`。媒体可来自托管文件、挂载目录，以及已配置的云存储（见 `capabilities.assets.mediaStorage`）。云端内容由本实例代为转发：存储签名链接不会离开本实例，只向上游转发 `Range` 和条件请求头，也只回传内容和校验相关的响应头。存储超时返回 `504 FEDERATION_UPSTREAM_TIMEOUT`，其他存储故障返回 `502 FEDERATION_UPSTREAM_ERROR`。远程 URL 形式的缩略图和字幕报告为不可用。资源缺失时返回 `404 FEDERATION_ASSET_UNAVAILABLE`，不代表视频本身不存在。吊销、暂停、轮换或删除令牌会立即中断其正在进行的传输。
 
 协议的 `POST`/`DELETE` 请求只有在携带有效、可用的联邦凭证时才免于 CSRF 校验。协议请求不受通用 API 限流约束；只有认证失败的请求计入其专用限流。
 
