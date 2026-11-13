@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import { sqlite } from "../../db";
 import { logger } from "../../utils/logger";
 import type { PeerStatus } from "./peerService";
@@ -26,7 +27,7 @@ const failures = new Map<string, number>();
 const running = new Set<string>();
 let timer: NodeJS.Timeout | null = null;
 
-const jitter = (): number => Math.floor(Math.random() * JITTER_MS);
+const jitter = (): number => crypto.randomInt(JITTER_MS);
 
 export const backoffFor = (failureCount: number): number =>
   Math.min(SYNC_INTERVAL_MS * 2 ** failureCount, MAX_BACKOFF_MS);
