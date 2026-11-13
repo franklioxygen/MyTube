@@ -94,10 +94,6 @@ export async function importDatabase(fileBuffer: Buffer): Promise<void> {
     // exists". Skip the legacy JSON data migration so stale on-disk files do
     // not overwrite the just-imported backup.
     await runMigrations({ skipLegacyDataMigration: true });
-
-    // The library was replaced wholesale; a client holding the old list ETag
-    // must not be answered 304 with the previous library.
-    bumpVideosListRevision();
   } catch (error: unknown) {
     // Restore backup if import failed
     if (pathExistsSafeSync(backupPath, DATA_DIR)) {
@@ -119,8 +115,6 @@ export async function importDatabase(fileBuffer: Buffer): Promise<void> {
         // The failure may have happened after the connection was reopened on
         // the (bad) imported file, so point it back at the restored backup.
         reinitializeDatabase();
-        // Requests may have read the imported file while migrations ran.
-        bumpVideosListRevision();
         logger.info("Restored database from backup after failed import");
       } catch (restoreError) {
         logger.error("Failed to restore database from backup:", restoreError);
@@ -135,6 +129,11 @@ export async function importDatabase(fileBuffer: Buffer): Promise<void> {
 
     throw error;
   } finally {
+    // Whatever happened (imported, rolled back, or a rollback that failed),
+    // the live database may no longer be the library clients last listed, and
+    // requests may have read the imported file while migrations ran. Bump last
+    // so no client keeps getting a 304 for an earlier library.
+    bumpVideosListRevision();
     cleanupTempImportFile(tempImportPath);
   }
 }
@@ -302,10 +301,12 @@ export async function restoreFromLastBackup(): Promise<void> {
   // unapplied (and does not crash a subsequent startup re-running them). Skip
   // the legacy JSON data migration so stale on-disk files do not overwrite the
   // just-restored backup.
-  await runMigrations({ skipLegacyDataMigration: true });
-
-  // The library was replaced wholesale; see importDatabase.
-  bumpVideosListRevision();
+  try {
+    await runMigrations({ skipLegacyDataMigration: true });
+  } finally {
+    // The restored file stays live even if migrations fail; see importDatabase.
+    bumpVideosListRevision();
+  }
 }
 
 /**

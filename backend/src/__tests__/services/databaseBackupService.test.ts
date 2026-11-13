@@ -364,6 +364,10 @@ describe("databaseBackupService", () => {
       );
       // Requests may have read the imported file before the rollback.
       expect(bumpVideosListRevision).toHaveBeenCalledTimes(1);
+      const reinitOrder = vi.mocked(reinitDb).mock.invocationCallOrder;
+      expect(reinitOrder[reinitOrder.length - 1]).toBeLessThan(
+        vi.mocked(bumpVideosListRevision).mock.invocationCallOrder[0]
+      );
       expect(logger.error).toHaveBeenCalledWith(
         "Database import failed:",
         expect.any(Error)
@@ -396,6 +400,9 @@ describe("databaseBackupService", () => {
         "Failed to restore database from backup:",
         expect.any(Error)
       );
+      // The rollback failed, so whatever file is live may not be the library
+      // clients last listed.
+      expect(bumpVideosListRevision).toHaveBeenCalledTimes(1);
     });
 
     it("logs temp cleanup error if unlink fails", async () => {
@@ -1126,6 +1133,22 @@ describe("databaseBackupService", () => {
       expect(vi.mocked(runMigrations).mock.invocationCallOrder[0]).toBeLessThan(
         vi.mocked(bumpVideosListRevision).mock.invocationCallOrder[0]
       );
+    });
+
+    it("moves the list revision even when migrating the restored file fails", async () => {
+      vi.mocked(fs.readdirSync as any).mockReturnValue([
+        "mytube-backup-ok.db.backup",
+      ]);
+      vi.mocked(fs.statSync as any).mockReturnValue({ mtimeMs: 500 });
+      vi.mocked(runMigrations).mockRejectedValueOnce(new Error("migration failed"));
+
+      await expect(databaseBackupService.restoreFromLastBackup()).rejects.toThrow(
+        "migration failed"
+      );
+
+      // The restored file stays live, so clients must not keep the old list.
+      expect(reinitDb).toHaveBeenCalledTimes(1);
+      expect(bumpVideosListRevision).toHaveBeenCalledTimes(1);
     });
   });
 
