@@ -64,6 +64,17 @@ export const startBackgroundJobs = (port: number): void => {
       );
     });
 
+  // Federation: keep registered peers' libraries in sync. Idle when there
+  // are no enabled peers.
+  import("../services/federation/syncScheduler")
+    .then(({ startFederationSyncScheduler }) => startFederationSyncScheduler())
+    .catch((error) =>
+      logger.warn(
+        "Failed to start the federation sync scheduler",
+        error instanceof Error ? error : new Error(String(error))
+      )
+    );
+
   // Library-wide auto-delete sweep (opt-in via autoDeleteEnabled): a daily
   // 03:00 cron plus a boot-time catch-up after downtime. No-op while disabled.
   import("../services/autoDeleteScheduler")

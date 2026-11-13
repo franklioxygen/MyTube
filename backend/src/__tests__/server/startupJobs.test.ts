@@ -4,6 +4,7 @@ import { subscriptionService } from "../../services/subscriptionService";
 import * as metadataService from "../../services/metadataService";
 import { startCloudflaredIfEnabled } from "../../server/cloudRoutes";
 import { startTelegramDownloadPolling } from "../../services/telegramDownloadService";
+import { startFederationSyncScheduler } from "../../services/federation/syncScheduler";
 import { logger } from "../../utils/logger";
 
 vi.mock("../../services/subscriptionService", () => ({
@@ -23,6 +24,10 @@ vi.mock("../../server/cloudRoutes", () => ({
 
 vi.mock("../../services/telegramDownloadService", () => ({
   startTelegramDownloadPolling: vi.fn(),
+}));
+
+vi.mock("../../services/federation/syncScheduler", () => ({
+  startFederationSyncScheduler: vi.fn(),
 }));
 
 vi.mock("../../utils/logger", () => ({
@@ -58,6 +63,7 @@ describe("startBackgroundJobs", () => {
     expect(backfillVideoDimensionsMock).toHaveBeenCalledTimes(1);
     expect(startTelegramDownloadPollingMock).toHaveBeenCalledTimes(1);
     expect(startCloudflaredIfEnabledMock).toHaveBeenCalledWith(3000);
+    expect(startFederationSyncScheduler).toHaveBeenCalledTimes(1);
     expect(loggerErrorMock).not.toHaveBeenCalled();
   });
 
