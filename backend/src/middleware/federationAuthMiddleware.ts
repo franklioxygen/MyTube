@@ -3,6 +3,7 @@ import {
   authenticateFederationRequest,
   type FederationAuthFailure,
   type FederationPrincipal,
+  type FederationScope,
 } from "../services/federation/tokenService";
 import { readHeaderValue } from "../utils/apiKeyAuth";
 
@@ -99,3 +100,18 @@ export const federationAuthentication = (
   req.federationPrincipal = result.principal;
   next();
 };
+
+export const requireFederationScope =
+  (scope: FederationScope): RequestHandler =>
+  (req, res, next) => {
+    if (req.federationPrincipal?.scopes.includes(scope)) {
+      next();
+      return;
+    }
+
+    res.status(403).json({
+      success: false,
+      code: "FEDERATION_SCOPE_REQUIRED",
+      error: `The federation credential lacks the ${scope} scope.`,
+    });
+  };

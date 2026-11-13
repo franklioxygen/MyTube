@@ -12,14 +12,26 @@ import crypto from "crypto";
 // IMPORTANT: every *runtime* write path to the `videos` table must call
 // bumpVideosListRevision(). Current bump sites: videoMutations (save/upsert/
 // update), videoDeletion, tagService (rename/delete tags), metadataService
-// (duration backfill), and filenameTemplate/renameJobService. Startup-only
-// migrations don't need a bump — they run before the first request in a fresh
-// process.
+// (duration backfill), filenameTemplate/renameJobService, authorAvatarService,
+// bulkVideoOrganizationService, downloadedMediaIdentity, and database
+// merge/import/restore. Startup-only migrations don't need a bump — they run
+// before the first request in a fresh process.
 const bootId = crypto.randomBytes(4).toString("hex");
 let revision = 0;
 
-export function bumpVideosListRevision(): void {
+// What federation exports excludes private watch state (progress, view count,
+// last played), so writes that touch only that state leave this revision
+// alone. Otherwise every progress save during playback would invalidate the
+// snapshots other instances are paging through.
+let exportRevision = 0;
+
+export function bumpVideosListRevision(
+  options: { watchStateOnly?: boolean } = {}
+): void {
   revision += 1;
+  if (!options.watchStateOnly) {
+    exportRevision += 1;
+  }
 }
 
 /**
@@ -28,4 +40,12 @@ export function bumpVideosListRevision(): void {
  */
 export function getVideosListETag(scope: "all" | "visitor"): string {
   return `W/"videos-${scope}-${bootId}-${revision}"`;
+}
+
+/**
+ * Opaque revision of the library as federation exports it. It changes on
+ * every exported metadata, asset, or visibility change, and on restart.
+ */
+export function getLibraryExportRevision(): string {
+  return `${bootId}-${exportRevision}`;
 }

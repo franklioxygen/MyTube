@@ -1,8 +1,15 @@
 import express from "express";
-import { getCapabilities } from "../controllers/federationProtocolController";
+import {
+  deleteSnapshot,
+  getCapabilities,
+  getLibraryRevision,
+  getSnapshotPage,
+  postSnapshot,
+} from "../controllers/federationProtocolController";
 import {
   federationAuthentication,
   federationNoStore,
+  requireFederationScope,
 } from "../middleware/federationAuthMiddleware";
 
 /**
@@ -17,6 +24,12 @@ router.use(federationNoStore);
 router.use(federationAuthentication);
 
 router.get("/capabilities", getCapabilities);
+
+const libraryRead = requireFederationScope("library:read");
+router.get("/library/revision", libraryRead, getLibraryRevision);
+router.post("/snapshots", libraryRead, postSnapshot);
+router.get("/snapshots/:snapshotId/videos", libraryRead, getSnapshotPage);
+router.delete("/snapshots/:snapshotId", libraryRead, deleteSnapshot);
 
 router.use((_req, res) => {
   res.status(404).json({

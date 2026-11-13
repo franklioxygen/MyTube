@@ -246,7 +246,17 @@
 
 协议端点位于 `/api/federation/v1` 下，只接受 `Authorization: Federation <id>.<secret>`，并要求请求头 `X-MyTube-Instance-Id: <调用方实例 UUID>`。这里永远不接受会话或 API Key。令牌首次被使用时绑定调用方实例；其他实例或本实例自身的请求会被拒绝。错误响应带有 `code`，例如 `FEDERATION_UNAUTHORIZED`、`FEDERATION_TOKEN_REVOKED`、`FEDERATION_TOKEN_EXPIRED`、`FEDERATION_TOKEN_SUSPENDED`、`FEDERATION_CONSUMER_REQUIRED`、`FEDERATION_CONSUMER_MISMATCH`、`FEDERATION_SELF_CONNECTION`。
 
-- `GET /api/federation/v1/capabilities` - 握手：`{ protocol, protocolVersions, instanceId, credential: { id, scopes, visibilityCeiling, policyRevision, expiresAt }, features }`
+- `GET /api/federation/v1/capabilities` - 握手：`{ protocol, protocolVersions, instanceId, credential: { id, scopes, visibilityCeiling, policyRevision, expiresAt }, features, limits: { snapshotPageSize, snapshotTtlMs } }`
+
+媒体库导出（需要 `library:read` 权限范围）。只导出本实例自己的视频，绝不导出从其他实例导入的条目。只有当请求方要求 `owner`、且凭证上限也允许 `owner` 时，实际 `audience` 才是 `owner`；否则为 `public`，不含隐藏视频。导出内容永不包含文件路径、存储 URL、简介、字幕内容或观看状态（进度、播放次数、最近播放时间）。
+
+- `GET /api/federation/v1/library/revision?audience=public|owner` - 返回 `{ audience, libraryRevision, policyRevision }`。均为不透明值；两者都未变时，导出内容没有任何变化。播放进度和播放次数不会改变 `libraryRevision`。
+- `POST /api/federation/v1/snapshots` - 请求体：`{ audience }`。返回 `201`：`{ snapshotId, instanceId, audience, libraryRevision, policyRevision, totalCount, pageSize, expiresAt }`。快照 10 分钟后过期。每个凭证最多同时保留两个（创建第三个会替换最旧的）；达到全实例上限时返回 `429 FEDERATION_SNAPSHOT_CAPACITY` 并带 `Retry-After`。
+- `GET /api/federation/v1/snapshots/:snapshotId/videos?cursor=` - 每页最多 500 条：`{ snapshotId, totalCount, items, nextCursor, complete }`。只有最后一页的 `complete: true` 才能证明列表完整；媒体库确实为空时返回 `totalCount: 0` 且 `complete: true`。导出内容或凭证条款发生任何变化时返回 `409 FEDERATION_SNAPSHOT_STALE`，并丢弃该快照。其他凭证的快照返回 `404`。
+  - 条目：`{ id, title, author, date, source, sourceUrl, sourceVideoId, channelUrl, addedAt, createdAt, updatedAt, partNumber, totalParts, seriesTitle, rating, duration, width, height, fileSize, mediaType, tags, visibility, assets: { media, thumbnail, avatar, subtitles }, assetRevision }`。条目的任一资源（包括作者当前生效的头像）变化时，`assetRevision` 都会改变。
+- `DELETE /api/federation/v1/snapshots/:snapshotId` - 提前释放已读完的快照。
+
+协议的 `POST`/`DELETE` 请求只有在携带有效、可用的联邦凭证时才免于 CSRF 校验。
 
 ## 设置
 

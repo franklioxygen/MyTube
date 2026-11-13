@@ -64,7 +64,8 @@ describe("federation protocol router", () => {
         policyRevision: token.policyRevision,
         expiresAt: null,
       },
-      features: [],
+      features: ["snapshots"],
+      limits: { snapshotPageSize: 500, snapshotTtlMs: 600000 },
     });
   });
 
@@ -85,14 +86,14 @@ describe("federation protocol router", () => {
   });
 
   it("authenticates before revealing which endpoints exist", async () => {
-    const response = await request(app()).get("/api/federation/v1/snapshots");
+    const response = await request(app()).get("/api/federation/v1/unknown");
 
     expect(response.status).toBe(401);
     expect(legacyStack).not.toHaveBeenCalled();
   });
 
   it.each([
-    ["an unknown path", "get", "/api/federation/v1/snapshots"],
+    ["an unknown path", "get", "/api/federation/v1/unknown"],
     ["an unsupported method", "post", "/api/federation/v1/capabilities"],
   ] as const)("ends %s inside the router", async (_name, method, path) => {
     const { credential } = mint();

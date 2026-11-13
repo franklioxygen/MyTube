@@ -326,20 +326,16 @@ export function deleteFederationToken(id: string): boolean {
   );
 }
 
+type CredentialCheck =
+  | { ok: true; row: TokenRow }
+  | { ok: false; reason: FederationAuthFailure };
+
 /**
- * Authenticate one federation protocol request.
- *
- * Revocation and expiry are reported only after the secret matches, so the
- * responses cannot be used to learn which token ids exist. The consumer
- * instance id is an audit and binding value, not proof of identity: it is
- * pinned on first use so one token cannot silently serve two consumers, and a
- * consumer presenting this instance's own id is a self-connection.
+ * Verify the presented credential without side effects. Revocation, expiry
+ * and suspension are reported only after the secret matches, so responses
+ * cannot be used to learn which token ids exist.
  */
-export function authenticateFederationRequest(
-  authorization: string | undefined,
-  consumerInstanceId: string | undefined,
-  now = Date.now()
-): FederationAuthResult {
+function verifyCredential(authorization: string | undefined, now: number): CredentialCheck {
   if (!authorization) {
     return { ok: false, reason: "missing_credential" };
   }
@@ -366,6 +362,44 @@ export function authenticateFederationRequest(
   if (status === "revoked") return { ok: false, reason: "token_revoked" };
   if (status === "expired") return { ok: false, reason: "token_expired" };
   if (status === "suspended") return { ok: false, reason: "token_suspended" };
+  return { ok: true, row };
+}
+
+/**
+ * True only for a currently usable credential. Lets the CSRF guard exempt
+ * the header-authenticated protocol without exempting a path or an unverified
+ * header, and without the side effects of a full authentication.
+ */
+export function hasUsableFederationCredential(
+  authorization: string | undefined,
+  now = Date.now()
+): boolean {
+  try {
+    return verifyCredential(authorization, now).ok;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Authenticate one federation protocol request.
+ *
+ * The consumer instance id is an audit and binding value, not proof of
+ * identity: it is pinned on first use so one token cannot silently serve two
+ * consumers, and a consumer presenting this instance's own id is a
+ * self-connection.
+ */
+export function authenticateFederationRequest(
+  authorization: string | undefined,
+  consumerInstanceId: string | undefined,
+  now = Date.now()
+): FederationAuthResult {
+  const verified = verifyCredential(authorization, now);
+  if (!verified.ok) {
+    return verified;
+  }
+  const { row } = verified;
+  const tokenId = row.id;
 
   if (!isInstanceId(consumerInstanceId)) {
     return { ok: false, reason: "consumer_required" };

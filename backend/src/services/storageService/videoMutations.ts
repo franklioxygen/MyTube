@@ -6,6 +6,19 @@ import { logger } from "../../utils/logger";
 import { mapVideoRow } from "./videoQueries";
 import { bumpVideosListRevision } from "./videoListRevision";
 
+// Private playback state, never exported to federation consumers.
+const WATCH_STATE_FIELDS: ReadonlySet<string> = new Set([
+  "progress",
+  "progressUpdatedAt",
+  "viewCount",
+  "lastPlayedAt",
+]);
+
+const isWatchStateOnlyUpdate = (updates: object): boolean => {
+  const keys = Object.keys(updates);
+  return keys.length > 0 && keys.every((key) => WATCH_STATE_FIELDS.has(key));
+};
+
 export interface SaveVideoOptions {
   // When true, suppress the library_video_added statistics event even on insert
   // (used by maintenance flows like database migration/import/merge that should
@@ -178,7 +191,7 @@ export function updateVideo(
       .get();
 
     if (result) {
-      bumpVideosListRevision();
+      bumpVideosListRevision({ watchStateOnly: isWatchStateOnlyUpdate(updates) });
       return mapVideoRow(result);
     }
     return null;

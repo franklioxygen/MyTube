@@ -38,10 +38,13 @@ export type { DatabaseMergeSummary } from "./databaseBackup/types";
 import type { DatabaseMergeSummary } from "./databaseBackup/types";
 
 /**
- * A replaced database can bring back federation tokens revoked after the
- * backup was taken, so every usable token waits for owner confirmation.
+ * Runs once a replaced database is migrated. The library changed wholesale,
+ * so list ETags and the federation export revision must move. And a backup can
+ * bring back federation tokens revoked after it was taken, so every usable
+ * token waits for owner confirmation.
  */
-function suspendRestoredFederationTokens(): void {
+function afterDatabaseReplaced(): void {
+  bumpVideosListRevision();
   const suspended = suspendUsableFederationTokens();
   if (suspended > 0) {
     logger.warn(
@@ -111,7 +114,7 @@ export async function importDatabase(fileBuffer: Buffer): Promise<void> {
 
     // Inside the try: if this fails, the import rolls back rather than
     // leaving restored credentials usable.
-    suspendRestoredFederationTokens();
+    afterDatabaseReplaced();
   } catch (error: unknown) {
     // Restore backup if import failed
     if (pathExistsSafeSync(backupPath, DATA_DIR)) {
@@ -221,7 +224,10 @@ export function mergeDatabase(fileBuffer: Buffer): DatabaseMergeSummary {
       })
     )();
 
-    if (summary.authorProfiles.merged > 0) bumpVideosListRevision();
+    // Merged videos are inserted directly, bypassing videoMutations' bump.
+    if (summary.videos.merged > 0 || summary.authorProfiles.merged > 0) {
+      bumpVideosListRevision();
+    }
     logger.info(
       `Merged database backup successfully: ${JSON.stringify(summary)}`
     );
@@ -313,7 +319,7 @@ export async function restoreFromLastBackup(): Promise<void> {
   // just-restored backup.
   await runMigrations({ skipLegacyDataMigration: true });
 
-  suspendRestoredFederationTokens();
+  afterDatabaseReplaced();
 }
 
 /**

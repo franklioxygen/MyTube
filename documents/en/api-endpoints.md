@@ -261,7 +261,17 @@ Groundwork for connecting several MyTube instances (issue #354). This instance c
 
 Protocol endpoints live under `/api/federation/v1` and accept only `Authorization: Federation <id>.<secret>` plus an `X-MyTube-Instance-Id: <consumer instance UUID>` header. Sessions and API keys are never accepted there. The first consumer to use a token is pinned to it; another instance, or this instance itself, is refused. Errors carry a `code` such as `FEDERATION_UNAUTHORIZED`, `FEDERATION_TOKEN_REVOKED`, `FEDERATION_TOKEN_EXPIRED`, `FEDERATION_TOKEN_SUSPENDED`, `FEDERATION_CONSUMER_REQUIRED`, `FEDERATION_CONSUMER_MISMATCH`, or `FEDERATION_SELF_CONNECTION`.
 
-- `GET /api/federation/v1/capabilities` - Handshake: `{ protocol, protocolVersions, instanceId, credential: { id, scopes, visibilityCeiling, policyRevision, expiresAt }, features }`
+- `GET /api/federation/v1/capabilities` - Handshake: `{ protocol, protocolVersions, instanceId, credential: { id, scopes, visibilityCeiling, policyRevision, expiresAt }, features, limits: { snapshotPageSize, snapshotTtlMs } }`
+
+Library export (requires the `library:read` scope). Only this instance's own videos are exported, never items it imports from other instances. The effective `audience` is `owner` only when both requested and allowed by the credential's ceiling; otherwise `public`, which excludes hidden videos. Exports never include file paths, storage URLs, descriptions, subtitle contents, or watch state (progress, views, last played).
+
+- `GET /api/federation/v1/library/revision?audience=public|owner` - `{ audience, libraryRevision, policyRevision }`. Opaque values; when both are unchanged, nothing exported changed. Playback progress and view counts do not change `libraryRevision`.
+- `POST /api/federation/v1/snapshots` - Body: `{ audience }`. `201`: `{ snapshotId, instanceId, audience, libraryRevision, policyRevision, totalCount, pageSize, expiresAt }`. Snapshots expire after 10 minutes. A credential keeps at most two (creating a third replaces its oldest); `429 FEDERATION_SNAPSHOT_CAPACITY` with `Retry-After` when the instance-wide limit is reached.
+- `GET /api/federation/v1/snapshots/:snapshotId/videos?cursor=` - Up to 500 items per page: `{ snapshotId, totalCount, items, nextCursor, complete }`. Only `complete: true` on the final page proves the listing is whole; a genuinely empty library returns `totalCount: 0` and `complete: true`. Any exported change or change of credential terms answers `409 FEDERATION_SNAPSHOT_STALE` and discards the snapshot. Another credential's snapshot is `404`.
+  - Item: `{ id, title, author, date, source, sourceUrl, sourceVideoId, channelUrl, addedAt, createdAt, updatedAt, partNumber, totalParts, seriesTitle, rating, duration, width, height, fileSize, mediaType, tags, visibility, assets: { media, thumbnail, avatar, subtitles }, assetRevision }`. `assetRevision` changes whenever any of the item's assets, including its author's effective avatar, does.
+- `DELETE /api/federation/v1/snapshots/:snapshotId` - Release a finished snapshot early.
+
+Protocol `POST`/`DELETE` requests are exempt from CSRF only when they carry a valid, usable federation credential.
 
 ## Settings
 

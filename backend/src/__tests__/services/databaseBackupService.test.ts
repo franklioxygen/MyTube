@@ -10,6 +10,7 @@ import * as databaseBackupService from "../../services/databaseBackupService";
 import { invalidateSettingsCache } from "../../services/storageService/settings";
 import { runMigrations } from "../../db/migrate";
 import { suspendUsableFederationTokens } from "../../services/federation/tokenService";
+import { bumpVideosListRevision } from "../../services/storageService/videoListRevision";
 import { invalidateUserCache } from "../../services/userService";
 import { logger } from "../../utils/logger";
 import { isPathWithinDirectory, resolveSafePath } from "../../utils/security";
@@ -338,6 +339,9 @@ describe("databaseBackupService", () => {
       expect(logger.info).toHaveBeenCalledWith(
         "Closed current database connection for import"
       );
+      // The whole library changed, so list ETags and the federation export
+      // revision must move.
+      expect(bumpVideosListRevision).toHaveBeenCalledTimes(1);
       // An imported backup can resurrect revoked federation tokens, so they
       // wait for the owner; this must run on the migrated, imported database.
       expect(suspendUsableFederationTokens).toHaveBeenCalledTimes(1);
@@ -682,6 +686,9 @@ describe("databaseBackupService", () => {
         favoriteAuthors: { merged: 0, skipped: 0 },
         authorProfiles: { merged: 0, skipped: 0 },
       });
+      // Merged videos bypass videoMutations, so the merge itself must move
+      // list ETags and the federation export revision.
+      expect(bumpVideosListRevision).toHaveBeenCalledTimes(1);
       expect(sqlite.transaction).toHaveBeenCalledTimes(1);
       expect(invalidateSettingsCache).toHaveBeenCalledTimes(1);
       expect(fs.copyFileSync).toHaveBeenCalledTimes(1);
@@ -1133,6 +1140,7 @@ describe("databaseBackupService", () => {
       expect(logger.info).toHaveBeenCalledWith(
         expect.stringContaining("Database file restored successfully")
       );
+      expect(bumpVideosListRevision).toHaveBeenCalledTimes(1);
       expect(suspendUsableFederationTokens).toHaveBeenCalledTimes(1);
       expect(
         vi.mocked(runMigrations).mock.invocationCallOrder[0]
