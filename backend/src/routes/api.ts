@@ -7,6 +7,7 @@ import * as bulkVideoOrganizationController from "../controllers/bulkVideoOrgani
 import * as downloadController from "../controllers/downloadController";
 import * as favoriteController from "../controllers/favoriteController";
 import * as federationManagementController from "../controllers/federationManagementController";
+import * as federationPeersController from "../controllers/federationPeersController";
 import * as mediaCollisionAuditController from "../controllers/mediaCollisionAuditController";
 import * as mediaIntegrityAuditController from "../controllers/mediaIntegrityAuditController";
 import * as recommendationController from "../controllers/recommendationController";
@@ -43,6 +44,17 @@ const apiRouteDefinitions: ApiRouteDefinition[] = [
   { method: "post", path: "/federation/tokens/:id/revoke", handlers: [requireAdmin, federationNoStore, federationManagementController.revokeToken] },
   { method: "post", path: "/federation/tokens/:id/resume", handlers: [requireAdmin, federationNoStore, federationManagementController.resumeToken] },
   { method: "post", path: "/federation/identity/reset", handlers: [requireAdmin, federationNoStore, federationManagementController.resetIdentity] },
+  // Prime side: peers this instance reads from, their synced library, and the
+  // media gateway. Owner-only until visitor freshness checks exist.
+  { method: "get", path: "/federation/peers", handlers: [requireAdmin, federationNoStore, federationPeersController.getPeers] },
+  { method: "post", path: "/federation/peers", handlers: [requireAdmin, federationNoStore, federationPeersController.postPeer] },
+  { method: "patch", path: "/federation/peers/:id", handlers: [requireAdmin, federationNoStore, federationPeersController.patchPeer] },
+  { method: "put", path: "/federation/peers/:id/credential", handlers: [requireAdmin, federationNoStore, federationPeersController.putPeerCredential] },
+  { method: "post", path: "/federation/peers/:id/sync", handlers: [requireAdmin, federationNoStore, federationPeersController.postPeerSync] },
+  { method: "delete", path: "/federation/peers/:id", handlers: [requireAdmin, federationNoStore, federationPeersController.deletePeer] },
+  { method: "get", path: "/federation/library", handlers: [requireAdmin, federationNoStore, federationPeersController.getRemoteLibrary] },
+  { method: "get", path: "/federation/library/:id", handlers: [requireAdmin, federationNoStore, federationPeersController.getRemoteItem] },
+  { method: "get", path: "/federation/media/:id/:kind", handlers: [requireAdmin, federationPeersController.getRemoteMedia] },
   { method: "delete", path: "/federation/tokens/:id", handlers: [requireAdmin, federationNoStore, federationManagementController.deleteToken] },
   { method: "post", path: "/authors/avatar/from-source", allowApiKey: false, handlers: [requireAdmin, authorAvatarController.avatarSourceLimiter, asyncHandler(authorAvatarController.fetchSourceAvatar)] },
   { method: "get", path: "/authors/profile", allowApiKey: false, handlers: [requireAdmin, asyncHandler(authorAvatarController.readProfile)] },

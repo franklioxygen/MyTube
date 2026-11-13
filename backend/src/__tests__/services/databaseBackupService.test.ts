@@ -1,5 +1,6 @@
 vi.mock("../../services/storageService/videoListRevision", () => ({ bumpVideosListRevision: vi.fn() }));
 vi.mock("../../services/federation/tokenService", () => ({ suspendUsableFederationTokens: vi.fn(() => 2) }));
+vi.mock("../../services/federation/peerService", () => ({ disablePeersAfterRestore: vi.fn(() => 0) }));
 import Database from "better-sqlite3";
 import crypto from "crypto";
 import fs from "fs-extra";
@@ -10,6 +11,7 @@ import * as databaseBackupService from "../../services/databaseBackupService";
 import { invalidateSettingsCache } from "../../services/storageService/settings";
 import { runMigrations } from "../../db/migrate";
 import { suspendUsableFederationTokens } from "../../services/federation/tokenService";
+import { disablePeersAfterRestore } from "../../services/federation/peerService";
 import { bumpVideosListRevision } from "../../services/storageService/videoListRevision";
 import { invalidateUserCache } from "../../services/userService";
 import { logger } from "../../utils/logger";
@@ -349,6 +351,8 @@ describe("databaseBackupService", () => {
         vi.mocked(runMigrations).mock.invocationCallOrder[0]
       ).toBeLessThan(vi.mocked(suspendUsableFederationTokens).mock.invocationCallOrder[0]);
       expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining("Suspended 2 federation token(s)"));
+      // Restored peer bindings wait for the owner and a fresh sync.
+      expect(disablePeersAfterRestore).toHaveBeenCalledTimes(1);
     });
 
     it("rolls the import back when restored tokens cannot be suspended", async () => {

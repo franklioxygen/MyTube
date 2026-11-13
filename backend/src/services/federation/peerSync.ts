@@ -1,0 +1,285 @@
+import crypto from "crypto";
+import { sqlite } from "../../db";
+import { logger } from "../../utils/logger";
+import type { FederationVideoSummary } from "./libraryExport";
+import { peerJsonRequest, PeerError, type PeerConnection } from "./peerClient";
+import {
+  connectionFor,
+  handshake,
+  HandshakeError,
+  readPeerRow,
+  type PeerRow,
+  type PeerStatus,
+} from "./peerService";
+import {
+  parseLibraryRevision,
+  parseSnapshotDescriptor,
+  parseSnapshotPage,
+  ProtocolError,
+} from "./protocolSchema";
+
+/**
+ * One synchronization of one peer (design §6.1).
+ *
+ * Nothing is written until a whole snapshot has been read and validated and
+ * the peer confirms its revisions did not move. The commit is one local
+ * transaction that also checks the binding is still enabled and of the same
+ * generation, so a disable, credential change or restore during the sync
+ * discards it. Only a validated, complete snapshot may tombstone items: a
+ * timeout, refusal, bad payload or partial read keeps the last good state.
+ */
+
+export const MAX_REMOTE_ITEMS = 100_000;
+
+export interface SyncResult {
+  peerId: string;
+  status: PeerStatus;
+  /** False when the peer's revisions were unchanged and nothing was read. */
+  changed: boolean;
+  upserted?: number;
+  tombstoned?: number;
+  error?: string;
+}
+
+class SyncAbort extends Error {
+  constructor(
+    public readonly status: PeerStatus,
+    message: string
+  ) {
+    super(message);
+    this.name = "SyncAbort";
+  }
+}
+
+const inFlight = new Map<string, Promise<SyncResult>>();
+
+const recordAttempt = (row: PeerRow, status: PeerStatus, error: string | null, now: number): void => {
+  // Health is recorded only for the generation that ran; a newer one owns it.
+  sqlite
+    .prepare(
+      `UPDATE federation_peers SET status = ?, last_error = ?, last_attempt_at = ?, updated_at = ?
+       WHERE id = ? AND generation = ?`
+    )
+    .run(status, error, now, now, row.id, row.generation);
+};
+
+const statusFor = (error: unknown): PeerStatus => {
+  if (error instanceof SyncAbort) return error.status;
+  if (error instanceof HandshakeError) return error.status;
+  if (error instanceof PeerError) {
+    if (error.kind === "credential_rejected") return "credential_rejected";
+    if (error.kind === "self_connection") return "identity_mismatch";
+  }
+  // Unreachable, busy, stale, malformed: transient; keep the last good data.
+  return "error";
+};
+
+async function readSnapshot(
+  connection: PeerConnection,
+  row: PeerRow
+): Promise<{ items: FederationVideoSummary[]; libraryRevision: string; policyRevision: string }> {
+  const snapshot = parseSnapshotDescriptor(
+    await peerJsonRequest(connection, "post", "/snapshots", { audience: row.audience })
+  );
+  try {
+    if (snapshot.instanceId !== row.peer_instance_id) {
+      throw new SyncAbort("identity_mismatch", "The peer answered with a different instance id.");
+    }
+    if (snapshot.totalCount > MAX_REMOTE_ITEMS) {
+      throw new SyncAbort("error", `The peer library exceeds ${MAX_REMOTE_ITEMS} items.`);
+    }
+
+    const items: FederationVideoSummary[] = [];
+    const seen = new Set<string>();
+    const maxPages = Math.ceil(snapshot.totalCount / snapshot.pageSize) + 1;
+    let cursor: string | null = null;
+    for (let pageNumber = 0; ; pageNumber += 1) {
+      if (pageNumber >= maxPages) throw new ProtocolError("The snapshot did not end where its count says.");
+      const query: string = cursor ? `?cursor=${encodeURIComponent(cursor)}` : "";
+      const page = parseSnapshotPage(
+        await peerJsonRequest(
+          connection,
+          "get",
+          `/snapshots/${encodeURIComponent(snapshot.snapshotId)}/videos${query}`
+        ),
+        snapshot.pageSize
+      );
+      if (page.snapshotId !== snapshot.snapshotId || page.totalCount !== snapshot.totalCount) {
+        throw new ProtocolError("A page does not belong to the snapshot.");
+      }
+      if (page.nextCursor !== null && page.nextCursor === cursor) {
+        throw new ProtocolError("The snapshot cursor did not advance.");
+      }
+      for (const item of page.items) {
+        if (seen.has(item.id)) throw new ProtocolError(`The snapshot repeats item ${item.id}.`);
+        if (row.audience === "public" && item.visibility !== 1) {
+          throw new ProtocolError("A public snapshot contained a hidden item.");
+        }
+        seen.add(item.id);
+        items.push(item);
+      }
+      if (page.complete) break;
+      cursor = page.nextCursor;
+    }
+    if (items.length !== snapshot.totalCount) {
+      throw new ProtocolError("The snapshot item count does not match its total.");
+    }
+    return { items, libraryRevision: snapshot.libraryRevision, policyRevision: snapshot.policyRevision };
+  } finally {
+    // Best effort: an unreleased snapshot simply expires on the peer.
+    void peerJsonRequest(connection, "delete", `/snapshots/${encodeURIComponent(snapshot.snapshotId)}`).catch(
+      () => undefined
+    );
+  }
+}
+
+const newRemoteId = (): string => {
+  for (;;) {
+    const id = `fed_${crypto.randomUUID()}`;
+    // Remote ids must never alias a native video (design §3.1).
+    const taken =
+      sqlite.prepare("SELECT 1 FROM videos WHERE id = ?").get(id) ??
+      sqlite.prepare("SELECT 1 FROM federation_remote_videos WHERE id = ?").get(id);
+    if (!taken) return id;
+  }
+};
+
+function commit(
+  row: PeerRow,
+  items: FederationVideoSummary[],
+  libraryRevision: string,
+  policyRevision: string,
+  now: number
+): { upserted: number; tombstoned: number } {
+  return sqlite.transaction(() => {
+    const current = readPeerRow(row.id);
+    if (!current || current.enabled !== 1 || current.generation !== row.generation) {
+      throw new SyncAbort(current?.status ?? "error", "The peer binding changed during the sync.");
+    }
+
+    // A per-commit stamp that only moves forward, so "seen in this snapshot"
+    // stays exact even if the wall clock steps back between syncs.
+    const previous = (
+      sqlite
+        .prepare("SELECT MAX(last_seen_at) AS stamp FROM federation_remote_videos WHERE peer_id = ?")
+        .get(row.id) as { stamp: number | null }
+    ).stamp;
+    const stamp = Math.max(now, (previous ?? 0) + 1);
+
+    const find = sqlite.prepare(
+      "SELECT id FROM federation_remote_videos WHERE peer_id = ? AND remote_video_id = ?"
+    );
+    const update = sqlite.prepare(
+      `UPDATE federation_remote_videos
+         SET title = ?, created_at = ?, summary = ?, asset_revision = ?,
+             last_seen_at = ?, deleted_at = NULL, updated_at = ?
+       WHERE id = ?`
+    );
+    const insert = sqlite.prepare(
+      `INSERT INTO federation_remote_videos
+        (id, peer_id, remote_video_id, title, created_at, summary, asset_revision, last_seen_at, deleted_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, ?)`
+    );
+    for (const item of items) {
+      const summary = JSON.stringify(item);
+      const existing = find.get(row.id, item.id) as { id: string } | undefined;
+      if (existing) {
+        update.run(item.title, item.createdAt, summary, item.assetRevision, stamp, now, existing.id);
+      } else {
+        // A reappearing native id reuses its retained mapping above.
+        insert.run(newRemoteId(), row.id, item.id, item.title, item.createdAt, summary, item.assetRevision, stamp, now);
+      }
+    }
+
+    // Only this validated, complete snapshot authorizes absence-based removal.
+    const tombstoned = sqlite
+      .prepare(
+        `UPDATE federation_remote_videos SET deleted_at = ?, updated_at = ?
+         WHERE peer_id = ? AND deleted_at IS NULL AND last_seen_at < ?`
+      )
+      .run(now, now, row.id, stamp).changes;
+
+    sqlite
+      .prepare(
+        `UPDATE federation_peers
+           SET status = 'ok', last_error = NULL, library_revision = ?, policy_revision = ?,
+               last_attempt_at = ?, last_success_at = ?, updated_at = ?
+         WHERE id = ?`
+      )
+      .run(libraryRevision, policyRevision, now, now, now, row.id);
+    return { upserted: items.length, tombstoned };
+  })();
+}
+
+async function runSync(peerId: string): Promise<SyncResult> {
+  const row = readPeerRow(peerId);
+  if (!row) return { peerId, status: "error", changed: false, error: "Unknown peer." };
+  if (row.enabled !== 1) return { peerId, status: row.status, changed: false, error: "The peer is disabled." };
+
+  const connection = connectionFor(row);
+  if (!connection) {
+    const message = "The credential cannot be decrypted; the federation key is missing or changed.";
+    recordAttempt(row, "credential_missing", message, Date.now());
+    return { peerId, status: "credential_missing", changed: false, error: message };
+  }
+
+  try {
+    const capabilities = await handshake(connection);
+    if (capabilities.instanceId !== row.peer_instance_id) {
+      throw new SyncAbort("identity_mismatch", "A different instance now answers at this address.");
+    }
+    if (capabilities.credential.visibilityCeiling !== row.audience) {
+      // The peer changed what this credential may see; the cached view was
+      // authorized under other terms (design §6.2). Requires re-registration
+      // of the credential to adopt the new audience deliberately.
+      throw new SyncAbort("credential_rejected", "The credential's visibility changed on the peer; replace it to continue.");
+    }
+
+    const revision = parseLibraryRevision(
+      await peerJsonRequest(connection, "get", `/library/revision?audience=${row.audience}`)
+    );
+    // Matching revisions prove the committed items are what the peer would
+    // export now (the policy revision is random, so it cannot match by luck).
+    if (
+      row.library_revision !== null &&
+      revision.libraryRevision === row.library_revision &&
+      revision.policyRevision === row.policy_revision
+    ) {
+      const now = Date.now();
+      sqlite
+        .prepare(
+          `UPDATE federation_peers
+             SET status = 'ok', last_error = NULL, last_attempt_at = ?, last_success_at = ?, updated_at = ?
+           WHERE id = ? AND generation = ? AND enabled = 1`
+        )
+        .run(now, now, now, row.id, row.generation);
+      return { peerId, status: "ok", changed: false };
+    }
+
+    const snapshot = await readSnapshot(connection, row);
+    const after = parseLibraryRevision(
+      await peerJsonRequest(connection, "get", `/library/revision?audience=${row.audience}`)
+    );
+    if (after.libraryRevision !== snapshot.libraryRevision || after.policyRevision !== snapshot.policyRevision) {
+      throw new PeerError("stale", "The peer library changed while it was being read.");
+    }
+
+    const counts = commit(row, snapshot.items, snapshot.libraryRevision, snapshot.policyRevision, Date.now());
+    return { peerId, status: "ok", changed: true, ...counts };
+  } catch (error) {
+    const status = statusFor(error);
+    const message = error instanceof Error ? error.message : String(error);
+    logger.warn("[Federation] Peer sync failed", { peerId, status, error: message });
+    recordAttempt(row, status, message, Date.now());
+    return { peerId, status, changed: false, error: message };
+  }
+}
+
+/** At most one sync per peer; concurrent callers share the one in flight. */
+export function syncPeer(peerId: string): Promise<SyncResult> {
+  const running = inFlight.get(peerId);
+  if (running) return running;
+  const started = runSync(peerId).finally(() => inFlight.delete(peerId));
+  inFlight.set(peerId, started);
+  return started;
+}

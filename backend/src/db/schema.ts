@@ -61,6 +61,77 @@ export const federationTokens = sqliteTable(
   ]
 );
 
+// Prime side of federation: peers this instance reads from (design §3.2).
+// `peer_instance_id` pins the identity the handshake reported; a different
+// instance answering at the same URL never inherits this binding's data.
+export const federationPeers = sqliteTable(
+  "federation_peers",
+  {
+    id: text("id").primaryKey(),
+    peerInstanceId: text("peer_instance_id").notNull(),
+    name: text("name").notNull(),
+    // Normalized http(s) origin plus optional base path, no trailing slash.
+    baseUrl: text("base_url").notNull(),
+    // Exact origin of an administrator-configured private-network peer, which
+    // skips public-address checks. Null for public peers (HTTPS only).
+    lanOrigin: text("lan_origin"),
+    // AES-256-GCM under a key kept outside the database; never returned.
+    credentialCiphertext: text("credential_ciphertext").notNull(),
+    // What the credential allowed at the last handshake.
+    audience: text("audience").notNull(),
+    canStreamMedia: integer("can_stream_media").notNull().default(0),
+    enabled: integer("enabled").notNull().default(1),
+    status: text("status").notNull().default("pending"),
+    lastError: text("last_error"),
+    libraryRevision: text("library_revision"),
+    policyRevision: text("policy_revision"),
+    // Bumped by anything that invalidates in-flight work (disable, credential
+    // replacement, restore); a sync started under another generation never
+    // commits.
+    generation: integer("generation").notNull().default(1),
+    lastAttemptAt: integer("last_attempt_at"),
+    lastSuccessAt: integer("last_success_at"),
+    createdAt: integer("created_at").notNull(),
+    updatedAt: integer("updated_at").notNull(),
+  },
+  (table) => [
+    uniqueIndex("federation_peers_instance_uidx").on(table.peerInstanceId),
+    check("federation_peers_audience_check", sql`${table.audience} IN ('public', 'owner')`),
+    check(
+      "federation_peers_status_check",
+      sql`${table.status} IN ('pending', 'ok', 'error', 'credential_rejected', 'credential_missing', 'identity_mismatch', 'incompatible')`
+    ),
+  ]
+);
+
+// Validated projections of peers' native videos. Never mixed into `videos`,
+// so native file operations can never see a remote item.
+export const federationRemoteVideos = sqliteTable(
+  "federation_remote_videos",
+  {
+    // Prime-generated `fed_<uuid>`; routing looks this up, never parses it.
+    id: text("id").primaryKey(),
+    peerId: text("peer_id")
+      .notNull()
+      .references(() => federationPeers.id, { onDelete: "cascade" }),
+    remoteVideoId: text("remote_video_id").notNull(),
+    title: text("title").notNull(),
+    // The peer's createdAt, kept as a column for ordering.
+    createdAt: text("created_at").notNull(),
+    // The validated summary, as JSON.
+    summary: text("summary").notNull(),
+    assetRevision: text("asset_revision").notNull(),
+    lastSeenAt: integer("last_seen_at").notNull(),
+    // Tombstone: set only from a validated, complete snapshot.
+    deletedAt: integer("deleted_at"),
+    updatedAt: integer("updated_at").notNull(),
+  },
+  (table) => [
+    uniqueIndex("federation_remote_videos_peer_remote_uidx").on(table.peerId, table.remoteVideoId),
+    index("idx_federation_remote_videos_created_at").on(table.createdAt),
+  ]
+);
+
 // A library author group uses the exact author name, independently of platform.
 export const authorProfiles = sqliteTable("author_profiles", {
   author: text("author").primaryKey().notNull(),

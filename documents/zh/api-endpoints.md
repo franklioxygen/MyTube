@@ -260,6 +260,33 @@
 
 协议的 `POST`/`DELETE` 请求只有在携带有效、可用的联邦凭证时才免于 CSRF 校验。协议请求不受通用 API 限流约束；只有认证失败的请求计入其专用限流。
 
+## 联邦（主节点侧）
+
+本实例可以凭其他实例签发的凭证读取它们的媒体库。目前以下端点都只对所有者开放（管理员会话或未启用登录），访客和 API Key 一律拒绝。远程条目暂不合并进 `GET /api/videos`。
+
+- `GET /api/federation/peers` - 已注册的节点及其状态，永不返回凭证。
+- `POST /api/federation/peers` - 请求体：`{ name, baseUrl, credential }`。会先握手，固定节点的实例 ID，加密保存凭证（密钥在 `MYTUBE_FEDERATION_KEY` 或 `data/federation.key`，不在数据库里），然后开始同步。
+  - 只解析到内网地址的主机视为局域网例外，可用 `http`；公网主机必须用 `https`；同时解析到公网和内网的主机会被拒绝。
+  - 同一实例已注册（无论用哪个 URL）返回 `409 FEDERATION_PEER_EXISTS`；注册本实例自身返回 `409 FEDERATION_SELF_CONNECTION`。
+- `PATCH /api/federation/peers/:id` - `{ name?, enabled? }`。停用会隐藏该节点的条目、中断其传输，并作废进行中的同步。重新启用后需要再同步一次。
+- `PUT /api/federation/peers/:id/credential` - `{ credential }`。更换凭证，新凭证必须认证为同一实例。
+- `POST /api/federation/peers/:id/sync` - 执行一次同步并等待结果：`{ result: { status, changed, upserted?, tombstoned?, error? }, peer }`。
+- `DELETE /api/federation/peers/:id` - 移除该节点及从它同步来的所有条目。
+- 节点 `status`：
+  - `pending`：尚未同步。
+  - `ok`：已同步。
+  - `error`：最近一次同步出现暂时性失败，条目仍会列出，`availability` 为 `"stale"`。
+  - `credential_rejected`、`credential_missing`、`identity_mismatch`、`incompatible`：在所有者处理之前隐藏该节点的条目。
+- 同步只提交完整、校验通过、且读取期间版本号没有变化的快照。这样的快照里缺失的条目会被标记删除；读取失败或只读到一部分时不做任何更改。
+- 导入或恢复数据库后，所有节点都会被停用。
+- `GET /api/federation/library?offset=&limit=` - 返回 `{ total, items }`。每个条目是快照条目，加上主节点生成的 `fed_…` 形式的 `id`、`origin: { kind: "remote", instanceId, instanceName }`、`availability` 和 `lastSyncedAt`。
+- `GET /api/federation/library/:id` - 从所属节点实时读取的详情。
+- `GET`/`HEAD /api/federation/media/:id/:kind?track=` - 媒体网关，支持 `media`、`thumbnail`、`avatar`、`subtitle` 四种类型。支持 Range 和条件请求，响应为 `private, no-store`，只回传内容和校验相关的响应头。
+  - 节点故障映射为 `502`/`504`，永不返回 `401`；节点拒绝凭证时，该节点会被隔离。
+  - 停用或移除节点会中断其传输。
+
+双实例系统测试会从临时根目录启动两个真实后端，在 `backend/` 下运行 `npm run test:federation-system`（`KEEP=1` 保留根目录和日志）。
+
 ## 设置
 
 - `GET /api/settings` - 获取应用设置 (不包含密码哈希)

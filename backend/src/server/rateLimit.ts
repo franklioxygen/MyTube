@@ -228,6 +228,8 @@ export const configureRateLimiting = (app: Express): AuthLimiters => {
       // Authenticated server-to-server traffic (thumbnails, Range seeks) with
       // its own failed-authentication limiter.
       req.path.startsWith("/api/federation/v1/") ||
+      // The prime's media gateway: Range seeks from the owner's player.
+      req.path.startsWith("/api/federation/media/") ||
       req.path.startsWith("/api/download") ||
       req.path.startsWith("/api/check-video-download") ||
       req.path.startsWith("/api/check-bilibili") ||

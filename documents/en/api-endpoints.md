@@ -275,6 +275,33 @@ Library export (requires the `library:read` scope). Only this instance's own vid
 
 Protocol `POST`/`DELETE` requests are exempt from CSRF only when they carry a valid, usable federation credential. Protocol traffic bypasses the general API rate limit; only failed authentication counts toward its own limit.
 
+## Federation (Prime Side)
+
+This instance can read other instances' libraries with credentials they issued. All of these endpoints are owner-only (an admin session, or login-disabled mode) for now. Visitors and API keys are refused. Remote items are not yet merged into `GET /api/videos`.
+
+- `GET /api/federation/peers` - Registered peers with their status. Credentials are never returned.
+- `POST /api/federation/peers` - Body: `{ name, baseUrl, credential }`. Performs the handshake, pins the peer's instance ID, stores the credential encrypted (key in `MYTUBE_FEDERATION_KEY` or `data/federation.key`, never in the database), and starts a sync.
+  - A host that resolves only to private addresses is a LAN exception and may use `http`. A public host must use `https`. A host that resolves to both is refused.
+  - `409 FEDERATION_PEER_EXISTS` for an instance already registered (under any URL), and `409 FEDERATION_SELF_CONNECTION` for this instance itself.
+- `PATCH /api/federation/peers/:id` - `{ name?, enabled? }`. Disabling hides the peer's items, ends its streams, and discards any sync in flight. Enabling requires a fresh sync.
+- `PUT /api/federation/peers/:id/credential` - `{ credential }`. Replaces the credential, which must authenticate as the same instance.
+- `POST /api/federation/peers/:id/sync` - Runs a sync and waits for it: `{ result: { status, changed, upserted?, tombstoned?, error? }, peer }`.
+- `DELETE /api/federation/peers/:id` - Removes the peer and every item synced from it.
+- Peer `status`:
+  - `pending`: not synced yet.
+  - `ok`: synced.
+  - `error`: the last sync failed transiently. Items are still listed, with `availability: "stale"`.
+  - `credential_rejected`, `credential_missing`, `identity_mismatch`, `incompatible`: the peer's items are hidden until the owner acts.
+- A sync commits only a complete, validated snapshot whose revisions did not change while it was read. Items missing from such a snapshot are tombstoned; a failed or partial read changes nothing.
+- A database import or restore disables every peer.
+- `GET /api/federation/library?offset=&limit=` - `{ total, items }`, where each item is a snapshot item with a prime-generated `fed_…` `id`, `origin: { kind: "remote", instanceId, instanceName }`, `availability`, and `lastSyncedAt`.
+- `GET /api/federation/library/:id` - Fresh detail read from the owning peer.
+- `GET`/`HEAD /api/federation/media/:id/:kind?track=` - The media gateway, for kinds `media`, `thumbnail`, `avatar`, and `subtitle`. It supports Range and conditional requests, responds `private, no-store`, and passes back only content and validator headers.
+  - Peer failures map to `502`/`504`, never `401`. A peer that refuses the credential is quarantined.
+  - Disabling or removing the peer ends its streams.
+
+Run the two-instance system test, which starts two real backends from throwaway roots, with `npm run test:federation-system` in `backend/` (`KEEP=1` keeps the roots and logs).
+
 ## Settings
 
 - `GET /api/settings` - Get app settings (password hashes are excluded)

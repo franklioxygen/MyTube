@@ -26,11 +26,16 @@ vi.mock("../../services/storageService/migrations/dataBackfill", () => ({
   populateVideoFileSizes: vi.fn(),
 }));
 
-const MIGRATION = path.resolve(
-  __dirname,
-  "../../../drizzle/0032_federation_identity_tokens.sql"
-);
-const TABLES = ["federation_instance", "federation_tokens"] as const;
+const MIGRATIONS = [
+  "0032_federation_identity_tokens.sql",
+  "0033_federation_peers.sql",
+].map((name) => path.resolve(__dirname, "../../../drizzle", name));
+const TABLES = [
+  "federation_instance",
+  "federation_tokens",
+  "federation_peers",
+  "federation_remote_videos",
+] as const;
 
 const describeTable = (sqlite: Database.Database, table: string) =>
   sqlite.prepare(`PRAGMA table_info(${table})`).all();
@@ -42,6 +47,19 @@ const tableSql = (sqlite: Database.Database, table: string): string =>
       .get(table) as { sql: string } | undefined
   )?.sql ?? "";
 
+const describeIndexes = (sqlite: Database.Database, table: string) =>
+  (sqlite.prepare(`PRAGMA index_list(${table})`).all() as Array<{ name: string; unique: number }>)
+    .filter((index) => !index.name.startsWith("sqlite_autoindex"))
+    .map((index) => ({
+      name: index.name,
+      unique: index.unique,
+      columns: sqlite.prepare(`PRAGMA index_info(${index.name})`).all(),
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+const describeForeignKeys = (sqlite: Database.Database, table: string) =>
+  sqlite.prepare(`PRAGMA foreign_key_list(${table})`).all();
+
 const checkNames = (sql: string): string[] =>
   [...sql.matchAll(/CONSTRAINT\s+"([^"]+)"\s+CHECK/g)].map((match) => match[1]).sort();
 
@@ -50,15 +68,17 @@ const checkNames = (sql: string): string[] =>
  * statement, so migration 0032 can be skipped on an install whose earlier
  * columns were self-healed. The self-heal must then build the same tables.
  */
-describe("ensureFederationTables (migration 0032 self-heal)", () => {
+describe("ensureFederationTables (migrations 0032-0033 self-heal)", () => {
   let migrated: Database.Database;
   let healed: Database.Database;
   let ensureFederationTables: typeof import("../../services/storageService/migrations/schemaMigrations").ensureFederationTables;
 
   beforeAll(async () => {
     migrated = new Database(":memory:");
-    for (const statement of fs.readFileSync(MIGRATION, "utf8").split("--> statement-breakpoint")) {
-      migrated.exec(statement);
+    for (const migration of MIGRATIONS) {
+      for (const statement of fs.readFileSync(migration, "utf8").split("--> statement-breakpoint")) {
+        migrated.exec(statement);
+      }
     }
 
     healed = new Database(":memory:");
@@ -82,11 +102,13 @@ describe("ensureFederationTables (migration 0032 self-heal)", () => {
     }
   });
 
-  it.each(TABLES)("matches the migration's columns and checks for %s", (table) => {
+  it.each(TABLES)("matches the migrations' columns, checks, indexes and keys for %s", (table) => {
     ensureFederationTables();
 
     expect(describeTable(healed, table)).toEqual(describeTable(migrated, table));
     expect(checkNames(tableSql(healed, table))).toEqual(checkNames(tableSql(migrated, table)));
+    expect(describeIndexes(healed, table)).toEqual(describeIndexes(migrated, table));
+    expect(describeForeignKeys(healed, table)).toEqual(describeForeignKeys(migrated, table));
   });
 
   it("enforces the migration's constraints", () => {

@@ -6,6 +6,7 @@ import { DATA_DIR } from "../config/paths";
 import { sqlite } from "../db";
 import { runMigrations } from "../db/migrate";
 import { NotFoundError, ValidationError } from "../errors/DownloadErrors";
+import { disablePeersAfterRestore } from "./federation/peerService";
 import { suspendUsableFederationTokens } from "./federation/tokenService";
 import { logger } from "../utils/logger";
 import {
@@ -41,7 +42,8 @@ import type { DatabaseMergeSummary } from "./databaseBackup/types";
  * Runs once a replaced database is migrated. The library changed wholesale,
  * so list ETags and the federation export revision must move. And a backup can
  * bring back federation tokens revoked after it was taken, so every usable
- * token waits for owner confirmation.
+ * token waits for owner confirmation; restored peer bindings likewise wait
+ * for the owner and a fresh sync before serving anything.
  */
 function afterDatabaseReplaced(): void {
   bumpVideosListRevision();
@@ -49,6 +51,12 @@ function afterDatabaseReplaced(): void {
   if (suspended > 0) {
     logger.warn(
       `Suspended ${suspended} federation token(s) restored with the database; confirm them in federation settings to resume.`
+    );
+  }
+  const disabledPeers = disablePeersAfterRestore();
+  if (disabledPeers > 0) {
+    logger.warn(
+      `Disabled ${disabledPeers} federation peer(s) restored with the database; re-enable them to sync again.`
     );
   }
 }
