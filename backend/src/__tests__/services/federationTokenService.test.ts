@@ -7,8 +7,11 @@ import {
   deleteFederationToken,
   listFederationTokens,
   mintFederationToken,
+  resetFederationIdentity,
+  resumeFederationToken,
   revokeFederationToken,
   rotateFederationToken,
+  suspendUsableFederationTokens,
   type MintFederationTokenInput,
 } from "../../services/federation/tokenService";
 
@@ -70,8 +73,9 @@ describe("minting and listing", () => {
       label: "living-room NAS",
       scopes: ["library:read", "media:read"],
       visibilityCeiling: "public",
-      policyRevision: 1,
+      policyRevision: expect.stringMatching(/^[A-Za-z0-9_-]{12}$/),
       consumerInstanceId: null,
+      suspendedAt: null,
       status: "active",
     });
 
@@ -127,7 +131,7 @@ describe("authenticateFederationRequest", () => {
         tokenId: token.id,
         scopes: ["library:read", "media:read"],
         visibilityCeiling: "owner",
-        policyRevision: 1,
+        policyRevision: token.policyRevision,
         consumerInstanceId: PRIME,
         expiresAt: null,
       },
@@ -244,7 +248,7 @@ describe("rotation, revocation, deletion", () => {
     expect(rotated.ok).toBe(true);
     if (!rotated.ok) return;
     expect(rotated.issued.token.id).toBe(original.token.id);
-    expect(rotated.issued.token.policyRevision).toBe(2);
+    expect(rotated.issued.token.policyRevision).not.toBe(original.token.policyRevision);
     expect(rotated.issued.credential).not.toBe(original.credential);
 
     expect(authenticateFederationRequest(auth(original.credential), PRIME, NOW + 2)).toEqual({
@@ -256,13 +260,13 @@ describe("rotation, revocation, deletion", () => {
     );
   });
 
-  it("only rotates active tokens", () => {
+  it("never rotates revoked or expired tokens", () => {
     const revoked = mintFederationToken(input(), NOW).token;
     revokeFederationToken(revoked.id, NOW);
     const expired = mintFederationToken(input({ expiresAt: NOW + 1 }), NOW).token;
 
-    expect(rotateFederationToken(revoked.id, NOW)).toEqual({ ok: false, reason: "not_active" });
-    expect(rotateFederationToken(expired.id, NOW + 1)).toEqual({ ok: false, reason: "not_active" });
+    expect(rotateFederationToken(revoked.id, NOW)).toEqual({ ok: false, reason: "not_usable" });
+    expect(rotateFederationToken(expired.id, NOW + 1)).toEqual({ ok: false, reason: "not_usable" });
     expect(rotateFederationToken("missing", NOW)).toEqual({ ok: false, reason: "not_found" });
   });
 
@@ -277,6 +281,90 @@ describe("rotation, revocation, deletion", () => {
       reason: "token_revoked",
     });
     expect(revokeFederationToken("missing", NOW)).toBeNull();
+  });
+
+  it("a restore suspends usable tokens until the owner confirms them", () => {
+    const active = mintFederationToken(input(), NOW);
+    const revoked = mintFederationToken(input(), NOW).token;
+    revokeFederationToken(revoked.id, NOW);
+    const expired = mintFederationToken(input({ expiresAt: NOW + 1 }), NOW).token;
+
+    expect(suspendUsableFederationTokens(NOW + 5)).toBe(1);
+    expect(suspendUsableFederationTokens(NOW + 6)).toBe(0);
+
+    const byId = new Map(listFederationTokens(NOW + 6).map((t) => [t.id, t]));
+    expect(byId.get(active.token.id)).toMatchObject({ status: "suspended", suspendedAt: NOW + 5 });
+    expect(byId.get(active.token.id)?.policyRevision).not.toBe(active.token.policyRevision);
+    expect(byId.get(revoked.id)?.suspendedAt).toBeNull();
+    expect(byId.get(expired.id)?.suspendedAt).toBeNull();
+
+    expect(authenticateFederationRequest(auth(active.credential), PRIME, NOW + 6)).toEqual({
+      ok: false,
+      reason: "token_suspended",
+    });
+    // A wrong secret still learns nothing about the suspension.
+    expect(
+      authenticateFederationRequest(auth(`${active.token.id}.${"A".repeat(43)}`), PRIME, NOW + 6)
+    ).toEqual({ ok: false, reason: "invalid_credential" });
+  });
+
+  it("resuming re-enables a suspended token under a new policy revision", () => {
+    const { token, credential } = mintFederationToken(input(), NOW);
+    suspendUsableFederationTokens(NOW + 1);
+    const suspendedRevision = listFederationTokens(NOW + 1)[0].policyRevision;
+
+    const resumed = resumeFederationToken(token.id, NOW + 2);
+
+    expect(resumed.ok && resumed.token).toMatchObject({ status: "active", suspendedAt: null });
+    expect(resumed.ok && resumed.token.policyRevision).not.toBe(suspendedRevision);
+    expect(authenticateFederationRequest(auth(credential), PRIME, NOW + 3).ok).toBe(true);
+
+    // Resuming an already active token changes nothing.
+    const before = listFederationTokens(NOW + 4)[0];
+    const again = resumeFederationToken(token.id, NOW + 4);
+    expect(again.ok && again.token).toEqual(before);
+  });
+
+  it("rotation also lifts a suspension", () => {
+    const { token } = mintFederationToken(input(), NOW);
+    suspendUsableFederationTokens(NOW + 1);
+
+    const rotated = rotateFederationToken(token.id, NOW + 2);
+
+    expect(rotated.ok && rotated.issued.token.status).toBe("active");
+    expect(rotated.ok && authenticateFederationRequest(auth(rotated.issued.credential), PRIME, NOW + 3).ok).toBe(true);
+  });
+
+  it("never resumes revoked or expired tokens", () => {
+    const revoked = mintFederationToken(input(), NOW).token;
+    revokeFederationToken(revoked.id, NOW);
+    const expired = mintFederationToken(input({ expiresAt: NOW + 1 }), NOW).token;
+
+    expect(resumeFederationToken(revoked.id, NOW)).toEqual({ ok: false, reason: "not_usable" });
+    expect(resumeFederationToken(expired.id, NOW + 1)).toEqual({ ok: false, reason: "not_usable" });
+    expect(resumeFederationToken("missing", NOW)).toEqual({ ok: false, reason: "not_found" });
+  });
+
+  it("an identity reset gives a clone its own id and revokes inherited tokens", () => {
+    const original = getInstanceId();
+    const inherited = mintFederationToken(input(), NOW);
+    const alreadyRevoked = mintFederationToken(input(), NOW).token;
+    revokeFederationToken(alreadyRevoked.id, NOW);
+
+    const result = resetFederationIdentity(NOW + 10);
+
+    expect(result).toEqual({ instanceId: expect.any(String), revokedTokens: 1 });
+    expect(isInstanceId(result.instanceId)).toBe(true);
+    expect(result.instanceId).not.toBe(original);
+    expect(getInstanceId()).toBe(result.instanceId);
+    expect(authenticateFederationRequest(auth(inherited.credential), PRIME, NOW + 11)).toEqual({
+      ok: false,
+      reason: "token_revoked",
+    });
+    // A token revoked earlier keeps its original revocation time.
+    const byId = new Map(listFederationTokens(NOW + 11).map((t) => [t.id, t.revokedAt]));
+    expect(byId.get(alreadyRevoked.id)).toBe(NOW);
+    expect(byId.get(inherited.token.id)).toBe(NOW + 10);
   });
 
   it("deletion removes the token and its credential", () => {

@@ -100,8 +100,9 @@ describe("ensureFederationTables (migration 0032 self-heal)", () => {
     expect(() =>
       healed
         .prepare(
-          `INSERT INTO federation_tokens (id, secret_hash, scopes, visibility_ceiling, created_at, updated_at)
-           VALUES ('t', 'h', '[]', 'everyone', 0, 0)`
+          `INSERT INTO federation_tokens
+             (id, secret_hash, scopes, visibility_ceiling, policy_revision, created_at, updated_at)
+           VALUES ('t', 'h', '[]', 'everyone', 'r', 0, 0)`
         )
         .run()
     ).toThrow(/CHECK constraint/);

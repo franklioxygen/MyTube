@@ -252,11 +252,14 @@ Groundwork for connecting several MyTube instances (issue #354). This instance c
   - Body: `{ label?: string, scopes: ("library:read" | "media:read")[], visibilityCeiling?: "public" | "owner", expiresAt?: number | null }`
   - `visibilityCeiling` defaults to `public`; hidden content is shared only with an explicit `owner` ceiling. `expiresAt` is epoch milliseconds, at most ten years ahead.
   - `201` response: `{ token, credential }`. `credential` (`<id>.<secret>`) is shown only in this response.
-- `POST /api/federation/tokens/:id/rotate` - Replace the secret of an active token; the old secret stops working immediately and `policyRevision` increases. Returns `{ token, credential }`; `409` for revoked or expired tokens.
+- `POST /api/federation/tokens/:id/rotate` - Replace the secret; the old secret stops working immediately and `policyRevision` changes. Also lifts a restore suspension. Returns `{ token, credential }`; `409` for revoked or expired tokens.
+- `POST /api/federation/tokens/:id/resume` - Confirm a token suspended by a database restore; issues a new `policyRevision`. `409` for revoked or expired tokens.
 - `POST /api/federation/tokens/:id/revoke` - Revoke immediately (idempotent)
 - `DELETE /api/federation/tokens/:id` - Delete a token
+- `POST /api/federation/identity/reset` - For a deployment cloned from one that keeps running: issue a new `instanceId` and revoke every issued token. Returns `{ instanceId, revokedTokens }`.
+- Token `status` is `active`, `suspended`, `expired`, or `revoked`. A database import or restore suspends every usable token, because a backup predates revocations made after it; the owner resumes or rotates each one. `policyRevision` is an opaque string that changes whenever a token's terms do.
 
-Protocol endpoints live under `/api/federation/v1` and accept only `Authorization: Federation <id>.<secret>` plus an `X-MyTube-Instance-Id: <consumer instance UUID>` header. Sessions and API keys are never accepted there. The first consumer to use a token is pinned to it; another instance, or this instance itself, is refused. Errors carry a `code` such as `FEDERATION_UNAUTHORIZED`, `FEDERATION_TOKEN_REVOKED`, `FEDERATION_TOKEN_EXPIRED`, `FEDERATION_CONSUMER_REQUIRED`, `FEDERATION_CONSUMER_MISMATCH`, or `FEDERATION_SELF_CONNECTION`.
+Protocol endpoints live under `/api/federation/v1` and accept only `Authorization: Federation <id>.<secret>` plus an `X-MyTube-Instance-Id: <consumer instance UUID>` header. Sessions and API keys are never accepted there. The first consumer to use a token is pinned to it; another instance, or this instance itself, is refused. Errors carry a `code` such as `FEDERATION_UNAUTHORIZED`, `FEDERATION_TOKEN_REVOKED`, `FEDERATION_TOKEN_EXPIRED`, `FEDERATION_TOKEN_SUSPENDED`, `FEDERATION_CONSUMER_REQUIRED`, `FEDERATION_CONSUMER_MISMATCH`, or `FEDERATION_SELF_CONNECTION`.
 
 - `GET /api/federation/v1/capabilities` - Handshake: `{ protocol, protocolVersions, instanceId, credential: { id, scopes, visibilityCeiling, policyRevision, expiresAt }, features }`
 

@@ -41,3 +41,13 @@ export function getInstanceId(): string {
   }
   return created;
 }
+
+/** Replace the identity outright; callers own the surrounding transaction. */
+export function writeInstanceId(instanceId: string, now: number): void {
+  sqlite
+    .prepare(
+      `INSERT INTO federation_instance (id, instance_id, created_at) VALUES (1, ?, ?)
+       ON CONFLICT(id) DO UPDATE SET instance_id = excluded.instance_id, created_at = excluded.created_at`
+    )
+    .run(instanceId, now);
+}

@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "3d6b5881-f8eb-4ba8-aadc-9deadfccd2d4",
+  "id": "30591b3e-4ae2-4901-a3ec-88e1b3b23547",
   "prevId": "8b852714-57d1-4f68-860f-e72f961b54a8",
   "tables": {
     "admin_gesture_credential": {
@@ -1078,11 +1078,10 @@
         },
         "policy_revision": {
           "name": "policy_revision",
-          "type": "integer",
+          "type": "text",
           "primaryKey": false,
           "notNull": true,
-          "autoincrement": false,
-          "default": 1
+          "autoincrement": false
         },
         "consumer_instance_id": {
           "name": "consumer_instance_id",
@@ -1100,6 +1099,13 @@
         },
         "revoked_at": {
           "name": "revoked_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "suspended_at": {
+          "name": "suspended_at",
           "type": "integer",
           "primaryKey": false,
           "notNull": false,
@@ -1135,10 +1141,6 @@
         "federation_tokens_visibility_check": {
           "name": "federation_tokens_visibility_check",
           "value": "\"federation_tokens\".\"visibility_ceiling\" IN ('public', 'owner')"
-        },
-        "federation_tokens_policy_revision_check": {
-          "name": "federation_tokens_policy_revision_check",
-          "value": "\"federation_tokens\".\"policy_revision\" >= 1"
         }
       }
     },

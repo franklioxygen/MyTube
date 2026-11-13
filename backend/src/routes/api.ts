@@ -41,6 +41,8 @@ const apiRouteDefinitions: ApiRouteDefinition[] = [
   { method: "post", path: "/federation/tokens", handlers: [requireAdmin, federationNoStore, federationManagementController.createToken] },
   { method: "post", path: "/federation/tokens/:id/rotate", handlers: [requireAdmin, federationNoStore, federationManagementController.rotateToken] },
   { method: "post", path: "/federation/tokens/:id/revoke", handlers: [requireAdmin, federationNoStore, federationManagementController.revokeToken] },
+  { method: "post", path: "/federation/tokens/:id/resume", handlers: [requireAdmin, federationNoStore, federationManagementController.resumeToken] },
+  { method: "post", path: "/federation/identity/reset", handlers: [requireAdmin, federationNoStore, federationManagementController.resetIdentity] },
   { method: "delete", path: "/federation/tokens/:id", handlers: [requireAdmin, federationNoStore, federationManagementController.deleteToken] },
   { method: "post", path: "/authors/avatar/from-source", allowApiKey: false, handlers: [requireAdmin, authorAvatarController.avatarSourceLimiter, asyncHandler(authorAvatarController.fetchSourceAvatar)] },
   { method: "get", path: "/authors/profile", allowApiKey: false, handlers: [requireAdmin, asyncHandler(authorAvatarController.readProfile)] },

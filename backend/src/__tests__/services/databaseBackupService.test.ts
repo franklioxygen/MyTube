@@ -1,4 +1,5 @@
 vi.mock("../../services/storageService/videoListRevision", () => ({ bumpVideosListRevision: vi.fn() }));
+vi.mock("../../services/federation/tokenService", () => ({ suspendUsableFederationTokens: vi.fn(() => 2) }));
 import Database from "better-sqlite3";
 import crypto from "crypto";
 import fs from "fs-extra";
@@ -8,6 +9,7 @@ import { reinitializeDatabase as reinitDb, sqlite } from "../../db";
 import * as databaseBackupService from "../../services/databaseBackupService";
 import { invalidateSettingsCache } from "../../services/storageService/settings";
 import { runMigrations } from "../../db/migrate";
+import { suspendUsableFederationTokens } from "../../services/federation/tokenService";
 import { invalidateUserCache } from "../../services/userService";
 import { logger } from "../../utils/logger";
 import { isPathWithinDirectory, resolveSafePath } from "../../utils/security";
@@ -335,6 +337,27 @@ describe("databaseBackupService", () => {
       expect(fs.unlinkSync).toHaveBeenCalledTimes(1);
       expect(logger.info).toHaveBeenCalledWith(
         "Closed current database connection for import"
+      );
+      // An imported backup can resurrect revoked federation tokens, so they
+      // wait for the owner; this must run on the migrated, imported database.
+      expect(suspendUsableFederationTokens).toHaveBeenCalledTimes(1);
+      expect(
+        vi.mocked(runMigrations).mock.invocationCallOrder[0]
+      ).toBeLessThan(vi.mocked(suspendUsableFederationTokens).mock.invocationCallOrder[0]);
+      expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining("Suspended 2 federation token(s)"));
+    });
+
+    it("rolls the import back when restored tokens cannot be suspended", async () => {
+      vi.mocked(suspendUsableFederationTokens).mockImplementationOnce(() => {
+        throw new Error("no such table: federation_tokens");
+      });
+
+      await expect(
+        databaseBackupService.importDatabase(Buffer.from("sqlite-bytes"))
+      ).rejects.toThrow("no such table: federation_tokens");
+
+      expect(logger.info).toHaveBeenCalledWith(
+        "Restored database from backup after failed import"
       );
     });
 
@@ -1110,6 +1133,10 @@ describe("databaseBackupService", () => {
       expect(logger.info).toHaveBeenCalledWith(
         expect.stringContaining("Database file restored successfully")
       );
+      expect(suspendUsableFederationTokens).toHaveBeenCalledTimes(1);
+      expect(
+        vi.mocked(runMigrations).mock.invocationCallOrder[0]
+      ).toBeLessThan(vi.mocked(suspendUsableFederationTokens).mock.invocationCallOrder[0]);
     });
   });
 

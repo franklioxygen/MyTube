@@ -41,6 +41,11 @@ const FAILURES: Record<
     code: "FEDERATION_TOKEN_EXPIRED",
     error: "The federation credential has expired.",
   },
+  token_suspended: {
+    status: 401,
+    code: "FEDERATION_TOKEN_SUSPENDED",
+    error: "The federation credential awaits owner confirmation after a database restore.",
+  },
   consumer_required: {
     status: 400,
     code: "FEDERATION_CONSUMER_REQUIRED",

@@ -1,6 +1,6 @@
 import crypto from "crypto";
 import { sqlite } from "../../db";
-import { getInstanceId, isInstanceId } from "./instanceIdentity";
+import { getInstanceId, isInstanceId, writeInstanceId } from "./instanceIdentity";
 
 /**
  * Credentials this instance issues to federation consumers.
@@ -39,17 +39,18 @@ export const isFederationVisibilityCeiling = (
 ): value is FederationVisibilityCeiling =>
   (FEDERATION_VISIBILITY_CEILINGS as readonly unknown[]).includes(value);
 
-export type FederationTokenStatus = "active" | "expired" | "revoked";
+export type FederationTokenStatus = "active" | "suspended" | "expired" | "revoked";
 
 export interface FederationToken {
   id: string;
   label: string;
   scopes: FederationScope[];
   visibilityCeiling: FederationVisibilityCeiling;
-  policyRevision: number;
+  policyRevision: string;
   consumerInstanceId: string | null;
   expiresAt: number | null;
   revokedAt: number | null;
+  suspendedAt: number | null;
   lastUsedAt: number | null;
   createdAt: number;
   updatedAt: number;
@@ -73,7 +74,7 @@ export interface FederationPrincipal {
   tokenId: string;
   scopes: FederationScope[];
   visibilityCeiling: FederationVisibilityCeiling;
-  policyRevision: number;
+  policyRevision: string;
   consumerInstanceId: string;
   expiresAt: number | null;
 }
@@ -83,6 +84,7 @@ export type FederationAuthFailure =
   | "invalid_credential"
   | "token_revoked"
   | "token_expired"
+  | "token_suspended"
   | "consumer_required"
   | "consumer_mismatch"
   | "self_connection";
@@ -97,20 +99,29 @@ interface TokenRow {
   label: string;
   scopes: string;
   visibility_ceiling: FederationVisibilityCeiling;
-  policy_revision: number;
+  policy_revision: string;
   consumer_instance_id: string | null;
   expires_at: number | null;
   revoked_at: number | null;
+  suspended_at: number | null;
   last_used_at: number | null;
   created_at: number;
   updated_at: number;
 }
 
 const TOKEN_COLUMNS = `id, label, scopes, visibility_ceiling, policy_revision,
-  consumer_instance_id, expires_at, revoked_at, last_used_at, created_at, updated_at`;
+  consumer_instance_id, expires_at, revoked_at, suspended_at, last_used_at,
+  created_at, updated_at`;
+
+// Revoked or expired tokens can never be used again; suspended ones can.
+const USABLE_TOKEN = "revoked_at IS NULL AND (expires_at IS NULL OR expires_at > ?)";
 
 const randomToken = (bytes: number): string =>
   crypto.randomBytes(bytes).toString("base64url");
+
+const newPolicyRevision = (): string => randomToken(9);
+// Per-row equivalent for bulk updates.
+const NEW_POLICY_REVISION_SQL = "lower(hex(randomblob(9)))";
 
 const digestSecret = (secret: string): Buffer =>
   crypto.createHash("sha256").update(secret, "utf8").digest();
@@ -130,11 +141,12 @@ export const normalizeScopes = (scopes: readonly FederationScope[]): FederationS
   FEDERATION_SCOPES.filter((scope) => scopes.includes(scope));
 
 const statusOf = (
-  row: Pick<TokenRow, "expires_at" | "revoked_at">,
+  row: Pick<TokenRow, "expires_at" | "revoked_at" | "suspended_at">,
   now: number
 ): FederationTokenStatus => {
   if (row.revoked_at !== null) return "revoked";
   if (row.expires_at !== null && row.expires_at <= now) return "expired";
+  if (row.suspended_at !== null) return "suspended";
   return "active";
 };
 
@@ -147,6 +159,7 @@ const toToken = (row: Omit<TokenRow, "secret_hash">, now: number): FederationTok
   consumerInstanceId: row.consumer_instance_id,
   expiresAt: row.expires_at,
   revokedAt: row.revoked_at,
+  suspendedAt: row.suspended_at,
   lastUsedAt: row.last_used_at,
   createdAt: row.created_at,
   updatedAt: row.updated_at,
@@ -180,8 +193,9 @@ export function mintFederationToken(
     .prepare(
       `INSERT INTO federation_tokens
         (id, secret_hash, label, scopes, visibility_ceiling, policy_revision,
-         consumer_instance_id, expires_at, revoked_at, last_used_at, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, 1, NULL, ?, NULL, NULL, ?, ?)`
+         consumer_instance_id, expires_at, revoked_at, suspended_at, last_used_at,
+         created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, NULL, ?, NULL, NULL, NULL, ?, ?)`
     )
     .run(
       id,
@@ -189,6 +203,7 @@ export function mintFederationToken(
       input.label,
       JSON.stringify(normalizeScopes(input.scopes)),
       input.visibilityCeiling,
+      newPolicyRevision(),
       input.expiresAt,
       now,
       now
@@ -203,33 +218,94 @@ export function mintFederationToken(
 
 export type RotateFederationTokenResult =
   | { ok: true; issued: IssuedFederationCredential }
-  | { ok: false; reason: "not_found" | "not_active" };
+  | { ok: false; reason: "not_found" | "not_usable" };
 
 /**
  * Replace a token's secret. The old secret stops working immediately and the
- * policy revision moves, so a consumer re-authorizes anything it cached.
+ * policy revision changes, so a consumer re-authorizes anything it cached.
+ * Rotating is also an owner confirmation, so it lifts a restore suspension.
  */
 export function rotateFederationToken(
   id: string,
   now = Date.now()
 ): RotateFederationTokenResult {
-  const existing = readToken(id, now);
-  if (!existing) return { ok: false, reason: "not_found" };
-  if (existing.status !== "active") return { ok: false, reason: "not_active" };
-
   const secret = randomToken(TOKEN_SECRET_BYTES);
   const changed = sqlite
     .prepare(
       `UPDATE federation_tokens
-         SET secret_hash = ?, policy_revision = policy_revision + 1, updated_at = ?
-       WHERE id = ? AND revoked_at IS NULL AND (expires_at IS NULL OR expires_at > ?)`
+         SET secret_hash = ?, policy_revision = ?, suspended_at = NULL, updated_at = ?
+       WHERE id = ? AND ${USABLE_TOKEN}`
     )
-    .run(digestSecret(secret).toString("hex"), now, id, now).changes;
-  if (changed === 0) return { ok: false, reason: "not_active" };
+    .run(digestSecret(secret).toString("hex"), newPolicyRevision(), now, id, now).changes;
 
   const token = readToken(id, now);
   if (!token) return { ok: false, reason: "not_found" };
+  if (changed === 0) return { ok: false, reason: "not_usable" };
   return { ok: true, issued: { token, credential: `${id}.${secret}` } };
+}
+
+export type ResumeFederationTokenResult =
+  | { ok: true; token: FederationToken }
+  | { ok: false; reason: "not_found" | "not_usable" };
+
+/**
+ * Owner confirmation after a restore. The restored terms may differ from what
+ * a consumer cached, so resuming issues a new policy revision. Resuming an
+ * active token is a no-op.
+ */
+export function resumeFederationToken(
+  id: string,
+  now = Date.now()
+): ResumeFederationTokenResult {
+  const changed = sqlite
+    .prepare(
+      `UPDATE federation_tokens
+         SET policy_revision = CASE WHEN suspended_at IS NULL THEN policy_revision ELSE ? END,
+             updated_at = CASE WHEN suspended_at IS NULL THEN updated_at ELSE ? END,
+             suspended_at = NULL
+       WHERE id = ? AND ${USABLE_TOKEN}`
+    )
+    .run(newPolicyRevision(), now, id, now).changes;
+
+  const token = readToken(id, now);
+  if (!token) return { ok: false, reason: "not_found" };
+  if (changed === 0) return { ok: false, reason: "not_usable" };
+  return { ok: true, token };
+}
+
+/**
+ * Called after a database restore or import replaces the live database. A
+ * backup predates any revocation made after it was taken, so every token it
+ * brings back waits for the owner instead of silently working again.
+ */
+export function suspendUsableFederationTokens(now = Date.now()): number {
+  return sqlite
+    .prepare(
+      `UPDATE federation_tokens
+         SET suspended_at = ?, updated_at = ?, policy_revision = ${NEW_POLICY_REVISION_SQL}
+       WHERE suspended_at IS NULL AND ${USABLE_TOKEN}`
+    )
+    .run(now, now, now).changes;
+}
+
+/**
+ * Give a cloned deployment its own identity. Every credential it inherited is
+ * revoked in the same transaction: they were issued by the deployment it was
+ * copied from, and must not open the copy too.
+ */
+export function resetFederationIdentity(
+  now = Date.now()
+): { instanceId: string; revokedTokens: number } {
+  const instanceId = crypto.randomUUID();
+  const revokedTokens = sqlite.transaction(() => {
+    writeInstanceId(instanceId, now);
+    return sqlite
+      .prepare(
+        "UPDATE federation_tokens SET revoked_at = ?, updated_at = ? WHERE revoked_at IS NULL"
+      )
+      .run(now, now).changes;
+  })();
+  return { instanceId, revokedTokens };
 }
 
 /** Idempotent: revoking a revoked token keeps its original revocation time. */
@@ -289,6 +365,7 @@ export function authenticateFederationRequest(
   const status = statusOf(row, now);
   if (status === "revoked") return { ok: false, reason: "token_revoked" };
   if (status === "expired") return { ok: false, reason: "token_expired" };
+  if (status === "suspended") return { ok: false, reason: "token_suspended" };
 
   if (!isInstanceId(consumerInstanceId)) {
     return { ok: false, reason: "consumer_required" };

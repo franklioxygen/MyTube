@@ -237,11 +237,14 @@
   - 请求体: `{ label?: string, scopes: ("library:read" | "media:read")[], visibilityCeiling?: "public" | "owner", expiresAt?: number | null }`
   - `visibilityCeiling` 默认为 `public`；只有显式指定 `owner` 才会共享隐藏内容。`expiresAt` 为毫秒时间戳，最长十年。
   - 返回 `201`：`{ token, credential }`。`credential`（`<id>.<secret>`）只在此响应中出现一次。
-- `POST /api/federation/tokens/:id/rotate` - 为有效令牌更换密钥；旧密钥立即失效，`policyRevision` 递增。返回 `{ token, credential }`；已吊销或已过期的令牌返回 `409`。
+- `POST /api/federation/tokens/:id/rotate` - 更换密钥；旧密钥立即失效，`policyRevision` 随之改变。同时解除恢复导致的暂停。返回 `{ token, credential }`；已吊销或已过期的令牌返回 `409`。
+- `POST /api/federation/tokens/:id/resume` - 确认因数据库恢复而暂停的令牌，并生成新的 `policyRevision`。已吊销或已过期的令牌返回 `409`。
 - `POST /api/federation/tokens/:id/revoke` - 立即吊销（可重复调用）
 - `DELETE /api/federation/tokens/:id` - 删除令牌
+- `POST /api/federation/identity/reset` - 用于从另一台仍在运行的部署克隆出来的实例：生成新的 `instanceId`，并吊销所有已签发的令牌。返回 `{ instanceId, revokedTokens }`。
+- 令牌 `status` 为 `active`、`suspended`、`expired` 或 `revoked`。导入或恢复数据库后，所有仍可用的令牌都会被暂停，因为备份早于之后的吊销操作；需由所有者逐个恢复或轮换。`policyRevision` 是不透明字符串，令牌条款每次变化都会改变。
 
-协议端点位于 `/api/federation/v1` 下，只接受 `Authorization: Federation <id>.<secret>`，并要求请求头 `X-MyTube-Instance-Id: <调用方实例 UUID>`。这里永远不接受会话或 API Key。令牌首次被使用时绑定调用方实例；其他实例或本实例自身的请求会被拒绝。错误响应带有 `code`，例如 `FEDERATION_UNAUTHORIZED`、`FEDERATION_TOKEN_REVOKED`、`FEDERATION_TOKEN_EXPIRED`、`FEDERATION_CONSUMER_REQUIRED`、`FEDERATION_CONSUMER_MISMATCH`、`FEDERATION_SELF_CONNECTION`。
+协议端点位于 `/api/federation/v1` 下，只接受 `Authorization: Federation <id>.<secret>`，并要求请求头 `X-MyTube-Instance-Id: <调用方实例 UUID>`。这里永远不接受会话或 API Key。令牌首次被使用时绑定调用方实例；其他实例或本实例自身的请求会被拒绝。错误响应带有 `code`，例如 `FEDERATION_UNAUTHORIZED`、`FEDERATION_TOKEN_REVOKED`、`FEDERATION_TOKEN_EXPIRED`、`FEDERATION_TOKEN_SUSPENDED`、`FEDERATION_CONSUMER_REQUIRED`、`FEDERATION_CONSUMER_MISMATCH`、`FEDERATION_SELF_CONNECTION`。
 
 - `GET /api/federation/v1/capabilities` - 握手：`{ protocol, protocolVersions, instanceId, credential: { id, scopes, visibilityCeiling, policyRevision, expiresAt }, features }`
 

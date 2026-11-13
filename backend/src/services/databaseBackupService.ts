@@ -6,6 +6,7 @@ import { DATA_DIR } from "../config/paths";
 import { sqlite } from "../db";
 import { runMigrations } from "../db/migrate";
 import { NotFoundError, ValidationError } from "../errors/DownloadErrors";
+import { suspendUsableFederationTokens } from "./federation/tokenService";
 import { logger } from "../utils/logger";
 import {
   copyFileSafeSync,
@@ -35,6 +36,19 @@ import { MERGEABLE_TABLES } from "./databaseBackup/types";
 
 export type { DatabaseMergeSummary } from "./databaseBackup/types";
 import type { DatabaseMergeSummary } from "./databaseBackup/types";
+
+/**
+ * A replaced database can bring back federation tokens revoked after the
+ * backup was taken, so every usable token waits for owner confirmation.
+ */
+function suspendRestoredFederationTokens(): void {
+  const suspended = suspendUsableFederationTokens();
+  if (suspended > 0) {
+    logger.warn(
+      `Suspended ${suspended} federation token(s) restored with the database; confirm them in federation settings to resume.`
+    );
+  }
+}
 
 /**
  * Export database as backup file
@@ -94,6 +108,10 @@ export async function importDatabase(fileBuffer: Buffer): Promise<void> {
     // exists". Skip the legacy JSON data migration so stale on-disk files do
     // not overwrite the just-imported backup.
     await runMigrations({ skipLegacyDataMigration: true });
+
+    // Inside the try: if this fails, the import rolls back rather than
+    // leaving restored credentials usable.
+    suspendRestoredFederationTokens();
   } catch (error: unknown) {
     // Restore backup if import failed
     if (pathExistsSafeSync(backupPath, DATA_DIR)) {
@@ -294,6 +312,8 @@ export async function restoreFromLastBackup(): Promise<void> {
   // the legacy JSON data migration so stale on-disk files do not overwrite the
   // just-restored backup.
   await runMigrations({ skipLegacyDataMigration: true });
+
+  suspendRestoredFederationTokens();
 }
 
 /**

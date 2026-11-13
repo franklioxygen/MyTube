@@ -35,13 +35,20 @@ export const federationTokens = sqliteTable(
     // JSON array of granted scopes, e.g. ["library:read","media:read"].
     scopes: text("scopes").notNull(),
     visibilityCeiling: text("visibility_ceiling").notNull().default("public"),
-    // Bumped whenever what the credential may see changes (rotation included),
-    // so a consumer can tell its cached view was authorized under old terms.
-    policyRevision: integer("policy_revision").notNull().default(1),
+    // Opaque random value replaced whenever the credential's terms change
+    // (rotation, restore suspension, resumption), so a consumer can tell its
+    // cached view was authorized under other terms. Random rather than a
+    // counter: a restore rolls counters back, and a later bump could then
+    // repeat a value the consumer already saw under different terms.
+    policyRevision: text("policy_revision").notNull(),
     // Instance ID of the consumer, pinned on first authenticated use.
     consumerInstanceId: text("consumer_instance_id"),
     expiresAt: integer("expires_at"),
     revokedAt: integer("revoked_at"),
+    // Set when a database restore brings tokens back; the owner must confirm
+    // them before they authenticate again, because a backup predates any
+    // revocation made after it.
+    suspendedAt: integer("suspended_at"),
     lastUsedAt: integer("last_used_at"),
     createdAt: integer("created_at").notNull(),
     updatedAt: integer("updated_at").notNull(),
@@ -51,7 +58,6 @@ export const federationTokens = sqliteTable(
       "federation_tokens_visibility_check",
       sql`${table.visibilityCeiling} IN ('public', 'owner')`
     ),
-    check("federation_tokens_policy_revision_check", sql`${table.policyRevision} >= 1`),
   ]
 );
 

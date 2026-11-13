@@ -61,7 +61,7 @@ describe("federation protocol router", () => {
         id: token.id,
         scopes: ["library:read"],
         visibilityCeiling: "public",
-        policyRevision: 1,
+        policyRevision: token.policyRevision,
         expiresAt: null,
       },
       features: [],

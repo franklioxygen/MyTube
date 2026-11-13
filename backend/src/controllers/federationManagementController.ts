@@ -12,6 +12,8 @@ import {
   MAX_FEDERATION_TOKEN_LABEL_LENGTH,
   MAX_FEDERATION_TOKEN_LIFETIME_MS,
   mintFederationToken,
+  resetFederationIdentity,
+  resumeFederationToken,
   revokeFederationToken,
   rotateFederationToken,
 } from "../services/federation/tokenService";
@@ -99,18 +101,41 @@ export function createToken(req: Request, res: Response): void {
   res.status(201).json(issued);
 }
 
-/** POST /api/federation/tokens/:id/rotate */
+const sendNotUsable = (res: Response, action: string): void => {
+  res.status(409).json({
+    success: false,
+    error: `A revoked or expired federation token cannot be ${action}.`,
+  });
+};
+
+/** POST /api/federation/tokens/:id/rotate (also lifts a restore suspension) */
 export function rotateToken(req: Request, res: Response): void {
   const result = rotateFederationToken(requireTokenId(req));
   if (!result.ok) {
     if (result.reason === "not_found") throw new NotFoundError(FEDERATION_TOKEN);
-    res.status(409).json({
-      success: false,
-      error: "Only an active federation token can be rotated.",
-    });
+    sendNotUsable(res, "rotated");
     return;
   }
   res.json(result.issued);
+}
+
+/** POST /api/federation/tokens/:id/resume: confirm a token after a restore. */
+export function resumeToken(req: Request, res: Response): void {
+  const result = resumeFederationToken(requireTokenId(req));
+  if (!result.ok) {
+    if (result.reason === "not_found") throw new NotFoundError(FEDERATION_TOKEN);
+    sendNotUsable(res, "resumed");
+    return;
+  }
+  res.json({ token: result.token });
+}
+
+/**
+ * POST /api/federation/identity/reset: for a deployment cloned from another
+ * that keeps running. Issues a new instance id and revokes every token.
+ */
+export function resetIdentity(_req: Request, res: Response): void {
+  res.json(resetFederationIdentity());
 }
 
 /** POST /api/federation/tokens/:id/revoke */

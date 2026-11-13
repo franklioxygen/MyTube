@@ -15,6 +15,7 @@ import { errorHandler } from "../../middleware/errorHandler";
 import { roleBasedAuthMiddleware } from "../../middleware/roleBasedAuthMiddleware";
 import { buildApiRouter } from "../../routes/api";
 import { ensureFederationTables } from "../../services/storageService/migrations/schemaMigrations";
+import { suspendUsableFederationTokens } from "../../services/federation/tokenService";
 
 let user: UserPayload | undefined;
 let apiKey = false;
@@ -87,13 +88,19 @@ describe("federation token management", () => {
 
     const rotated = await api.post(`/api/federation/tokens/${id}/rotate`);
     expect(rotated.status).toBe(200);
-    expect(rotated.body.token.policyRevision).toBe(2);
+    expect(rotated.body.token.policyRevision).not.toBe(created.body.token.policyRevision);
     expect(rotated.body.credential).not.toBe(created.body.credential);
+
+    suspendUsableFederationTokens();
+    const resumed = await api.post(`/api/federation/tokens/${id}/resume`);
+    expect(resumed.status).toBe(200);
+    expect(resumed.body.token.status).toBe("active");
 
     const revoked = await api.post(`/api/federation/tokens/${id}/revoke`);
     expect(revoked.status).toBe(200);
     expect(revoked.body.token.status).toBe("revoked");
     expect((await api.post(`/api/federation/tokens/${id}/rotate`)).status).toBe(409);
+    expect((await api.post(`/api/federation/tokens/${id}/resume`)).status).toBe(409);
 
     expect((await api.delete(`/api/federation/tokens/${id}`)).status).toBe(204);
     expect((await api.delete(`/api/federation/tokens/${id}`)).status).toBe(404);
@@ -134,16 +141,35 @@ describe("federation token management", () => {
     expect(sqlite.prepare("SELECT COUNT(*) AS c FROM federation_tokens").get()).toEqual({ c: 0 });
   });
 
+  it("resets the instance identity and revokes every issued token", async () => {
+    user = { role: "admin" };
+    const api = await session();
+    const before = (await api.get("/api/federation/tokens")).body.instanceId;
+    await api.post("/api/federation/tokens", validBody);
+
+    const reset = await api.post("/api/federation/identity/reset");
+
+    expect(reset.status).toBe(200);
+    expect(reset.headers["cache-control"]).toBe("no-store");
+    expect(reset.body).toEqual({ instanceId: expect.any(String), revokedTokens: 1 });
+    expect(reset.body.instanceId).not.toBe(before);
+    const after = (await api.get("/api/federation/tokens")).body;
+    expect(after.instanceId).toBe(reset.body.instanceId);
+    expect(after.tokens[0].status).toBe("revoked");
+  });
+
   it("keeps management behind admin sessions", async () => {
     user = { role: "visitor", userId: "visitor-1" };
     const visitor = await session();
     expect((await visitor.get("/api/federation/tokens")).status).toBe(403);
     expect((await visitor.post("/api/federation/tokens", validBody)).status).toBe(403);
+    expect((await visitor.post("/api/federation/identity/reset")).status).toBe(403);
 
     user = undefined;
     const anonymous = await session();
     expect((await anonymous.get("/api/federation/tokens")).status).toBe(401);
     expect((await anonymous.post("/api/federation/tokens", validBody)).status).toBe(401);
+    expect((await anonymous.post("/api/federation/identity/reset")).status).toBe(401);
 
     expect(sqlite.prepare("SELECT COUNT(*) AS c FROM federation_tokens").get()).toEqual({ c: 0 });
   });

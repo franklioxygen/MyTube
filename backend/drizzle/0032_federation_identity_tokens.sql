@@ -11,13 +11,13 @@ CREATE TABLE `federation_tokens` (
 	`label` text DEFAULT '' NOT NULL,
 	`scopes` text NOT NULL,
 	`visibility_ceiling` text DEFAULT 'public' NOT NULL,
-	`policy_revision` integer DEFAULT 1 NOT NULL,
+	`policy_revision` text NOT NULL,
 	`consumer_instance_id` text,
 	`expires_at` integer,
 	`revoked_at` integer,
+	`suspended_at` integer,
 	`last_used_at` integer,
 	`created_at` integer NOT NULL,
 	`updated_at` integer NOT NULL,
-	CONSTRAINT "federation_tokens_visibility_check" CHECK("federation_tokens"."visibility_ceiling" IN ('public', 'owner')),
-	CONSTRAINT "federation_tokens_policy_revision_check" CHECK("federation_tokens"."policy_revision" >= 1)
+	CONSTRAINT "federation_tokens_visibility_check" CHECK("federation_tokens"."visibility_ceiling" IN ('public', 'owner'))
 );
