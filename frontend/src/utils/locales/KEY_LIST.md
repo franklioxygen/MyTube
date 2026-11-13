@@ -11,7 +11,7 @@ UPDATE_KEY_LIST=1 npx vitest run src/utils/locales/__tests__/localeParity.test.t
 
 This list is intentionally unnumbered. When new keys are inserted, only the local section order changes.
 
-Total keys: 1502
+Total keys: 1569
 
 ## Summary
 
@@ -65,6 +65,7 @@ Total keys: 1502
 | Filename template reference (information panel) | 45 | `filenameRefInformationTitle` | `filenameRefItemNestedPathDesc` |
 | Statistics | 87 | `statisticsTitle` | `openCollection` |
 | Gesture Login (admin only) | 51 | `or` | `danmakuDelete` |
+| Multi-instance federation | 67 | `federationTitle` | `federationLoadError` |
 
 ### Author avatar management
 
@@ -1807,3 +1808,75 @@ Total keys: 1502
 | `danmakuRefresh` |
 | `danmakuDeleteConfirm` |
 | `danmakuDelete` |
+
+### Multi-instance federation
+
+| Key |
+| --- |
+| `federationTitle` |
+| `federationDescription` |
+| `federationThisInstance` |
+| `federationInstanceId` |
+| `federationCopy` |
+| `federationResetIdentity` |
+| `federationResetIdentityTitle` |
+| `federationResetIdentityMessage` |
+| `federationResetIdentityDone` |
+| `federationTokensTitle` |
+| `federationTokensDescription` |
+| `federationCreateToken` |
+| `federationNoTokens` |
+| `federationTokenLabel` |
+| `federationTokenScopes` |
+| `federationScopeLibrary` |
+| `federationScopeMedia` |
+| `federationVisibility` |
+| `federationVisibilityPublic` |
+| `federationVisibilityOwner` |
+| `federationExpiry` |
+| `federationExpiryDays` |
+| `federationTokenStatusActive` |
+| `federationTokenStatusSuspended` |
+| `federationTokenStatusExpired` |
+| `federationTokenStatusRevoked` |
+| `federationTokenBoundTo` |
+| `federationTokenUnused` |
+| `federationTokenLastUsed` |
+| `federationTokenSuspendedHint` |
+| `federationRotate` |
+| `federationRotateConfirm` |
+| `federationRevoke` |
+| `federationRevokeConfirm` |
+| `federationDeleteTokenConfirm` |
+| `federationCredentialTitle` |
+| `federationCredentialWarning` |
+| `federationCredentialCopied` |
+| `federationPeersTitle` |
+| `federationPeersDescription` |
+| `federationAddPeer` |
+| `federationNoPeers` |
+| `federationPeerUrl` |
+| `federationPeerUrlHint` |
+| `federationPeerCredential` |
+| `federationPeerAdded` |
+| `federationPeerStatusPending` |
+| `federationPeerStatusOk` |
+| `federationPeerStatusError` |
+| `federationPeerStatusCredentialRejected` |
+| `federationPeerStatusCredentialMissing` |
+| `federationPeerStatusIdentityMismatch` |
+| `federationPeerStatusIncompatible` |
+| `federationPeerDisabled` |
+| `federationPeerLan` |
+| `federationPeerEnabled` |
+| `federationPeerLastSync` |
+| `federationPeerNeverSynced` |
+| `federationSyncNow` |
+| `federationSyncDone` |
+| `federationSyncFailed` |
+| `federationReplaceCredential` |
+| `federationReplaceCredentialDone` |
+| `federationRemovePeerConfirm` |
+| `federationRemovePeerDone` |
+| `federationActionFailed` |
+| `federationLoadError` |

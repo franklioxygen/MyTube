@@ -224,6 +224,10 @@ vi.mock('../../components/Settings/RssFeedSettings', () => ({
   default: () => <div data-testid="rss-feed-settings">rssFeedSettings</div>,
 }));
 
+vi.mock('../../components/Settings/FederationSettings', () => ({
+  default: () => <div data-testid="federation-settings">federationSettings</div>,
+}));
+
 vi.mock('../../components/Settings/VideoDefaultSettings', () => ({
   default: ({ onChange, onSeekIntervalsValidityChange }: any) => (
     <div data-testid="video-default-settings">
@@ -463,6 +467,7 @@ describe('SettingsPage', () => {
     expect(screen.queryByTestId('interface-display-settings')).not.toBeInTheDocument();
     expect(screen.queryByTestId('security-settings')).not.toBeInTheDocument();
     expect(screen.queryByTestId('rss-feed-settings')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('federation-settings')).not.toBeInTheDocument();
   });
 
   it('opens the media integrity audit from a library deep link for admins only', () => {
@@ -477,7 +482,7 @@ describe('SettingsPage', () => {
     expect(screen.queryByTestId('media-integrity-audit-settings')).not.toBeInTheDocument();
   });
 
-  it('renders RSS settings for admin and login-disabled access models', () => {
+  it('renders RSS and federation settings for admin and login-disabled access models', () => {
     mockIsDesktop = true;
 
     const { rerender } = render(
@@ -487,6 +492,7 @@ describe('SettingsPage', () => {
     );
 
     expect(screen.getByTestId('rss-feed-settings')).toBeInTheDocument();
+    expect(screen.getByTestId('federation-settings')).toBeInTheDocument();
 
     mockUserRole = undefined;
     rerender(
@@ -496,6 +502,7 @@ describe('SettingsPage', () => {
     );
 
     expect(screen.getByTestId('rss-feed-settings')).toBeInTheDocument();
+    expect(screen.getByTestId('federation-settings')).toBeInTheDocument();
   });
 
   it('applies tab query and hash scrolling/highlight behavior', async () => {
