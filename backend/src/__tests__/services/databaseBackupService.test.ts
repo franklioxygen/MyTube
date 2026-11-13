@@ -9,6 +9,7 @@ import * as databaseBackupService from "../../services/databaseBackupService";
 import { invalidateSettingsCache } from "../../services/storageService/settings";
 import { runMigrations } from "../../db/migrate";
 import { invalidateUserCache } from "../../services/userService";
+import { bumpVideosListRevision } from "../../services/storageService/videoListRevision";
 import { logger } from "../../utils/logger";
 import { isPathWithinDirectory, resolveSafePath } from "../../utils/security";
 
@@ -336,6 +337,12 @@ describe("databaseBackupService", () => {
       expect(logger.info).toHaveBeenCalledWith(
         "Closed current database connection for import"
       );
+      // The library was replaced, so clients must not get a 304 for the old
+      // list; the bump follows the migrated, imported database.
+      expect(bumpVideosListRevision).toHaveBeenCalledTimes(1);
+      expect(vi.mocked(runMigrations).mock.invocationCallOrder[0]).toBeLessThan(
+        vi.mocked(bumpVideosListRevision).mock.invocationCallOrder[0]
+      );
     });
 
     it("restores backup when replacement fails", async () => {
@@ -355,6 +362,8 @@ describe("databaseBackupService", () => {
       expect(logger.info).toHaveBeenCalledWith(
         "Restored database from backup after failed import"
       );
+      // Requests may have read the imported file before the rollback.
+      expect(bumpVideosListRevision).toHaveBeenCalledTimes(1);
       expect(logger.error).toHaveBeenCalledWith(
         "Database import failed:",
         expect.any(Error)
@@ -659,6 +668,9 @@ describe("databaseBackupService", () => {
         favoriteAuthors: { merged: 0, skipped: 0 },
         authorProfiles: { merged: 0, skipped: 0 },
       });
+      // Merged videos bypass videoMutations, so the merge itself must move
+      // the list ETag.
+      expect(bumpVideosListRevision).toHaveBeenCalledTimes(1);
       expect(sqlite.transaction).toHaveBeenCalledTimes(1);
       expect(invalidateSettingsCache).toHaveBeenCalledTimes(1);
       expect(fs.copyFileSync).toHaveBeenCalledTimes(1);
@@ -1109,6 +1121,10 @@ describe("databaseBackupService", () => {
       });
       expect(logger.info).toHaveBeenCalledWith(
         expect.stringContaining("Database file restored successfully")
+      );
+      expect(bumpVideosListRevision).toHaveBeenCalledTimes(1);
+      expect(vi.mocked(runMigrations).mock.invocationCallOrder[0]).toBeLessThan(
+        vi.mocked(bumpVideosListRevision).mock.invocationCallOrder[0]
       );
     });
   });

@@ -94,6 +94,10 @@ export async function importDatabase(fileBuffer: Buffer): Promise<void> {
     // exists". Skip the legacy JSON data migration so stale on-disk files do
     // not overwrite the just-imported backup.
     await runMigrations({ skipLegacyDataMigration: true });
+
+    // The library was replaced wholesale; a client holding the old list ETag
+    // must not be answered 304 with the previous library.
+    bumpVideosListRevision();
   } catch (error: unknown) {
     // Restore backup if import failed
     if (pathExistsSafeSync(backupPath, DATA_DIR)) {
@@ -115,6 +119,8 @@ export async function importDatabase(fileBuffer: Buffer): Promise<void> {
         // The failure may have happened after the connection was reopened on
         // the (bad) imported file, so point it back at the restored backup.
         reinitializeDatabase();
+        // Requests may have read the imported file while migrations ran.
+        bumpVideosListRevision();
         logger.info("Restored database from backup after failed import");
       } catch (restoreError) {
         logger.error("Failed to restore database from backup:", restoreError);
@@ -203,7 +209,10 @@ export function mergeDatabase(fileBuffer: Buffer): DatabaseMergeSummary {
       })
     )();
 
-    if (summary.authorProfiles.merged > 0) bumpVideosListRevision();
+    // Merged videos are inserted directly, bypassing videoMutations' bump.
+    if (summary.videos.merged > 0 || summary.authorProfiles.merged > 0) {
+      bumpVideosListRevision();
+    }
     logger.info(
       `Merged database backup successfully: ${JSON.stringify(summary)}`
     );
@@ -294,6 +303,9 @@ export async function restoreFromLastBackup(): Promise<void> {
   // the legacy JSON data migration so stale on-disk files do not overwrite the
   // just-restored backup.
   await runMigrations({ skipLegacyDataMigration: true });
+
+  // The library was replaced wholesale; see importDatabase.
+  bumpVideosListRevision();
 }
 
 /**
