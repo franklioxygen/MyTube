@@ -21,7 +21,8 @@ const net = require("net");
 const os = require("os");
 const path = require("path");
 
-const BACKEND = path.resolve(__dirname, "..");
+// This file lives in backend/src/__tests__/system.
+const BACKEND = path.resolve(__dirname, "..", "..", "..");
 const TS_NODE = path.join(BACKEND, "node_modules", ".bin", "ts-node");
 const Database = require(path.join(BACKEND, "node_modules", "better-sqlite3"));
 
