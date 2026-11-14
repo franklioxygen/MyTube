@@ -97,6 +97,8 @@ const peer = {
   cappedAudience: null as "public" | null,
   /** Answers every detail request with this item instead. */
   detailOverride: null as string | null,
+  /** Sends one item per page, below the advertised page size. */
+  shortPages: false,
   detailStatus: null as number | null,
   snapshotRequests: 0,
   seenHeaders: [] as http.IncomingHttpHeaders[],
@@ -174,8 +176,9 @@ const startPeer = async () => {
       res.status(503).json({ code: "BUSY" });
       return;
     }
-    const slice = items.slice(offset, offset + 2);
-    const next = offset + 2 < items.length ? String(offset + 2) : null;
+    const step = peer.shortPages ? 1 : 2;
+    const slice = items.slice(offset, offset + step);
+    const next = offset + step < items.length ? String(offset + step) : null;
     res.json({
       snapshotId: req.params.id,
       totalCount: items.length,
@@ -302,6 +305,7 @@ beforeEach(async () => {
     revisionGate: null,
     cappedAudience: null,
     detailOverride: null,
+    shortPages: false,
     detailStatus: null,
     snapshotRequests: 0,
     seenHeaders: [],
@@ -510,6 +514,17 @@ describe("syncing", () => {
     const count = sqlite.prepare("SELECT COUNT(*) AS c FROM federation_remote_videos").get() as { c: number };
     expect(count.c).toBe(3);
     expect((await library(api)).total).toBe(3);
+  });
+
+  it("accepts pages a peer cut short, however many it takes", async () => {
+    const { api, id } = await registerAndSync();
+    // Four items one per page: more pages than full pages would need.
+    peer.items = [...initialItems(), summary("d", "2026-01-04T00:00:00.000Z")];
+    peer.libraryRevision = "lib-2";
+    peer.shortPages = true;
+
+    expect((await api.post(`/api/federation/peers/${id}/sync`)).body.result).toMatchObject({ status: "ok", upserted: 4 });
+    expect((await library(api)).total).toBe(4);
   });
 
   it("keeps the last good state when the peer answers for another audience", async () => {

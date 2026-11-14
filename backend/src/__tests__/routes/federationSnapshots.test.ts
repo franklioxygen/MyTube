@@ -8,8 +8,14 @@ import { videos } from "../../db/schema";
 import { csrfProtection, csrfTokenProvider } from "../../middleware/csrfMiddleware";
 import federationProtocolRoutes from "../../routes/federationProtocolRoutes";
 import { saveAuthorAvatar } from "../../services/authorAvatarService";
-import { clearSnapshotsForTests, MAX_SNAPSHOTS } from "../../services/federation/snapshotService";
 import {
+  clearSnapshotsForTests,
+  createSnapshot,
+  MAX_SNAPSHOTS,
+  readSnapshotPage,
+} from "../../services/federation/snapshotService";
+import {
+  authenticateFederationRequest,
   mintFederationToken,
   resumeFederationToken,
   suspendUsableFederationTokens,
@@ -173,6 +179,29 @@ describe("library revision", () => {
 });
 
 describe("snapshots", () => {
+  it("cuts pages short by size and still covers the snapshot exactly once", () => {
+    const auth = authenticateFederationRequest(`Federation ${mint().credential}`, PRIME);
+    if (!auth.ok) throw new Error(auth.reason);
+    const created = createSnapshot(auth.principal, "public");
+    if (!created.ok) throw new Error("no snapshot");
+
+    const ids: string[] = [];
+    let cursor: string | undefined;
+    for (let pages = 0; pages < 2000; pages += 1) {
+      // About a dozen summaries' worth of bytes per page.
+      const result = readSnapshotPage(auth.principal, created.snapshot.snapshotId, cursor, Date.now(), 4000);
+      if (!result.ok) throw new Error(result.reason);
+      expect(result.page.items.length).toBeGreaterThan(0);
+      expect(result.page.items.length).toBeLessThan(500);
+      ids.push(...result.page.items.map((item) => item.id));
+      if (result.page.complete) break;
+      cursor = result.page.nextCursor ?? undefined;
+    }
+
+    expect(ids).toHaveLength(created.snapshot.totalCount);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
   it("pages a public snapshot in stable order without hidden or private data", async () => {
     const api = client(mint().credential);
 

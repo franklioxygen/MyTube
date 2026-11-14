@@ -26,6 +26,12 @@ import type { FederationPrincipal } from "./tokenService";
  */
 
 export const SNAPSHOT_PAGE_SIZE = 500;
+/**
+ * A page also ends once it holds about this many bytes, so tag-heavy items
+ * keep it far below a consumer's response cap (32 MiB). It always carries at
+ * least one item, and the field limits keep one item to a few MiB.
+ */
+export const SNAPSHOT_PAGE_BYTES = 8 * 1024 * 1024;
 export const SNAPSHOT_TTL_MS = 10 * 60 * 1000;
 export const MAX_SNAPSHOTS_PER_TOKEN = 2;
 export const MAX_SNAPSHOTS = 8;
@@ -161,7 +167,8 @@ export function readSnapshotPage(
   principal: FederationPrincipal,
   snapshotId: string,
   cursor: string | undefined,
-  now = Date.now()
+  now = Date.now(),
+  maxBytes = SNAPSHOT_PAGE_BYTES
 ): ReadSnapshotPageResult {
   const snapshot = findSnapshot(principal, snapshotId, now);
   if (!snapshot) return { ok: false, reason: "not_found" };
@@ -186,6 +193,7 @@ export function readSnapshotPage(
   const cloudAvailable = isCloudStorageAvailable();
 
   const items: FederationVideoSummary[] = [];
+  let bytes = 0;
   for (const id of pageIds) {
     const row = byId.get(id);
     // Unreachable while the revision is unchanged; fail closed regardless.
@@ -193,10 +201,15 @@ export function readSnapshotPage(
       snapshots.delete(snapshot.id);
       return { ok: false, reason: "stale" };
     }
-    items.push(toSummary(row, cloudAvailable));
+    const summary = toSummary(row, cloudAvailable);
+    const size = Buffer.byteLength(JSON.stringify(summary));
+    if (items.length > 0 && bytes + size > maxBytes) break;
+    bytes += size;
+    items.push(summary);
   }
 
-  const nextOffset = offset + pageIds.length;
+  // The cursor is an offset, so a page cut short by size continues from here.
+  const nextOffset = offset + items.length;
   const complete = nextOffset >= snapshot.ids.length;
   return {
     ok: true,

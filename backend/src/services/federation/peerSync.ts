@@ -126,7 +126,9 @@ async function readSnapshot(
 
     const items: FederationVideoSummary[] = [];
     const seen = new Set<string>();
-    const maxPages = Math.ceil(snapshot.totalCount / snapshot.pageSize) + 1;
+    // Pages hold at most pageSize items, but a peer may cut them short by
+    // size; every unfinished page must carry an item, which bounds the loop.
+    const maxPages = snapshot.totalCount + 1;
     let cursor: string | null = null;
     for (let pageNumber = 0; ; pageNumber += 1) {
       if (pageNumber >= maxPages) throw new ProtocolError("The snapshot did not end where its count says.");
@@ -141,6 +143,9 @@ async function readSnapshot(
       );
       if (page.snapshotId !== snapshot.snapshotId || page.totalCount !== snapshot.totalCount) {
         throw new ProtocolError("A page does not belong to the snapshot.");
+      }
+      if (!page.complete && page.items.length === 0) {
+        throw new ProtocolError("An unfinished snapshot page was empty.");
       }
       if (page.nextCursor !== null && page.nextCursor === cursor) {
         throw new ProtocolError("The snapshot cursor did not advance.");
