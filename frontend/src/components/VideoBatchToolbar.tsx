@@ -101,7 +101,8 @@ function VideoBatchToolbarContent({ selection, pageIds, orderedIds, availableTag
             setError(null);
         }}>{error.invalidVideoIds.length ? t('bulkRemoveInvalid') : t('bulkRemoveMissing')}</Button>}
     </Alert> : null;
-    const targetIds = infiniteScroll ? orderedIds : pageIds;
+    // Only what can be selected counts towards "all" (not remote items).
+    const targetIds = (infiniteScroll ? orderedIds : pageIds).filter(selection.isSelectable);
     const selectionLabel = infiniteScroll ? t('bulkSelectResults', { count: targetIds.length }) : t('bulkSelectPage');
     const selectionDescription = infiniteScroll ? selectionLabel : t('bulkSelectPageDescription');
     const pageSelected = targetIds.filter((id) => selection.selectedIds.has(id)).length;

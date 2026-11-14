@@ -49,9 +49,15 @@ export const useVideoLoading = () => {
   };
 
   const handleVideoError = (e: React.SyntheticEvent<HTMLVideoElement>) => {
-    console.error("Video error:", e);
     setIsLoading(false);
     const videoElement = e.currentTarget;
+    // Clearing the source (an item that cannot play right now) makes the
+    // browser report an empty-src error; nothing failed to play.
+    if (!videoElement.getAttribute("src")) {
+      setLoadError(null);
+      return;
+    }
+    console.error("Video error:", e);
     if (videoElement.error) {
       console.error("Video error code:", videoElement.error.code);
       console.error("Video error message:", videoElement.error.message);

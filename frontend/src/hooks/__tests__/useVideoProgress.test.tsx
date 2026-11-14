@@ -133,6 +133,34 @@ describe("useVideoProgress", () => {
     dateNowSpy.mockRestore();
   });
 
+  it("keeps a remote item's position on this device without writing to the server", async () => {
+    let now = 1000;
+    const dateNowSpy = vi.spyOn(Date, "now").mockImplementation(() => now);
+    const video = {
+      id: "fed_1",
+      duration: "120",
+      origin: { kind: "remote", instanceId: "peer", instanceName: "NAS" },
+      capabilities: { canPlay: true, canSaveProgress: false, canRecordView: false },
+    } as any;
+    const { wrapper } = createWrapper();
+    const { result, unmount } = renderHook(
+      () => useVideoProgress({ videoId: "fed_1", video }),
+      { wrapper },
+    );
+
+    playThrough(result, 1, 4);
+    now = 7000;
+    playThrough(result, 5, 15);
+    unmount();
+
+    // Past both the save interval and the view threshold, and unmounted.
+    expect(mockApiPut).not.toHaveBeenCalled();
+    expect(mockApiPost).not.toHaveBeenCalled();
+    expect(mockSendVideoProgressWithKeepalive).not.toHaveBeenCalled();
+    expect(readVideoResumeProgress("fed_1")?.progress).toBeGreaterThan(0);
+    dateNowSpy.mockRestore();
+  });
+
   it("syncs progress writes into the cache before the view threshold is reached", async () => {
     let now = 1000;
     const dateNowSpy = vi.spyOn(Date, "now").mockImplementation(() => now);

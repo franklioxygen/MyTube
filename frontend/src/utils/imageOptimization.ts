@@ -72,7 +72,10 @@ export const toOriginalThumbnailPath = (
     }
 
     const normalizedPath = normalizePath(thumbnailPath);
-    return normalizedPath.startsWith('/images/') || normalizedPath.startsWith('/videos/')
+    // Remote items' covers come through this instance's federation gateway.
+    return normalizedPath.startsWith('/images/') ||
+        normalizedPath.startsWith('/videos/') ||
+        normalizedPath.startsWith('/api/federation/media/')
         ? normalizedPath
         : undefined;
 };

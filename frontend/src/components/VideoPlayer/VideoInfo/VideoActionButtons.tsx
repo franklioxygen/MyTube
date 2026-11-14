@@ -11,11 +11,12 @@ import { useShareVideo } from '../../../hooks/useShareVideo';
 import { Video } from '../../../types'; // Add imports
 import { getAvailablePlayers, getPlayerUrl } from '../../../utils/playerUtils'; // Import new utils
 import VideoKebabMenuButtons from './VideoKebabMenuButtons';
+import { videoCan } from '../../../utils/libraryItem';
 
 interface VideoActionButtonsProps {
     video: Video;
-    onAddToCollection: () => void;
-    onDelete: () => void;
+    onAddToCollection?: () => void;
+    onDelete?: () => void;
     isDeleting: boolean;
     isTogglingVisibility?: boolean;
     onToggleVisibility?: () => void;
@@ -34,7 +35,8 @@ const VideoActionButtons: React.FC<VideoActionButtonsProps> = ({
     onToggleLock
 }) => {
     const { t } = useLanguage();
-    const { handleShare } = useShareVideo(video);
+    const { handleShare: shareVideo } = useShareVideo(video);
+    const handleShare = videoCan(video, 'canShare') ? shareVideo : undefined;
     const { showSnackbar } = useSnackbar();
     const { userRole } = useAuth();
     const isVisitor = userRole === 'visitor';
@@ -249,16 +251,18 @@ const VideoActionButtons: React.FC<VideoActionButtonsProps> = ({
                 <MenuItem onClick={() => handlePlayerSelect('copy')}>{t('copyUrl')}</MenuItem>
             </Menu>
 
-            <Tooltip title={t('share')} disableHoverListener={isTouch}>
-                <Button
-                    variant="outlined"
-                    color="inherit"
-                    onClick={handleShare}
-                    sx={{ minWidth: 'auto', p: 1, color: 'text.secondary', borderColor: 'text.secondary', '&:hover': { color: 'primary.main', borderColor: 'primary.main' } }}
-                >
-                    <Share />
-                </Button>
-            </Tooltip>
+            {handleShare && (
+                <Tooltip title={t('share')} disableHoverListener={isTouch}>
+                    <Button
+                        variant="outlined"
+                        color="inherit"
+                        onClick={handleShare}
+                        sx={{ minWidth: 'auto', p: 1, color: 'text.secondary', borderColor: 'text.secondary', '&:hover': { color: 'primary.main', borderColor: 'primary.main' } }}
+                    >
+                        <Share />
+                    </Button>
+                </Tooltip>
+            )}
             {!isVisitor && (
                 <>
                     {onToggleVisibility && (
@@ -287,27 +291,31 @@ const VideoActionButtons: React.FC<VideoActionButtonsProps> = ({
                             </Button>
                         </Tooltip>
                     )}
-                    <Tooltip title={t('addToCollection')} disableHoverListener={isTouch}>
-                        <Button
-                            variant="outlined"
-                            color="inherit"
-                            onClick={() => onAddToCollection()}
-                            sx={{ minWidth: 'auto', p: 1, color: 'text.secondary', borderColor: 'text.secondary', '&:hover': { color: 'primary.main', borderColor: 'primary.main' } }}
-                        >
-                            <Add />
-                        </Button>
-                    </Tooltip>
-                    <Tooltip title={t('delete')} disableHoverListener={isTouch}>
-                        <Button
-                            variant="outlined"
-                            color="inherit"
-                            onClick={onDelete}
-                            loading={isDeleting}
-                            sx={{ minWidth: 'auto', p: 1, color: 'text.secondary', borderColor: 'text.secondary', '&:hover': { color: 'error.main', borderColor: 'error.main' } }}
-                        >
-                            <Delete />
-                        </Button>
-                    </Tooltip>
+                    {onAddToCollection && (
+                        <Tooltip title={t('addToCollection')} disableHoverListener={isTouch}>
+                            <Button
+                                variant="outlined"
+                                color="inherit"
+                                onClick={() => onAddToCollection()}
+                                sx={{ minWidth: 'auto', p: 1, color: 'text.secondary', borderColor: 'text.secondary', '&:hover': { color: 'primary.main', borderColor: 'primary.main' } }}
+                            >
+                                <Add />
+                            </Button>
+                        </Tooltip>
+                    )}
+                    {onDelete && (
+                        <Tooltip title={t('delete')} disableHoverListener={isTouch}>
+                            <Button
+                                variant="outlined"
+                                color="inherit"
+                                onClick={onDelete}
+                                loading={isDeleting}
+                                sx={{ minWidth: 'auto', p: 1, color: 'text.secondary', borderColor: 'text.secondary', '&:hover': { color: 'error.main', borderColor: 'error.main' } }}
+                            >
+                                <Delete />
+                            </Button>
+                        </Tooltip>
+                    )}
                 </>
             )}
         </Stack>

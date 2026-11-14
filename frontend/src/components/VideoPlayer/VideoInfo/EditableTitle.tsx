@@ -6,7 +6,8 @@ import { useAuth } from '../../../contexts/AuthContext';
 
 interface EditableTitleProps {
     title: string;
-    onSave: (newTitle: string) => Promise<void>;
+    /** Omitted when the title cannot be edited here (e.g. a remote item). */
+    onSave?: (newTitle: string) => Promise<void>;
     isSaving?: boolean;
 }
 
@@ -45,7 +46,7 @@ const EditableTitle: React.FC<EditableTitleProps> = ({ title, onSave, isSaving =
     };
 
     const handleSaveTitle = async () => {
-        if (!editedTitle.trim()) return;
+        if (!editedTitle.trim() || !onSave) return;
         try {
             await onSave(editedTitle);
             setIsEditingTitle(false);
@@ -115,7 +116,7 @@ const EditableTitle: React.FC<EditableTitleProps> = ({ title, onSave, isSaving =
                 {title}
             </Typography>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                {!isVisitor && (
+                {!isVisitor && onSave && (
                     <Tooltip title={t('editTitle')} disableHoverListener={isTouch}>
                         <Button
                             size="small"

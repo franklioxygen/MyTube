@@ -378,6 +378,24 @@ describe('ManagePage', () => {
             expect(screen.getByTestId('videos-count')).toHaveTextContent('2');
         });
 
+        it('leaves out items synced from another instance', () => {
+            mockVideos = [
+                ...mockVideos,
+                {
+                    id: 'fed_1',
+                    title: 'Remote Video',
+                    author: 'Author C',
+                    addedAt: '2024-01-03T00:00:00Z',
+                    fileSize: '4000',
+                    origin: { kind: 'remote', instanceId: 'peer', instanceName: 'NAS' },
+                },
+            ];
+            renderManagePage();
+            expect(screen.getByRole('tab', { name: /videos \(2\)/i })).toBeInTheDocument();
+            fireEvent.click(screen.getByRole('tab', { name: /videos/i }));
+            expect(screen.getByTestId('videos-count')).toHaveTextContent('2');
+        });
+
         it('passes totalSize to VideosTable as sum of filtered video file sizes', () => {
             renderManagePage();
             fireEvent.click(screen.getByRole('tab', { name: /videos/i }));
