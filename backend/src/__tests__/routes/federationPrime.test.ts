@@ -95,6 +95,8 @@ const peer = {
   revisionGate: null as { reached: () => void; open: Promise<void> } | null,
   /** Answers for this audience whatever was asked, like a misconfigured peer. */
   cappedAudience: null as "public" | null,
+  /** Answers every detail request with this item instead. */
+  detailOverride: null as string | null,
   detailStatus: null as number | null,
   snapshotRequests: 0,
   seenHeaders: [] as http.IncomingHttpHeaders[],
@@ -191,7 +193,7 @@ const startPeer = async () => {
       res.status(peer.detailStatus).json({ code: peer.detailStatus === 401 ? "FEDERATION_TOKEN_REVOKED" : "BUSY" });
       return;
     }
-    const item = peer.items.find((candidate) => candidate.id === req.params.id);
+    const item = peer.items.find((candidate) => candidate.id === (peer.detailOverride ?? req.params.id));
     if (!item) {
       res.status(404).json({ code: "FEDERATION_VIDEO_NOT_FOUND" });
       return;
@@ -299,6 +301,7 @@ beforeEach(async () => {
     pageGate: null,
     revisionGate: null,
     cappedAudience: null,
+    detailOverride: null,
     detailStatus: null,
     snapshotRequests: 0,
     seenHeaders: [],
@@ -651,6 +654,16 @@ describe("reading and playing remote items", () => {
 
     expect((await running).changed).toBe(false);
     expect((await library(api)).total).toBe(0);
+  });
+
+  it("refuses a detail answer for another video", async () => {
+    const { api } = await registerAndSync();
+    const id = await itemId(api, "Title a");
+    peer.detailOverride = "b";
+
+    const response = await api.get(`/api/federation/library/${id}`);
+    expect(response.status).toBe(502);
+    expect(response.body.code).toBe("FEDERATION_PEER_UNAVAILABLE");
   });
 
   it("maps peer failures without ever answering 401", async () => {

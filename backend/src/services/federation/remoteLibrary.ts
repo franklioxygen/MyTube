@@ -141,7 +141,9 @@ export async function readRemoteDetail(
         `/videos/${encodeURIComponent(resolved.item.remote_video_id)}?audience=${resolved.peer.audience}`
       )
     );
-    const { id: _remoteId, ...rest } = detail;
+    const { id: remoteId, ...rest } = detail;
+    // A misbehaving peer must not dress this item in another video's metadata.
+    if (remoteId !== resolved.item.remote_video_id) return { ok: false, reason: "peer_unavailable" };
     return {
       ok: true,
       detail: {
