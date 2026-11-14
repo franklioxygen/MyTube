@@ -79,6 +79,15 @@ const recordAttempt = (
 };
 
 const REPLACED = "The database was replaced during the sync.";
+const OVERTAKEN = "The peer binding changed during the sync.";
+
+/**
+ * A sync something else overtook (a disable, credential change, quarantine
+ * or database replacement) committed nothing, so it reports a failure even
+ * when the peer was healthy. Its status is not recorded: the newer state owns
+ * the binding.
+ */
+const overtaken = (message: string): SyncAbort => new SyncAbort("error", message);
 
 const statusFor = (error: unknown): PeerStatus => {
   if (error instanceof SyncAbort) return error.status;
@@ -170,10 +179,10 @@ function commit(
   now: number
 ): { upserted: number; tombstoned: number } {
   return sqlite.transaction(() => {
-    if (getDatabaseEpoch() !== epoch) throw new SyncAbort(row.status, REPLACED);
+    if (getDatabaseEpoch() !== epoch) throw overtaken(REPLACED);
     const current = readPeerRow(row.id);
     if (!current || current.enabled !== 1 || current.generation !== row.generation) {
-      throw new SyncAbort(current?.status ?? "error", "The peer binding changed during the sync.");
+      throw overtaken(OVERTAKEN);
     }
 
     // A per-commit stamp that only moves forward, so "seen in this snapshot"
@@ -265,7 +274,7 @@ async function runSync(peerId: string): Promise<SyncResult> {
       revision.libraryRevision === row.library_revision &&
       revision.policyRevision === row.policy_revision
     ) {
-      if (getDatabaseEpoch() !== epoch) throw new SyncAbort(row.status, REPLACED);
+      if (getDatabaseEpoch() !== epoch) throw overtaken(REPLACED);
       const now = Date.now();
       sqlite
         .prepare(

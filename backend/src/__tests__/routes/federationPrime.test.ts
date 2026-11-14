@@ -489,6 +489,7 @@ describe("syncing", () => {
     const result = await running;
 
     expect(result.changed).toBe(false);
+    expect(result).toMatchObject({ status: "error", error: expect.stringContaining("database was replaced") });
     const count = sqlite.prepare("SELECT COUNT(*) AS c FROM federation_remote_videos").get() as { c: number };
     expect(count.c).toBe(3);
     expect((await library(api)).total).toBe(3);
@@ -528,6 +529,8 @@ describe("syncing", () => {
     const result = await running;
 
     expect(result.changed).toBe(false);
+    // Discarded, so not reported as a success even though the peer was ok.
+    expect(result).toMatchObject({ status: "error", error: expect.stringContaining("changed during the sync") });
     const count = sqlite.prepare("SELECT COUNT(*) AS c FROM federation_remote_videos").get() as { c: number };
     expect(count.c).toBe(3);
     expect((await library(api)).total).toBe(0);
