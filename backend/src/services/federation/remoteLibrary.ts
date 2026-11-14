@@ -109,10 +109,17 @@ function resolveItem(id: string): { item: JoinedRow; peer: PeerRow } | null {
 
 export type RemoteReadFailure = "not_found" | "peer_unavailable" | "peer_rejected";
 
+/**
+ * The peer refused this instance's credential: hide its items until a sync
+ * succeeds again. The generation moves too, so a sync already in flight
+ * cannot commit afterwards and make them servable again.
+ */
 const quarantine = (peer: PeerRow, message: string): void => {
   sqlite
     .prepare(
-      `UPDATE federation_peers SET status = 'credential_rejected', last_error = ?, library_revision = NULL, updated_at = ?
+      `UPDATE federation_peers
+         SET status = 'credential_rejected', last_error = ?, library_revision = NULL,
+             generation = generation + 1, updated_at = ?
        WHERE id = ? AND generation = ?`
     )
     .run(message, Date.now(), peer.id, peer.generation);

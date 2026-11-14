@@ -243,7 +243,8 @@ export function toSummary(
     sourceVideoId: fit(row.sourceVideoId, L.sourceVideoId),
     channelUrl: fit(row.channelUrl, L.url),
     addedAt: fit(row.addedAt, L.shortText),
-    createdAt: row.createdAt,
+    // Required by the protocol: a blank stored value must not fail the snapshot.
+    createdAt: fit(row.createdAt, L.shortText) || new Date(0).toISOString(),
     updatedAt: fit(row.updatedAt, L.shortText),
     partNumber: row.partNumber,
     totalParts: row.totalParts,
@@ -253,7 +254,7 @@ export function toSummary(
     width: row.width,
     height: row.height,
     fileSize: fit(row.fileSize, L.fileSize),
-    mediaType: fit(row.mediaType, L.mediaType) ?? "video",
+    mediaType: fit(row.mediaType, L.mediaType) || "video",
     tags: parseArray(row.tags)
       .filter((tag): tag is string => typeof tag === "string" && tag.length <= L.tag)
       .slice(0, L.tags),

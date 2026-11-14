@@ -89,6 +89,7 @@ const peer = {
   malformedPage: false,
   changeRevisionDuringRead: false,
   pageDelayMs: 0,
+  detailStatus: null as number | null,
   snapshotRequests: 0,
   seenHeaders: [] as http.IncomingHttpHeaders[],
 };
@@ -167,6 +168,11 @@ const startPeer = async () => {
     res.status(204).end();
   });
   v1.get("/videos/:id", (req, res) => {
+    if (peer.detailStatus) {
+      // A 401 refuses the credential; anything else is a transient failure.
+      res.status(peer.detailStatus).json({ code: peer.detailStatus === 401 ? "FEDERATION_TOKEN_REVOKED" : "BUSY" });
+      return;
+    }
     const item = peer.items.find((candidate) => candidate.id === req.params.id);
     if (!item) {
       res.status(404).json({ code: "FEDERATION_VIDEO_NOT_FOUND" });
@@ -272,6 +278,7 @@ beforeEach(async () => {
     malformedPage: false,
     changeRevisionDuringRead: false,
     pageDelayMs: 0,
+    detailStatus: null,
     snapshotRequests: 0,
     seenHeaders: [],
   });
@@ -563,6 +570,24 @@ describe("reading and playing remote items", () => {
     const head = await api.head(`/api/federation/media/${id}/media`);
     expect(head.headers["content-length"]).toBe("1000");
     expect(countFederationStreams()).toBe(0);
+  });
+
+  it("never lets a sync begun before a quarantine make the items servable again", async () => {
+    const { api, id: peerId } = await registerAndSync();
+    const id = await itemId(api, "Title a");
+    peer.items = [...initialItems(), summary("late", "2026-03-01T00:00:00.000Z")];
+    peer.libraryRevision = "lib-2";
+    peer.pageDelayMs = 50;
+
+    const running = syncPeer(peerId);
+    await vi.waitFor(() => expect(peer.snapshotRequests).toBeGreaterThan(1));
+    // A detail read is refused while the sync is still paging.
+    peer.detailStatus = 401;
+    expect((await api.get(`/api/federation/library/${id}`)).status).toBe(502);
+    peer.detailStatus = null;
+
+    expect((await running).changed).toBe(false);
+    expect((await library(api)).total).toBe(0);
   });
 
   it("maps peer failures without ever answering 401", async () => {

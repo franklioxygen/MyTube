@@ -211,22 +211,37 @@ async function main() {
     // --- Revocation ends an in-flight stream --------------------------------
     // Only a started transfer, cut after a successful revoke, counts: a
     // request that failed outright would also deliver fewer bytes.
+    // The peer ends the stream before it answers the revoke, so the outcome
+    // is read only once that answer has arrived too.
     const transfer = await new Promise((resolve) => {
       const outcome = { status: 0, bytes: 0, revokeStatus: 0, failed: null };
+      let revoked = Promise.resolve();
+      const settle = () => void revoked.then(() => resolve(outcome));
       const req = http.get(`${prime.base}/api/federation/media/${local.id}/media`, (res) => {
         outcome.status = res.statusCode;
-        res.once("data", async (chunk) => {
+        res.once("data", (chunk) => {
           outcome.bytes += chunk.length;
           res.pause();
-          outcome.revokeStatus = (await peer.post(`/api/federation/tokens/${minted.json.token.id}/revoke`)).status;
-          res.on("data", (more) => (outcome.bytes += more.length));
-          res.resume();
+          revoked = peer
+            .post(`/api/federation/tokens/${minted.json.token.id}/revoke`)
+            .then(
+              (response) => {
+                outcome.revokeStatus = response.status;
+              },
+              (error) => {
+                outcome.failed = `revoke: ${error.message}`;
+              }
+            )
+            .finally(() => {
+              res.on("data", (more) => (outcome.bytes += more.length));
+              res.resume();
+            });
         });
-        res.on("close", () => resolve(outcome));
+        res.on("close", settle);
       });
       req.on("error", (error) => {
         if (outcome.status === 0) outcome.failed = error.message;
-        resolve(outcome);
+        settle();
       });
     });
     check(

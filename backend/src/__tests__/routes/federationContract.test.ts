@@ -91,6 +91,8 @@ beforeAll(() => {
         description: "long",
         createdAt: "2026-01-01T00:00:00.000Z",
       },
+      // Blank required fields from legacy or imported rows.
+      { id: "blank", title: "", createdAt: "", mediaType: "" },
     ])
     .run();
 });
@@ -112,7 +114,7 @@ describe("peer responses satisfy the prime's validators", () => {
     const pageBody = (await call("get", `/snapshots/${descriptor.snapshotId}/videos`)).body;
     const page = parseSnapshotPage(pageBody, descriptor.pageSize);
 
-    expect(page.items).toHaveLength(3);
+    expect(page.items).toHaveLength(4);
     // Nothing the peer sends is lost or altered by validation.
     expect(page.items).toEqual(pageBody.items);
     expect(page.items.find((item) => item.id === "full")?.tags).toEqual(["music", "live"]);
@@ -124,10 +126,15 @@ describe("peer responses satisfy the prime's validators", () => {
       duration: null,
       tags: ["ok"],
     });
+    expect(page.items.find((item) => item.id === "blank")).toMatchObject({
+      title: "blank",
+      createdAt: "1970-01-01T00:00:00.000Z",
+      mediaType: "video",
+    });
   });
 
   it("details, field for field", async () => {
-    for (const id of ["full", "sparse", "oversized"]) {
+    for (const id of ["full", "sparse", "oversized", "blank"]) {
       const body = (await call("get", `/videos/${id}?audience=owner`)).body;
       expect(parseDetail(body)).toEqual(body);
     }
