@@ -231,6 +231,8 @@
 
 多个 MyTube 实例互联的基础能力（issue #354）。本实例可以签发凭证，供另一台 MyTube 服务器访问本实例时出示。
 
+目前是预览功能：远程条目还不会出现在媒体库中，所以两侧的设置区默认隐藏，只有构建前端时设置 `VITE_ENABLE_FEDERATION=true` 才会显示。下列端点不受此开关影响。
+
 - 令牌管理要求管理员会话（或未启用登录）。API Key 认证会被拒绝。响应返回 `Cache-Control: no-store`。
 - `GET /api/federation/tokens` - 返回 `{ instanceId, tokens }`，列表中永不包含密钥。
 - `POST /api/federation/tokens` - 签发凭证

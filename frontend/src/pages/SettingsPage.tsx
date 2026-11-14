@@ -632,7 +632,10 @@ const SettingsPage: React.FC = () => {
     const renderIntegrationsContent = () => (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
             <RssFeedSettings />
-            <FederationSettings />
+            {/* Federation is a preview until remote items appear in the library
+                (#354), so its settings stay hidden unless the frontend is built
+                with VITE_ENABLE_FEDERATION=true. */}
+            {import.meta.env.VITE_ENABLE_FEDERATION === 'true' && <FederationSettings />}
             <AdvancedSettings
                 debugMode={debugMode}
                 onDebugModeChange={setDebugMode}

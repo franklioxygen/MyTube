@@ -246,6 +246,8 @@ Favorites are scoped to the authenticated owner. When login protection is disabl
 
 Groundwork for connecting several MyTube instances (issue #354). This instance can issue credentials that another MyTube server presents to it.
 
+This is a preview: remote items do not yet appear in the library, so the settings section for both sides is hidden unless the frontend is built with `VITE_ENABLE_FEDERATION=true`. The endpoints below are available regardless.
+
 - Token management requires an admin session (or login-disabled mode). API key authentication is rejected. Responses return `Cache-Control: no-store`.
 - `GET /api/federation/tokens` - `{ instanceId, tokens }`. Secrets are never listed.
 - `POST /api/federation/tokens` - Mint a credential
