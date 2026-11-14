@@ -2,7 +2,7 @@ import { AVATARS_DIR, IMAGES_DIR, SUBTITLES_DIR, VIDEOS_DIR } from "../../config
 import { resolveMountFilePath } from "../../controllers/video/mountVideo";
 import { resolveSafeChildPath, statTrusted, validateCloudThumbnailCachePath } from "../../utils/security";
 import { getCachedThumbnail } from "../cloudStorage/cloudThumbnailCache";
-import { CLOUD_PREFIX, type CloudFileType } from "./cloudAssetProxy";
+import { CLOUD_PREFIX, getCloudStorageOrigin, type CloudFileType } from "./cloudAssetProxy";
 import {
   LOCAL_ASSET_PREFIXES,
   MOUNT_PREFIX,
@@ -100,6 +100,9 @@ export function locateFederationAsset(
     case "thumbnail": {
       const reference = row.thumbnailPath;
       if (reference?.startsWith(CLOUD_PREFIX)) {
+        // Served only while cloud storage is configured, cached copy included,
+        // matching what the export advertises without probing the cache.
+        if (getCloudStorageOrigin() === null) return null;
         return file(cachedCloudThumbnail(reference)) ?? cloud(reference, "thumbnail");
       }
       return file(resolveLocal(reference, LOCAL_ASSET_PREFIXES.thumbnail));

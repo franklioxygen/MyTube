@@ -332,6 +332,13 @@ describe("cloud assets", () => {
     const remote = await get(credential, "/videos/cloud/assets/thumbnail?audience=public");
     expect(remote.status).toBe(200);
     expect(upstreamRequests).toHaveLength(1);
+
+    // With cloud storage off the export reports no thumbnail, so the cached
+    // copy is not served either.
+    state.cachedThumbnail = cached;
+    state.enabled = false;
+    expect((await get(credential, "/videos/cloud?audience=public")).body.assets.thumbnail).toBe(false);
+    expect((await get(credential, "/videos/cloud/assets/thumbnail?audience=public")).status).toBe(404);
   });
 
   it("aborts the storage request when the token is revoked mid-transfer", async () => {

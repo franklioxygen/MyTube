@@ -89,6 +89,8 @@ const peer = {
   malformedPage: false,
   changeRevisionDuringRead: false,
   pageDelayMs: 0,
+  /** While set, page requests wait here, after announcing they arrived. */
+  pageGate: null as { reached: () => void; open: Promise<void> } | null,
   detailStatus: null as number | null,
   snapshotRequests: 0,
   seenHeaders: [] as http.IncomingHttpHeaders[],
@@ -146,6 +148,10 @@ const startPeer = async () => {
     if (peer.changeRevisionDuringRead) peer.libraryRevision = `${peer.libraryRevision}+`;
   });
   v1.get("/snapshots/:id/videos", async (req, res) => {
+    if (peer.pageGate) {
+      peer.pageGate.reached();
+      await peer.pageGate.open;
+    }
     if (peer.pageDelayMs) await new Promise((resolve) => setTimeout(resolve, peer.pageDelayMs));
     const items = snapshots.get(req.params.id) ?? [];
     const offset = Number(req.query.cursor ?? 0);
@@ -278,6 +284,7 @@ beforeEach(async () => {
     malformedPage: false,
     changeRevisionDuringRead: false,
     pageDelayMs: 0,
+    pageGate: null,
     detailStatus: null,
     snapshotRequests: 0,
     seenHeaders: [],
@@ -577,14 +584,22 @@ describe("reading and playing remote items", () => {
     const id = await itemId(api, "Title a");
     peer.items = [...initialItems(), summary("late", "2026-03-01T00:00:00.000Z")];
     peer.libraryRevision = "lib-2";
-    peer.pageDelayMs = 50;
+    let release!: () => void;
+    const reached = new Promise<void>((resolve) => {
+      peer.pageGate = { reached: resolve, open: new Promise<void>((open) => (release = open)) };
+    });
 
     const running = syncPeer(peerId);
-    await vi.waitFor(() => expect(peer.snapshotRequests).toBeGreaterThan(1));
-    // A detail read is refused while the sync is still paging.
-    peer.detailStatus = 401;
-    expect((await api.get(`/api/federation/library/${id}`)).status).toBe(502);
-    peer.detailStatus = null;
+    try {
+      // The sync is held mid-snapshot while a detail read is refused.
+      await reached;
+      peer.detailStatus = 401;
+      expect((await api.get(`/api/federation/library/${id}`)).status).toBe(502);
+      peer.detailStatus = null;
+    } finally {
+      peer.pageGate = null;
+      release();
+    }
 
     expect((await running).changed).toBe(false);
     expect((await library(api)).total).toBe(0);
