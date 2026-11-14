@@ -1922,6 +1922,7 @@ export const ko = {
   federationCredentialTitle: "지금 액세스 키를 복사하세요",
   federationCredentialWarning: "키는 이번 한 번만 표시됩니다. 상대 인스턴스의 설정에 붙여 넣으세요.",
   federationCredentialCopied: "액세스 키를 복사했습니다",
+  federationCopyFailed: "복사하지 못했습니다. 텍스트를 선택해 직접 복사하세요.",
   federationPeersTitle: "연결된 인스턴스",
   federationPeersDescription: "다른 MyTube 서버가 발급한 액세스 키로 연결합니다. 그 서버의 동영상은 여기로 동기화되며, 현재는 본인만 볼 수 있습니다.",
   federationAddPeer: "인스턴스 연결",

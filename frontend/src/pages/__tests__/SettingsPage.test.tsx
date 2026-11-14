@@ -488,6 +488,8 @@ describe('SettingsPage', () => {
 
   it('hides the federation preview unless the build enables it', () => {
     mockIsDesktop = true;
+    // Explicit, so an environment that builds the preview cannot leak in.
+    vi.stubEnv('VITE_ENABLE_FEDERATION', '');
 
     renderPage('/settings?tab=integrations');
 

@@ -3,6 +3,7 @@ import fs from "fs";
 import http from "http";
 import type { AddressInfo } from "net";
 import path from "path";
+import zlib from "zlib";
 import request from "supertest";
 import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -103,11 +104,19 @@ const startStorage = async () => {
     res.sendFile(mediaFile);
   });
   // Sends headers and a first chunk, then keeps trickling until aborted.
-  server.get("/d/stream.mp4", (req, res) => {
-    req.on("close", upstreamClosed);
+  server.get("/d/stream.mp4", (_req, res) => {
     res.writeHead(200, { "Content-Type": "video/mp4" });
     const tick = setInterval(() => res.write(Buffer.alloc(64 * 1024, 1)), 10);
-    res.on("close", () => clearInterval(tick));
+    res.on("close", () => {
+      clearInterval(tick);
+      // This response never ends by itself: a close is the proxy aborting it.
+      if (!res.writableFinished) upstreamClosed();
+    });
+  });
+  // Encoded although identity was asked for.
+  server.get("/d/encoded.mp4", (_req, res) => {
+    res.writeHead(200, { "Content-Type": "video/mp4", "Content-Encoding": "gzip" });
+    res.end(zlib.gzipSync(MEDIA));
   });
   // Sends headers and one chunk, then stalls.
   server.get("/d/stall.mp4", (_req, res) => {
@@ -178,6 +187,7 @@ beforeEach(() => {
       cloudVideo("forbidden", "forbidden.mp4"),
       cloudVideo("cookie", "cookie.mp4"),
       cloudVideo("stream", "stream.mp4"),
+      cloudVideo("encoded", "encoded.mp4"),
     ])
     .run();
 });
@@ -262,6 +272,20 @@ describe("cloud assets", () => {
     expect(response.headers).not.toHaveProperty("x-internal");
   });
 
+  it("keeps the encoding of bytes storage encoded anyway", async () => {
+    const response = await get(mint().credential, "/videos/encoded/assets/media?audience=public")
+      .buffer(true)
+      .parse((res, done) => {
+        const chunks: Buffer[] = [];
+        res.on("data", (chunk: Buffer) => chunks.push(chunk));
+        res.on("end", () => done(null, Buffer.concat(chunks)));
+      });
+    expect(response.status).toBe(200);
+    expect(response.headers["content-encoding"]).toBe("gzip");
+    // The client decoded it, so the label matched the bytes.
+    expect(Buffer.compare(response.body as Buffer, MEDIA)).toBe(0);
+  });
+
   it("follows redirects within the storage origin but not to other private hosts", async () => {
     const { credential } = mint();
     expect((await get(credential, "/videos/redirect/assets/media?audience=public")).status).toBe(200);
@@ -313,6 +337,8 @@ describe("cloud assets", () => {
     const { port } = server.address() as AddressInfo;
 
     try {
+      let status = 0;
+      let abortedBeforeRevoke = -1;
       await new Promise<void>((resolve) => {
         const req = http.get(
           {
@@ -322,14 +348,22 @@ describe("cloud assets", () => {
             headers: headersFor(credential),
           },
           (res) => {
-            res.once("data", () => revokeFederationToken(token.id));
+            status = res.statusCode ?? 0;
+            res.once("data", () => {
+              abortedBeforeRevoke = upstreamClosed.mock.calls.length;
+              revokeFederationToken(token.id);
+            });
             res.on("data", () => undefined);
             res.on("close", () => resolve());
           }
         );
         req.on("error", () => resolve());
       });
-      await vi.waitFor(() => expect(upstreamClosed).toHaveBeenCalled());
+      // The transfer had started and storage was still streaming; only the
+      // revocation aborted it.
+      expect(status).toBe(200);
+      expect(abortedBeforeRevoke).toBe(0);
+      await vi.waitFor(() => expect(upstreamClosed).toHaveBeenCalledTimes(1));
       expect(countFederationStreams()).toBe(0);
     } finally {
       await new Promise((resolve) => server.close(resolve));
@@ -348,6 +382,20 @@ describe("cloud proxy timeouts", () => {
     });
     return server;
   };
+
+  it("does not contact storage for a consumer that is already gone", async () => {
+    const fail = vi.fn();
+    let proxied!: Promise<void>;
+    const server = express();
+    server.get("/", (req, res) => {
+      res.destroy();
+      proxied = proxyCloudAsset(req, res, "remote.mp4", "video", fail);
+    });
+    await request(server).get("/").catch(() => undefined);
+    await proxied;
+    expect(upstreamRequests).toHaveLength(0);
+    expect(fail).not.toHaveBeenCalled();
+  });
 
   it("gives up when storage sends nothing before the first-byte deadline", async () => {
     const fail = vi.fn();

@@ -20,6 +20,8 @@ export const UPSTREAM_IDLE_TIMEOUT_MS = 60_000;
 const FORWARDED_REQUEST_HEADERS = ["range", "if-range", "if-none-match", "if-modified-since"];
 const FORWARDED_RESPONSE_HEADERS = [
   "content-type",
+  // Identity is requested, but bytes a server encoded anyway stay labelled.
+  "content-encoding",
   "content-length",
   "content-range",
   "accept-ranges",
@@ -76,6 +78,9 @@ export async function proxyUpstream(
     }, ms);
   };
   const disarm = () => clearTimeout(timer);
+  // The consumer left (or its credential's transfers were ended) while the
+  // caller was still resolving the target: its close event has already fired.
+  if (res.destroyed) return;
   // A consumer disconnect, or a credential ending its transfers, stops upstream.
   res.once("close", () => {
     disarm();

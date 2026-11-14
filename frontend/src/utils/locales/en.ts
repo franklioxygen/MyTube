@@ -1913,6 +1913,7 @@ export const en = {
   federationCredentialTitle: "Copy the access key now",
   federationCredentialWarning: "This is the only time the key is shown. Paste it into the other instance's settings.",
   federationCredentialCopied: "Access key copied",
+  federationCopyFailed: "Couldn't copy. Select the text and copy it manually.",
   federationPeersTitle: "Connected instances",
   federationPeersDescription: "Connect to another MyTube server with an access key it issued. Its videos are synced here, and for now only you can see them.",
   federationAddPeer: "Connect instance",

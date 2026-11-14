@@ -1919,6 +1919,7 @@ export const ar = {
   federationCredentialTitle: "انسخ مفتاح الوصول الآن",
   federationCredentialWarning: "هذه هي المرة الوحيدة التي يُعرض فيها المفتاح. الصقه في إعدادات النسخة الأخرى.",
   federationCredentialCopied: "تم نسخ مفتاح الوصول",
+  federationCopyFailed: "تعذّر النسخ. حدّد النص وانسخه يدويًا.",
   federationPeersTitle: "النسخ المتصلة",
   federationPeersDescription: "اتصل بخادم MyTube آخر باستخدام مفتاح وصول أصدره. تتم مزامنة فيديوهاته هنا، ولا يمكن لأحد غيرك رؤيتها حاليًا.",
   federationAddPeer: "ربط نسخة",

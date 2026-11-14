@@ -39,7 +39,7 @@ interface JoinedRow {
   peer_id: string;
 }
 
-const SERVABLE = `p.enabled = 1 AND p.status IN (${SERVABLE_PEER_STATUSES.map((s) => `'${s}'`).join(", ")})`;
+const SERVABLE = `p.enabled = 1 AND p.library_revision IS NOT NULL AND p.status IN (${SERVABLE_PEER_STATUSES.map((s) => `'${s}'`).join(", ")})`;
 
 const withOrigin = (row: PeerRow) => ({
   kind: "remote" as const,
@@ -112,7 +112,7 @@ export type RemoteReadFailure = "not_found" | "peer_unavailable" | "peer_rejecte
 const quarantine = (peer: PeerRow, message: string): void => {
   sqlite
     .prepare(
-      `UPDATE federation_peers SET status = 'credential_rejected', last_error = ?, updated_at = ?
+      `UPDATE federation_peers SET status = 'credential_rejected', last_error = ?, library_revision = NULL, updated_at = ?
        WHERE id = ? AND generation = ?`
     )
     .run(message, Date.now(), peer.id, peer.generation);

@@ -25,9 +25,13 @@ const CredentialRevealDialog: React.FC<CredentialRevealDialogProps> = ({ credent
     const { showSnackbar } = useSnackbar();
 
     const handleCopy = async () => {
-        if (credential && (await copyTextToClipboard(credential))) {
-            showSnackbar(t('federationCredentialCopied'), 'success');
-        }
+        if (!credential) return;
+        // A blocked clipboard must say so: the key is shown only this once.
+        const copied = await copyTextToClipboard(credential).catch(() => false);
+        showSnackbar(
+            t(copied ? 'federationCredentialCopied' : 'federationCopyFailed'),
+            copied ? 'success' : 'error'
+        );
     };
 
     return (

@@ -1945,6 +1945,7 @@ export const ja = {
   federationCredentialTitle: "今すぐアクセスキーをコピーしてください",
   federationCredentialWarning: "キーが表示されるのはこの一度だけです。相手のインスタンスの設定に貼り付けてください。",
   federationCredentialCopied: "アクセスキーをコピーしました",
+  federationCopyFailed: "コピーできませんでした。テキストを選択して手動でコピーしてください。",
   federationPeersTitle: "接続中のインスタンス",
   federationPeersDescription: "他の MyTube サーバーが発行したアクセスキーで接続します。その動画はここに同期され、現時点ではあなただけが閲覧できます。",
   federationAddPeer: "インスタンスを接続",

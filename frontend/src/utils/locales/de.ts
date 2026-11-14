@@ -1974,6 +1974,7 @@ export const de = {
   federationCredentialTitle: "Zugangsschlüssel jetzt kopieren",
   federationCredentialWarning: "Der Schlüssel wird nur dieses eine Mal angezeigt. Füge ihn in die Einstellungen der anderen Instanz ein.",
   federationCredentialCopied: "Zugangsschlüssel kopiert",
+  federationCopyFailed: "Kopieren fehlgeschlagen. Markiere den Text und kopiere ihn manuell.",
   federationPeersTitle: "Verbundene Instanzen",
   federationPeersDescription: "Verbinde dich mit einem anderen MyTube-Server über einen Zugangsschlüssel, den er ausgegeben hat. Seine Videos werden hierher synchronisiert und sind vorerst nur für dich sichtbar.",
   federationAddPeer: "Instanz verbinden",

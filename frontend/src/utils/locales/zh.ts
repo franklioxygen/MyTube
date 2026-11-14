@@ -1842,6 +1842,7 @@ export const zh = {
   federationCredentialTitle: "请立即复制访问密钥",
   federationCredentialWarning: "密钥只会显示这一次。请把它粘贴到另一实例的设置中。",
   federationCredentialCopied: "访问密钥已复制",
+  federationCopyFailed: "复制失败，请选中文本后手动复制。",
   federationPeersTitle: "已连接的实例",
   federationPeersDescription: "使用另一台 MyTube 服务器签发的访问密钥连接它。它的视频会同步到这里，目前只有你能看到。",
   federationAddPeer: "连接实例",

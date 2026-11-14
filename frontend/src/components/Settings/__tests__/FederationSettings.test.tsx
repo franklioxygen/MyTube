@@ -22,7 +22,8 @@ vi.mock('../../../utils/apiClient', () => ({
     api,
     getErrorMessage: (error: unknown) => (error instanceof Error ? error.message : String(error)),
 }));
-vi.mock('../../../utils/clipboard', () => ({ copyTextToClipboard: vi.fn(async () => true) }));
+const copyTextToClipboard = vi.hoisted(() => vi.fn<(text: string) => Promise<boolean>>(async () => true));
+vi.mock('../../../utils/clipboard', () => ({ copyTextToClipboard }));
 
 const INSTANCE_ID = '6f9619ff-8b86-4011-b42d-00c04fc964ff';
 const CREDENTIAL = `${'A'.repeat(16)}.${'B'.repeat(43)}`;
@@ -112,6 +113,24 @@ describe('federation access keys', () => {
         const closeButtons = screen.getAllByRole('button', { name: 'close' });
         fireEvent.click(closeButtons[closeButtons.length - 1]);
         await waitFor(() => expect(screen.queryByDisplayValue(CREDENTIAL)).not.toBeInTheDocument());
+    });
+
+    it('tells the owner to copy the key by hand when the clipboard fails', async () => {
+        api.post.mockResolvedValueOnce({ data: { token: token(), credential: CREDENTIAL } });
+        copyTextToClipboard.mockRejectedValueOnce(new Error('denied')).mockResolvedValueOnce(false);
+        renderSettings();
+
+        fireEvent.click(await screen.findByRole('button', { name: 'federationRotate' }));
+        await confirmDialog('federationRotate');
+        expect(await screen.findByDisplayValue(CREDENTIAL)).toBeInTheDocument();
+
+        for (let attempt = 1; attempt <= 2; attempt += 1) {
+            fireEvent.click(screen.getByRole('button', { name: 'federationCopy' }));
+            await waitFor(() =>
+                expect(showSnackbar.mock.calls.filter(([message]) => message === 'federationCopyFailed')).toHaveLength(attempt)
+            );
+        }
+        expect(showSnackbar).toHaveBeenCalledWith('federationCopyFailed', 'error');
     });
 
     it('rotates a key after confirmation and reveals the replacement', async () => {
@@ -213,6 +232,30 @@ describe('connected instances', () => {
             )
         );
         expect(api.post).toHaveBeenCalledWith('/federation/peers/peer-1/sync');
+    });
+
+    it('keeps each peer busy until its own operation ends', async () => {
+        peers = [peer(), peer({ id: 'peer-2', name: 'Office' })];
+        let finishFirst!: () => void;
+        api.post
+            .mockImplementationOnce(
+                () =>
+                    new Promise((resolve) => {
+                        finishFirst = () => resolve({ data: { result: { status: 'ok', changed: true }, peer: peer() } });
+                    })
+            )
+            .mockResolvedValueOnce({ data: { result: { status: 'ok', changed: true }, peer: peer() } });
+        renderSettings();
+
+        const syncButtons = await screen.findAllByRole('button', { name: 'federationSyncNow' });
+        fireEvent.click(syncButtons[0]);
+        fireEvent.click(syncButtons[1]);
+        // The second finishing must not release the first.
+        await waitFor(() => expect(showSnackbar).toHaveBeenCalledWith('federationSyncDone:{"name":"Office"}', 'success'));
+        expect(screen.getAllByRole('button', { name: 'remove' })[0]).toBeDisabled();
+
+        finishFirst();
+        await waitFor(() => expect(screen.getAllByRole('button', { name: 'remove' })[0]).toBeEnabled());
     });
 
     it('disables a peer and removes one after confirmation', async () => {

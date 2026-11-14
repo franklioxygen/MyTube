@@ -1957,6 +1957,7 @@ export const ru = {
   federationCredentialTitle: "Скопируйте ключ доступа сейчас",
   federationCredentialWarning: "Ключ показывается только один раз. Вставьте его в настройки другого экземпляра.",
   federationCredentialCopied: "Ключ доступа скопирован",
+  federationCopyFailed: "Не удалось скопировать. Выделите текст и скопируйте его вручную.",
   federationPeersTitle: "Подключённые экземпляры",
   federationPeersDescription: "Подключитесь к другому серверу MyTube с помощью выданного им ключа доступа. Его видео синхронизируются сюда, и пока их видите только вы.",
   federationAddPeer: "Подключить экземпляр",

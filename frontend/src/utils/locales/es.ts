@@ -1976,6 +1976,7 @@ export const es = {
   federationCredentialTitle: "Copia ahora la clave de acceso",
   federationCredentialWarning: "Esta es la única vez que se muestra la clave. Pégala en la configuración de la otra instancia.",
   federationCredentialCopied: "Clave de acceso copiada",
+  federationCopyFailed: "No se pudo copiar. Selecciona el texto y cópialo manualmente.",
   federationPeersTitle: "Instancias conectadas",
   federationPeersDescription: "Conéctate a otro servidor MyTube con una clave de acceso que haya emitido. Sus vídeos se sincronizan aquí y, por ahora, solo tú puedes verlos.",
   federationAddPeer: "Conectar instancia",

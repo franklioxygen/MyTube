@@ -1,5 +1,6 @@
 import { Express, Request, RequestHandler, Response } from "express";
 import rateLimit from "express-rate-limit";
+import { hasUsableFederationCredential } from "../services/federation/tokenService";
 import { buildErrorRssXml, getBaseUrl, setRssNoStoreHeaders } from "../services/rssService";
 import { getClientIp } from "../utils/security";
 import { logger } from "../utils/logger";
@@ -169,7 +170,11 @@ const createLiveTranslationSessionLimiter = (): RequestHandler => {
 // Counts only requests that fail authentication. Secrets are 256-bit, so this
 // bounds noise from misconfigured or probing clients. An authenticated
 // consumer's 404s (a missing thumbnail) or 409s (a stale snapshot) are normal
-// protocol traffic and must not lock it out.
+// protocol traffic and must not lock it out. Nor may its concurrency: the
+// limiter counts a request on arrival, so a prime loading a thumbnail grid or
+// holding long media streams would fill the window. A request carrying a
+// usable credential is therefore never counted; the check has no side effects
+// and the protocol router verifies the credential again.
 const FEDERATION_MAX_FAILED_REQUESTS = 30;
 
 const createFederationProtocolLimiter = (): RequestHandler =>
@@ -178,6 +183,7 @@ const createFederationProtocolLimiter = (): RequestHandler =>
     max: FEDERATION_MAX_FAILED_REQUESTS,
     standardHeaders: true,
     legacyHeaders: false,
+    skip: (req) => hasUsableFederationCredential(req.headers.authorization),
     skipSuccessfulRequests: true,
     requestWasSuccessful: (req, res) =>
       res.statusCode < 400 || req.federationPrincipal !== undefined,

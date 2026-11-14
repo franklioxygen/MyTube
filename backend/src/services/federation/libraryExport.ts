@@ -4,6 +4,7 @@ import { db } from "../../db";
 import { videos } from "../../db/schema";
 import { projectAuthorAvatar, projectAuthorAvatars } from "../authorAvatarService";
 import { CLOUD_PREFIX, getCloudStorageOrigin } from "./cloudAssetProxy";
+import { FIELD_LIMITS } from "./protocolSchema";
 import type { FederationVisibilityCeiling } from "./tokenService";
 
 /**
@@ -193,6 +194,13 @@ export function servableSubtitles(
   return tracks;
 }
 
+const L = FIELD_LIMITS;
+/** Long free text is cut to the protocol limit. */
+const clip = (value: string | null, max: number): string | null => (value === null ? null : value.slice(0, max));
+/** A short or structured field that is too long is junk: drop it. */
+const fit = (value: string | null, max: number): string | null =>
+  value !== null && value.length <= max ? value : null;
+
 export function toSummary(
   row: ExportRow,
   cloudAvailable = isCloudStorageAvailable()
@@ -216,26 +224,29 @@ export function toSummary(
 
   return {
     id: row.id,
-    title: row.title,
-    author: row.author,
-    date: row.date,
-    source: row.source,
-    sourceUrl: row.sourceUrl,
-    sourceVideoId: row.sourceVideoId,
-    channelUrl: row.channelUrl,
-    addedAt: row.addedAt,
+    // Every field fits the protocol limits, which the prime enforces.
+    title: clip(row.title, L.title) || row.id,
+    author: clip(row.author, L.author),
+    date: fit(row.date, L.shortText),
+    source: fit(row.source, L.shortText),
+    sourceUrl: fit(row.sourceUrl, L.url),
+    sourceVideoId: fit(row.sourceVideoId, L.sourceVideoId),
+    channelUrl: fit(row.channelUrl, L.url),
+    addedAt: fit(row.addedAt, L.shortText),
     createdAt: row.createdAt,
-    updatedAt: row.updatedAt,
+    updatedAt: fit(row.updatedAt, L.shortText),
     partNumber: row.partNumber,
     totalParts: row.totalParts,
-    seriesTitle: row.seriesTitle,
+    seriesTitle: clip(row.seriesTitle, L.title),
     rating: row.rating,
-    duration: row.duration,
+    duration: fit(row.duration, L.shortText),
     width: row.width,
     height: row.height,
-    fileSize: row.fileSize,
-    mediaType: row.mediaType ?? "video",
-    tags: parseArray(row.tags).filter((tag): tag is string => typeof tag === "string"),
+    fileSize: fit(row.fileSize, L.fileSize),
+    mediaType: fit(row.mediaType, L.mediaType) ?? "video",
+    tags: parseArray(row.tags)
+      .filter((tag): tag is string => typeof tag === "string" && tag.length <= L.tag)
+      .slice(0, L.tags),
     visibility: row.visibility === 0 ? 0 : 1,
     // Only what the asset endpoint actually serves counts as available.
     assets: {
@@ -251,7 +262,7 @@ export function toSummary(
 export function toDetail(row: ExportRow & { description: string | null }): FederationVideoDetail {
   return {
     ...toSummary(row),
-    description: row.description,
+    description: clip(row.description, L.description),
     subtitles: servableSubtitles(row.subtitles).map(({ path: _path, ...track }) => track),
   };
 }

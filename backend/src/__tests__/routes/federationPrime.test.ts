@@ -25,7 +25,7 @@ import {
 } from "../../services/federation/credentialVault";
 import { getInstanceId } from "../../services/federation/instanceIdentity";
 import type { FederationVideoSummary } from "../../services/federation/libraryExport";
-import { updatePeer } from "../../services/federation/peerService";
+import { invalidateInFlightSyncs, updatePeer } from "../../services/federation/peerService";
 import { syncPeer } from "../../services/federation/peerSync";
 import { initializeStorage } from "../../services/storageService/initialization";
 import { DATA_DIR } from "../../config/paths";
@@ -233,6 +233,8 @@ const register = async (api: Awaited<ReturnType<typeof admin>>, baseUrl = peerUr
   api.post("/api/federation/peers", { name: "Living room NAS", baseUrl, credential });
 
 /** Registers, then waits for the background sync (a manual sync joins it). */
+type Api = Awaited<ReturnType<typeof admin>>;
+
 const registerAndSync = async () => {
   const api = await admin();
   const created = await register(api);
@@ -418,6 +420,64 @@ describe("syncing", () => {
 
     expect((await api.post(`/api/federation/peers/${id}/sync`)).body.result.status).toBe(status);
     expect((await library(api)).total).toBe(0);
+  });
+
+  it.each([
+    [
+      "the credential was refused",
+      async (api: Api, id: string) => {
+        peer.acceptedCredentials.clear();
+        expect((await api.post(`/api/federation/peers/${id}/sync`)).body.result.status).toBe("credential_rejected");
+        peer.acceptedCredentials.add(CRED);
+      },
+    ],
+    [
+      "the credential was replaced",
+      async (api: Api, id: string) => {
+        peer.acceptedCredentials.add(NEW_CRED);
+        expect((await api.put(`/api/federation/peers/${id}/credential`, { credential: NEW_CRED })).status).toBe(200);
+      },
+    ],
+    [
+      "the peer was re-enabled",
+      async (api: Api, id: string) => {
+        await api.patch(`/api/federation/peers/${id}`, { enabled: false });
+        await api.patch(`/api/federation/peers/${id}`, { enabled: true });
+      },
+    ],
+  ])("keeps the cache hidden after %s until a sync succeeds", async (_name, arrange) => {
+    const { api, id } = await registerAndSync();
+    await arrange(api, id);
+
+    // A transient failure must not make the unvalidated cache servable.
+    peer.items = ["x", "y", "z"].map((id, i) => summary(id, `2026-02-0${i + 1}T00:00:00.000Z`));
+    peer.libraryRevision = "lib-2";
+    peer.failPage = 1;
+    expect((await api.post(`/api/federation/peers/${id}/sync`)).body.result.status).toBe("error");
+    expect((await library(api)).total).toBe(0);
+
+    peer.failPage = null;
+    expect((await api.post(`/api/federation/peers/${id}/sync`)).body.result.status).toBe("ok");
+    expect((await library(api)).total).toBe(3);
+  });
+
+  it("never commits a sync begun before the database was replaced", async () => {
+    const { api, id } = await registerAndSync();
+    peer.items = [...initialItems(), summary("late", "2026-03-01T00:00:00.000Z")];
+    peer.libraryRevision = "lib-2";
+    peer.pageDelayMs = 50;
+
+    const running = syncPeer(id);
+    await vi.waitFor(() => expect(peer.snapshotRequests).toBeGreaterThan(1));
+    // A restore can bring back the very generation the sync captured, so
+    // the binding alone cannot tell; the replacement itself must.
+    invalidateInFlightSyncs();
+    const result = await running;
+
+    expect(result.changed).toBe(false);
+    const count = sqlite.prepare("SELECT COUNT(*) AS c FROM federation_remote_videos").get() as { c: number };
+    expect(count.c).toBe(3);
+    expect((await library(api)).total).toBe(3);
   });
 
   it("resumes with the same ids after the credential is replaced", async () => {

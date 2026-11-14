@@ -15,7 +15,10 @@ import { errorHandler } from "../../middleware/errorHandler";
 import { roleBasedAuthMiddleware } from "../../middleware/roleBasedAuthMiddleware";
 import { buildApiRouter } from "../../routes/api";
 import { ensureFederationTables } from "../../services/storageService/migrations/schemaMigrations";
-import { suspendUsableFederationTokens } from "../../services/federation/tokenService";
+import {
+  authenticateFederationRequest,
+  suspendUsableFederationTokens,
+} from "../../services/federation/tokenService";
 
 let user: UserPayload | undefined;
 let apiKey = false;
@@ -90,6 +93,17 @@ describe("federation token management", () => {
     expect(rotated.status).toBe(200);
     expect(rotated.body.token.policyRevision).not.toBe(created.body.token.policyRevision);
     expect(rotated.body.credential).not.toBe(created.body.credential);
+    // The replacement authenticates as the same token with the same grants;
+    // the old secret no longer does.
+    const prime = "6f9619ff-8b86-4011-b42d-00c04fc964ff";
+    expect(authenticateFederationRequest(`Federation ${rotated.body.credential}`, prime)).toMatchObject({
+      ok: true,
+      principal: { tokenId: id, scopes: ["library:read", "media:read"], visibilityCeiling: "public" },
+    });
+    expect(authenticateFederationRequest(`Federation ${created.body.credential}`, prime)).toEqual({
+      ok: false,
+      reason: "invalid_credential",
+    });
 
     suspendUsableFederationTokens();
     const resumed = await api.post(`/api/federation/tokens/${id}/resume`);

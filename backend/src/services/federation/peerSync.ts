@@ -5,9 +5,11 @@ import type { FederationVideoSummary } from "./libraryExport";
 import { peerJsonRequest, PeerError, type PeerConnection } from "./peerClient";
 import {
   connectionFor,
+  getDatabaseEpoch,
   handshake,
   HandshakeError,
   readPeerRow,
+  SERVABLE_PEER_STATUSES,
   type PeerRow,
   type PeerStatus,
 } from "./peerService";
@@ -24,8 +26,8 @@ import {
  * Nothing is written until a whole snapshot has been read and validated and
  * the peer confirms its revisions did not move. The commit is one local
  * transaction that also checks the binding is still enabled and of the same
- * generation, so a disable, credential change or restore during the sync
- * discards it. Only a validated, complete snapshot may tombstone items: a
+ * generation, and that the database file was not replaced since the sync
+ * began, so a disable, credential change, import or restore discards it. Only a validated, complete snapshot may tombstone items: a
  * timeout, refusal, bad payload or partial read keeps the last good state.
  */
 
@@ -53,15 +55,30 @@ class SyncAbort extends Error {
 
 const inFlight = new Map<string, Promise<SyncResult>>();
 
-const recordAttempt = (row: PeerRow, status: PeerStatus, error: string | null, now: number): void => {
-  // Health is recorded only for the generation that ran; a newer one owns it.
+const recordAttempt = (
+  row: PeerRow,
+  epoch: number,
+  status: PeerStatus,
+  error: string | null,
+  now: number
+): void => {
+  // Health is recorded only for the generation, and the database file, that
+  // ran; a newer one owns it.
+  if (getDatabaseEpoch() !== epoch) return;
+  // A non-servable outcome also drops the validated revision, so the cache
+  // stays hidden until a sync commits again (see SERVABLE_PEER_STATUSES).
+  const keepsCache = SERVABLE_PEER_STATUSES.includes(status);
   sqlite
     .prepare(
-      `UPDATE federation_peers SET status = ?, last_error = ?, last_attempt_at = ?, updated_at = ?
+      `UPDATE federation_peers
+         SET status = ?, last_error = ?, last_attempt_at = ?, updated_at = ?,
+             library_revision = CASE WHEN ? THEN library_revision ELSE NULL END
        WHERE id = ? AND generation = ?`
     )
-    .run(status, error, now, now, row.id, row.generation);
+    .run(status, error, now, now, keepsCache ? 1 : 0, row.id, row.generation);
 };
+
+const REPLACED = "The database was replaced during the sync.";
 
 const statusFor = (error: unknown): PeerStatus => {
   if (error instanceof SyncAbort) return error.status;
@@ -146,12 +163,14 @@ const newRemoteId = (): string => {
 
 function commit(
   row: PeerRow,
+  epoch: number,
   items: FederationVideoSummary[],
   libraryRevision: string,
   policyRevision: string,
   now: number
 ): { upserted: number; tombstoned: number } {
   return sqlite.transaction(() => {
+    if (getDatabaseEpoch() !== epoch) throw new SyncAbort(row.status, REPLACED);
     const current = readPeerRow(row.id);
     if (!current || current.enabled !== 1 || current.generation !== row.generation) {
       throw new SyncAbort(current?.status ?? "error", "The peer binding changed during the sync.");
@@ -212,6 +231,7 @@ function commit(
 }
 
 async function runSync(peerId: string): Promise<SyncResult> {
+  const epoch = getDatabaseEpoch();
   const row = readPeerRow(peerId);
   if (!row) return { peerId, status: "error", changed: false, error: "Unknown peer." };
   if (row.enabled !== 1) return { peerId, status: row.status, changed: false, error: "The peer is disabled." };
@@ -219,7 +239,7 @@ async function runSync(peerId: string): Promise<SyncResult> {
   const connection = connectionFor(row);
   if (!connection) {
     const message = "The credential cannot be decrypted; the federation key is missing or changed.";
-    recordAttempt(row, "credential_missing", message, Date.now());
+    recordAttempt(row, epoch, "credential_missing", message, Date.now());
     return { peerId, status: "credential_missing", changed: false, error: message };
   }
 
@@ -245,6 +265,7 @@ async function runSync(peerId: string): Promise<SyncResult> {
       revision.libraryRevision === row.library_revision &&
       revision.policyRevision === row.policy_revision
     ) {
+      if (getDatabaseEpoch() !== epoch) throw new SyncAbort(row.status, REPLACED);
       const now = Date.now();
       sqlite
         .prepare(
@@ -264,13 +285,13 @@ async function runSync(peerId: string): Promise<SyncResult> {
       throw new PeerError("stale", "The peer library changed while it was being read.");
     }
 
-    const counts = commit(row, snapshot.items, snapshot.libraryRevision, snapshot.policyRevision, Date.now());
+    const counts = commit(row, epoch, snapshot.items, snapshot.libraryRevision, snapshot.policyRevision, Date.now());
     return { peerId, status: "ok", changed: true, ...counts };
   } catch (error) {
     const status = statusFor(error);
     const message = error instanceof Error ? error.message : String(error);
     logger.warn("[Federation] Peer sync failed", { peerId, status, error: message });
-    recordAttempt(row, status, message, Date.now());
+    recordAttempt(row, epoch, status, message, Date.now());
     return { peerId, status, changed: false, error: message };
   }
 }

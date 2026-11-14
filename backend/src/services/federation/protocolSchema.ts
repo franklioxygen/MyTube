@@ -52,6 +52,24 @@ const strList = (value: unknown, field: string, maxItems: number, maxLength: num
 
 export const MAX_REMOTE_ID_LENGTH = 200;
 
+/**
+ * Field limits of protocol v1. The peer's exporter fits every item to them,
+ * so one oversized title cannot fail a whole snapshot.
+ */
+export const FIELD_LIMITS = {
+  title: 4000,
+  author: 2000,
+  shortText: 64,
+  url: 2048,
+  sourceVideoId: 200,
+  fileSize: 32,
+  mediaType: 32,
+  tags: 1000,
+  tag: 500,
+  description: 1_000_000,
+} as const;
+const L = FIELD_LIMITS;
+
 export interface PeerCapabilities {
   instanceId: string;
   protocolVersions: number[];
@@ -137,26 +155,26 @@ export function parseSummary(item: unknown): FederationVideoSummary {
   const visibility = v.visibility === 0 || v.visibility === 1 ? v.visibility : fail("visibility");
   return {
     id: str(v.id, "id", MAX_REMOTE_ID_LENGTH),
-    title: str(v.title, "title", 4000),
-    author: optStr(v.author, "author", 2000),
-    date: optStr(v.date, "date", 64),
-    source: optStr(v.source, "source", 64),
-    sourceUrl: optStr(v.sourceUrl, "sourceUrl", 2048),
-    sourceVideoId: optStr(v.sourceVideoId, "sourceVideoId", 200),
-    channelUrl: optStr(v.channelUrl, "channelUrl", 2048),
-    addedAt: optStr(v.addedAt, "addedAt", 64),
-    createdAt: str(v.createdAt, "createdAt", 64),
-    updatedAt: optStr(v.updatedAt, "updatedAt", 64),
+    title: str(v.title, "title", L.title),
+    author: optStr(v.author, "author", L.author),
+    date: optStr(v.date, "date", L.shortText),
+    source: optStr(v.source, "source", L.shortText),
+    sourceUrl: optStr(v.sourceUrl, "sourceUrl", L.url),
+    sourceVideoId: optStr(v.sourceVideoId, "sourceVideoId", L.sourceVideoId),
+    channelUrl: optStr(v.channelUrl, "channelUrl", L.url),
+    addedAt: optStr(v.addedAt, "addedAt", L.shortText),
+    createdAt: str(v.createdAt, "createdAt", L.shortText),
+    updatedAt: optStr(v.updatedAt, "updatedAt", L.shortText),
     partNumber: optNum(v.partNumber, "partNumber"),
     totalParts: optNum(v.totalParts, "totalParts"),
-    seriesTitle: optStr(v.seriesTitle, "seriesTitle", 4000),
+    seriesTitle: optStr(v.seriesTitle, "seriesTitle", L.title),
     rating: optNum(v.rating, "rating"),
-    duration: optStr(v.duration, "duration", 64),
+    duration: optStr(v.duration, "duration", L.shortText),
     width: optNum(v.width, "width"),
     height: optNum(v.height, "height"),
-    fileSize: optStr(v.fileSize, "fileSize", 32),
-    mediaType: str(v.mediaType, "mediaType", 32),
-    tags: strList(v.tags, "tags", 1000, 500),
+    fileSize: optStr(v.fileSize, "fileSize", L.fileSize),
+    mediaType: str(v.mediaType, "mediaType", L.mediaType),
+    tags: strList(v.tags, "tags", L.tags, L.tag),
     visibility,
     assets: {
       media: bool(assets.media, "assets.media"),
@@ -207,7 +225,7 @@ export function parseDetail(body: unknown): FederationVideoDetail {
     Array.isArray(detail.subtitles) && detail.subtitles.length <= 100 ? detail.subtitles : fail("subtitles");
   return {
     ...parseSummary(detail),
-    description: optStr(detail.description, "description", 1_000_000),
+    description: optStr(detail.description, "description", L.description),
     subtitles: subtitles.map(parseTrack),
   };
 }

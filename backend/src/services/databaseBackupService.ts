@@ -6,7 +6,7 @@ import { DATA_DIR } from "../config/paths";
 import { sqlite } from "../db";
 import { runMigrations } from "../db/migrate";
 import { NotFoundError, ValidationError } from "../errors/DownloadErrors";
-import { disablePeersAfterRestore } from "./federation/peerService";
+import { disablePeersAfterRestore, invalidateInFlightSyncs } from "./federation/peerService";
 import { suspendUsableFederationTokens } from "./federation/tokenService";
 import { logger } from "../utils/logger";
 import {
@@ -61,6 +61,31 @@ function afterDatabaseReplaced(): void {
 }
 
 /**
+ * Put the backup taken before an import or restore back in place after the
+ * operation failed, so a half-applied file (possibly carrying restored
+ * federation credentials that were never suspended) does not stay live. Best
+ * effort: a failed rollback is logged and the caller rethrows the original
+ * error.
+ */
+function rollBackToBackup(backupPath: string, operation: "import" | "restore"): void {
+  if (!pathExistsSafeSync(backupPath, DATA_DIR)) return;
+  try {
+    const resolvedBackupPath = path.resolve(backupPath);
+    if (!isPathWithinDirectory(resolvedBackupPath, RESOLVED_DATA_DIR)) {
+      throw new ValidationError("Invalid backup file path", "file");
+    }
+    invalidateInFlightSyncs();
+    copyFileSafeSync(resolvedBackupPath, DATA_DIR, RESOLVED_DB_PATH, DATA_DIR);
+    // The failure may have happened after the connection was reopened on the
+    // replaced file, so point it back at the rolled-back database.
+    reinitializeDatabase();
+    logger.info(`Restored database from backup after failed ${operation}`);
+  } catch (restoreError) {
+    logger.error("Failed to restore database from backup:", restoreError);
+  }
+}
+
+/**
  * Export database as backup file
  * Returns an immutable SQLite snapshot. The caller owns cleanup after transfer.
  */
@@ -100,6 +125,8 @@ export async function importDatabase(fileBuffer: Buffer): Promise<void> {
   const backupPath = createBackup();
 
   try {
+    // Nothing a federation sync read from the old file may land in the new one.
+    invalidateInFlightSyncs();
     // Close the current database connection before replacing the file
     sqlite.close();
     logger.info("Closed current database connection for import");
@@ -128,31 +155,7 @@ export async function importDatabase(fileBuffer: Buffer): Promise<void> {
     // leaving restored credentials usable.
     afterDatabaseReplaced();
   } catch (error: unknown) {
-    // Restore backup if import failed
-    if (pathExistsSafeSync(backupPath, DATA_DIR)) {
-      try {
-        const resolvedBackupPath = path.resolve(backupPath);
-        const isSafeBackupPath = isPathWithinDirectory(
-          resolvedBackupPath,
-          RESOLVED_DATA_DIR,
-        );
-        if (!isSafeBackupPath) {
-          throw new ValidationError("Invalid backup file path", "file");
-        }
-        copyFileSafeSync(
-          resolvedBackupPath,
-          DATA_DIR,
-          RESOLVED_DB_PATH,
-          DATA_DIR,
-        );
-        // The failure may have happened after the connection was reopened on
-        // the (bad) imported file, so point it back at the restored backup.
-        reinitializeDatabase();
-        logger.info("Restored database from backup after failed import");
-      } catch (restoreError) {
-        logger.error("Failed to restore database from backup:", restoreError);
-      }
-    }
+    rollBackToBackup(backupPath, "import");
 
     // Log the actual error for debugging
     logger.error(
@@ -314,12 +317,14 @@ export async function restoreFromLastBackup(): Promise<void> {
   validateDatabase(resolvedBackupPath);
 
   // Create backup of current database before restore
-  createBackup();
+  const preRestoreBackupPath = createBackup();
 
   // From the copy on, the restored file may be live even if a later step
   // fails (a reconnect can reopen it on the next request), so every path
   // through here bumps; see importDatabase.
   try {
+    // Nothing a federation sync read from the old file may land in the new one.
+    invalidateInFlightSyncs();
     // Close the current database connection before replacing the file
     sqlite.close();
     logger.info("Closed current database connection for restore");
@@ -343,7 +348,12 @@ export async function restoreFromLastBackup(): Promise<void> {
     // just-restored backup.
     await runMigrations({ skipLegacyDataMigration: true });
 
+    // Inside the try, as for import: if this fails, the restore rolls back
+    // rather than leaving restored credentials usable.
     afterDatabaseReplaced();
+  } catch (error: unknown) {
+    rollBackToBackup(preRestoreBackupPath, "restore");
+    throw error;
   } finally {
     bumpVideosListRevision();
   }

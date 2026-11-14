@@ -172,9 +172,14 @@ const FederationTokens: React.FC = () => {
                             size="small"
                             aria-label={t('federationCopy')}
                             onClick={() =>
-                                void copyTextToClipboard(data.instanceId).then(
-                                    (ok) => ok && showSnackbar(t('copied'), 'success')
-                                )
+                                void copyTextToClipboard(data.instanceId)
+                                    .catch(() => false)
+                                    .then((ok) =>
+                                        showSnackbar(
+                                            t(ok ? 'copied' : 'federationCopyFailed'),
+                                            ok ? 'success' : 'error'
+                                        )
+                                    )
                             }
                         >
                             <ContentCopyIcon fontSize="small" />

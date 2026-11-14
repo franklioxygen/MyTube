@@ -23,7 +23,28 @@ export type PeerStatus =
   | "incompatible";
 
 /** Statuses under which a peer's cached items may be shown (stale or not). */
+/**
+ * Statuses whose cached items may be served. A peer is servable only while it
+ * also holds a library revision: every move into a non-servable state
+ * (quarantine, a new credential, re-enabling, a restore) clears it, and only a
+ * committed sync sets it again, so a later transient failure ("error") cannot
+ * expose a cache nobody has revalidated.
+ */
 export const SERVABLE_PEER_STATUSES: readonly PeerStatus[] = ["ok", "error"];
+
+let databaseEpoch = 0;
+
+/**
+ * Called before the database file is replaced (import, restore, rollback). A
+ * sync that began against the old file must not write into the new one, and
+ * the stored generation cannot tell: a restore can bring back the very
+ * generation the sync captured.
+ */
+export function invalidateInFlightSyncs(): void {
+  databaseEpoch += 1;
+}
+
+export const getDatabaseEpoch = (): number => databaseEpoch;
 
 export interface FederationPeer {
   id: string;
@@ -266,10 +287,11 @@ export function updatePeer(id: string, input: { name?: unknown; enabled?: unknow
       `UPDATE federation_peers
          SET name = ?, enabled = ?, updated_at = ?,
              generation = generation + ?,
-             status = CASE WHEN ? THEN 'pending' ELSE status END
+             status = CASE WHEN ? THEN 'pending' ELSE status END,
+             library_revision = CASE WHEN ? THEN NULL ELSE library_revision END
        WHERE id = ?`
     )
-    .run(name, enabled ? 1 : 0, Date.now(), toggled ? 1 : 0, toggled && enabled ? 1 : 0, id);
+    .run(name, enabled ? 1 : 0, Date.now(), toggled ? 1 : 0, toggled && enabled ? 1 : 0, toggled ? 1 : 0, id);
   if (toggled) endFederationStreams([peerStreamKey(id)]);
   return toPeer(readPeerRow(id)!);
 }
@@ -296,7 +318,8 @@ export async function replacePeerCredential(id: string, credentialInput: unknown
     .prepare(
       `UPDATE federation_peers
          SET credential_ciphertext = ?, audience = ?, can_stream_media = ?,
-             status = 'pending', last_error = NULL, generation = generation + 1, updated_at = ?
+             status = 'pending', last_error = NULL, library_revision = NULL,
+             generation = generation + 1, updated_at = ?
        WHERE id = ?`
     )
     .run(
@@ -330,7 +353,10 @@ export function disablePeersAfterRestore(): number {
     (row) => row.id
   );
   sqlite
-    .prepare("UPDATE federation_peers SET enabled = 0, generation = generation + 1, updated_at = ? WHERE enabled = 1")
+    .prepare(
+      `UPDATE federation_peers SET enabled = 0, library_revision = NULL, generation = generation + 1, updated_at = ?
+       WHERE enabled = 1`
+    )
     .run(Date.now());
   endFederationStreams(ids.map(peerStreamKey));
   return ids.length;

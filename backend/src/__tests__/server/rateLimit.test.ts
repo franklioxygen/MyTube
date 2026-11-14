@@ -23,6 +23,10 @@ vi.mock("../../utils/security", () => ({
   getClientIp: vi.fn(() => "203.0.113.1"),
 }));
 
+vi.mock("../../services/federation/tokenService", () => ({
+  hasUsableFederationCredential: vi.fn((authorization?: string) => authorization === "Federation usable"),
+}));
+
 vi.mock("../../utils/logger", () => ({
   logger: {
     warn: vi.fn(),
@@ -95,6 +99,11 @@ describe("configureRateLimiting", () => {
       federationOptions.requestWasSuccessful({ federationPrincipal: {} }, { statusCode: 404 })
     ).toBe(true);
     expect(federationOptions.requestWasSuccessful({}, { statusCode: 200 })).toBe(true);
+    // Traffic with a usable credential is never counted, so a prime's
+    // concurrent thumbnails and streams cannot fill the failed-auth window.
+    expect(federationOptions.skip({ headers: { authorization: "Federation usable" } })).toBe(true);
+    expect(federationOptions.skip({ headers: { authorization: "Federation forged" } })).toBe(false);
+    expect(federationOptions.skip({ headers: {} })).toBe(false);
     const status = vi.fn(() => ({ json: vi.fn() }));
     federationOptions.handler({ method: "GET", path: "/capabilities" }, { status });
     expect(status).toHaveBeenCalledWith(429);

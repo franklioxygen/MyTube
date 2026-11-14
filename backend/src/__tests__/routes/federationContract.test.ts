@@ -79,6 +79,18 @@ beforeAll(() => {
         subtitles: JSON.stringify([{ path: "/subtitles/full.en.vtt", language: "en" }]),
       },
       { id: "sparse", title: "Mostly empty", createdAt: "2026-01-01T00:00:00.000Z" },
+      {
+        // Downloads, imports and merges can store values past the protocol
+        // limits; one such row must not fail the whole snapshot.
+        id: "oversized",
+        title: "t".repeat(5000),
+        author: "a".repeat(3000),
+        sourceUrl: `https://example.com/${"p".repeat(3000)}`,
+        duration: "d".repeat(100),
+        tags: JSON.stringify(["ok", "x".repeat(600)]),
+        description: "long",
+        createdAt: "2026-01-01T00:00:00.000Z",
+      },
     ])
     .run();
 });
@@ -100,14 +112,22 @@ describe("peer responses satisfy the prime's validators", () => {
     const pageBody = (await call("get", `/snapshots/${descriptor.snapshotId}/videos`)).body;
     const page = parseSnapshotPage(pageBody, descriptor.pageSize);
 
-    expect(page.items).toHaveLength(2);
+    expect(page.items).toHaveLength(3);
     // Nothing the peer sends is lost or altered by validation.
     expect(page.items).toEqual(pageBody.items);
     expect(page.items.find((item) => item.id === "full")?.tags).toEqual(["music", "live"]);
+    // Oversized text is cut, oversized short fields and URLs are dropped.
+    expect(page.items.find((item) => item.id === "oversized")).toMatchObject({
+      title: "t".repeat(4000),
+      author: "a".repeat(2000),
+      sourceUrl: null,
+      duration: null,
+      tags: ["ok"],
+    });
   });
 
   it("details, field for field", async () => {
-    for (const id of ["full", "sparse"]) {
+    for (const id of ["full", "sparse", "oversized"]) {
       const body = (await call("get", `/videos/${id}?audience=owner`)).body;
       expect(parseDetail(body)).toEqual(body);
     }

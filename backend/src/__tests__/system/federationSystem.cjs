@@ -209,21 +209,35 @@ async function main() {
     );
 
     // --- Revocation ends an in-flight stream --------------------------------
-    const received = await new Promise((resolve) => {
-      let bytes = 0;
+    // Only a started transfer, cut after a successful revoke, counts: a
+    // request that failed outright would also deliver fewer bytes.
+    const transfer = await new Promise((resolve) => {
+      const outcome = { status: 0, bytes: 0, revokeStatus: 0, failed: null };
       const req = http.get(`${prime.base}/api/federation/media/${local.id}/media`, (res) => {
+        outcome.status = res.statusCode;
         res.once("data", async (chunk) => {
-          bytes += chunk.length;
+          outcome.bytes += chunk.length;
           res.pause();
-          await peer.post(`/api/federation/tokens/${minted.json.token.id}/revoke`);
-          res.on("data", (more) => (bytes += more.length));
+          outcome.revokeStatus = (await peer.post(`/api/federation/tokens/${minted.json.token.id}/revoke`)).status;
+          res.on("data", (more) => (outcome.bytes += more.length));
           res.resume();
         });
-        res.on("close", () => resolve(bytes));
+        res.on("close", () => resolve(outcome));
       });
-      req.on("error", () => resolve(bytes));
+      req.on("error", (error) => {
+        if (outcome.status === 0) outcome.failed = error.message;
+        resolve(outcome);
+      });
     });
-    check("revoking the token on the peer cuts the prime's stream", received < MEDIA_BYTES, `${received} of ${MEDIA_BYTES} bytes`);
+    check(
+      "revoking the token on the peer cuts the prime's stream",
+      transfer.failed === null &&
+        transfer.status === 200 &&
+        transfer.bytes > 0 &&
+        transfer.revokeStatus === 200 &&
+        transfer.bytes < MEDIA_BYTES,
+      JSON.stringify(transfer)
+    );
 
     const afterRevoke = await prime.post(`/api/federation/peers/${peerId}/sync`);
     library = (await prime.get("/api/federation/library")).json;

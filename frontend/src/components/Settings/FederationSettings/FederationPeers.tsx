@@ -50,7 +50,8 @@ const FederationPeers: React.FC = () => {
     const [baseUrl, setBaseUrl] = useState('');
     const [credential, setCredential] = useState('');
     const [submitting, setSubmitting] = useState(false);
-    const [busyPeer, setBusyPeer] = useState<string | null>(null);
+    // Several peers can be busy at once; each clears only its own entry.
+    const [busyPeers, setBusyPeers] = useState<ReadonlySet<string>>(() => new Set());
     const [removing, setRemoving] = useState<FederationPeer | null>(null);
 
     const { data, isLoading, isError } = useQuery({
@@ -90,13 +91,17 @@ const FederationPeers: React.FC = () => {
     };
 
     const withPeer = async (peer: FederationPeer, work: () => Promise<void>) => {
-        setBusyPeer(peer.id);
+        setBusyPeers((current) => new Set(current).add(peer.id));
         try {
             await work();
         } catch (error) {
             fail(error);
         } finally {
-            setBusyPeer(null);
+            setBusyPeers((current) => {
+                const next = new Set(current);
+                next.delete(peer.id);
+                return next;
+            });
             refresh();
         }
     };
@@ -167,7 +172,7 @@ const FederationPeers: React.FC = () => {
                 </Typography>
             )}
             {data.map((peer) => {
-                const busy = busyPeer === peer.id;
+                const busy = busyPeers.has(peer.id);
                 return (
                     <Box
                         key={peer.id}

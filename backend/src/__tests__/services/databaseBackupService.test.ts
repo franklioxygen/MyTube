@@ -1,6 +1,9 @@
 vi.mock("../../services/storageService/videoListRevision", () => ({ bumpVideosListRevision: vi.fn() }));
 vi.mock("../../services/federation/tokenService", () => ({ suspendUsableFederationTokens: vi.fn(() => 2) }));
-vi.mock("../../services/federation/peerService", () => ({ disablePeersAfterRestore: vi.fn(() => 0) }));
+vi.mock("../../services/federation/peerService", () => ({
+  disablePeersAfterRestore: vi.fn(() => 0),
+  invalidateInFlightSyncs: vi.fn(),
+}));
 import Database from "better-sqlite3";
 import crypto from "crypto";
 import fs from "fs-extra";
@@ -11,7 +14,7 @@ import * as databaseBackupService from "../../services/databaseBackupService";
 import { invalidateSettingsCache } from "../../services/storageService/settings";
 import { runMigrations } from "../../db/migrate";
 import { suspendUsableFederationTokens } from "../../services/federation/tokenService";
-import { disablePeersAfterRestore } from "../../services/federation/peerService";
+import { disablePeersAfterRestore, invalidateInFlightSyncs } from "../../services/federation/peerService";
 import { bumpVideosListRevision } from "../../services/storageService/videoListRevision";
 import { invalidateUserCache } from "../../services/userService";
 import { logger } from "../../utils/logger";
@@ -363,6 +366,12 @@ describe("databaseBackupService", () => {
       expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining("Suspended 2 federation token(s)"));
       // Restored peer bindings wait for the owner and a fresh sync.
       expect(disablePeersAfterRestore).toHaveBeenCalledTimes(1);
+      // Syncs begun against the old file are invalidated before it is
+      // replaced (the first copy is the pre-import safety backup).
+      expect(invalidateInFlightSyncs).toHaveBeenCalledTimes(1);
+      expect(vi.mocked(invalidateInFlightSyncs).mock.invocationCallOrder[0]).toBeLessThan(
+        vi.mocked(fs.copyFileSync).mock.invocationCallOrder[1]
+      );
     });
 
     it("rolls the import back when restored tokens cannot be suspended", async () => {
@@ -1181,9 +1190,34 @@ describe("databaseBackupService", () => {
         "migration failed"
       );
 
-      // The restored file stays live, so clients must not keep the old list.
-      expect(reinitDb).toHaveBeenCalledTimes(1);
+      // Clients may have read the restored file meanwhile, so the list still
+      // moves; then the pre-restore database goes back, as for an import, so
+      // its unsuspended federation credentials are not left live.
       expectBumpsAroundMigrations();
+      expect(reinitDb).toHaveBeenCalledTimes(2);
+      expect(logger.info).toHaveBeenCalledWith(
+        "Restored database from backup after failed restore"
+      );
+      expect(suspendUsableFederationTokens).not.toHaveBeenCalled();
+    });
+
+    it("rolls the restore back when restored tokens cannot be suspended", async () => {
+      vi.mocked(fs.readdirSync as any).mockReturnValue([
+        "mytube-backup-ok.db.backup",
+      ]);
+      vi.mocked(fs.statSync as any).mockReturnValue({ mtimeMs: 500 });
+      vi.mocked(suspendUsableFederationTokens).mockImplementationOnce(() => {
+        throw new Error("no such table: federation_tokens");
+      });
+
+      await expect(databaseBackupService.restoreFromLastBackup()).rejects.toThrow(
+        "no such table: federation_tokens"
+      );
+
+      expect(logger.info).toHaveBeenCalledWith(
+        "Restored database from backup after failed restore"
+      );
+      expect(reinitDb).toHaveBeenCalledTimes(2);
     });
 
     it.each([
