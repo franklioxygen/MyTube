@@ -39,14 +39,13 @@ export type { DatabaseMergeSummary } from "./databaseBackup/types";
 import type { DatabaseMergeSummary } from "./databaseBackup/types";
 
 /**
- * Runs once a replaced database is migrated. The library changed wholesale,
- * so list ETags and the federation export revision must move. And a backup can
- * bring back federation tokens revoked after it was taken, so every usable
- * token waits for owner confirmation; restored peer bindings likewise wait
- * for the owner and a fresh sync before serving anything.
+ * Runs once a replaced database is migrated. A backup can bring back
+ * federation tokens revoked after it was taken, so every usable token waits
+ * for owner confirmation; restored peer bindings likewise wait for the owner
+ * and a fresh sync before serving anything. (The callers' finally blocks move
+ * the list revision, which the federation export revision follows.)
  */
 function afterDatabaseReplaced(): void {
-  bumpVideosListRevision();
   const suspended = suspendUsableFederationTokens();
   if (suspended > 0) {
     logger.warn(
@@ -112,6 +111,11 @@ export async function importDatabase(fileBuffer: Buffer): Promise<void> {
     // Reinitialize the database connection with the new file
     reinitializeDatabase();
 
+    // The imported file is live from here, and migrations yield: requests
+    // holding the old list ETag must not get a 304 meanwhile. The finally
+    // bumps again once migrations end, for anyone who listed mid-migration.
+    bumpVideosListRevision();
+
     // Bring the imported database up to the current schema. An older backup
     // may predate recent migrations; running them (rather than an ad-hoc table
     // self-heal) also records Drizzle's migration journal, so the next startup
@@ -158,6 +162,11 @@ export async function importDatabase(fileBuffer: Buffer): Promise<void> {
 
     throw error;
   } finally {
+    // Whatever happened (imported, rolled back, or a rollback that failed),
+    // the live database may no longer be the library clients last listed, and
+    // requests may have read the imported file while migrations ran. Bump last
+    // so no client keeps getting a 304 for an earlier library.
+    bumpVideosListRevision();
     cleanupTempImportFile(tempImportPath);
   }
 }
@@ -307,27 +316,37 @@ export async function restoreFromLastBackup(): Promise<void> {
   // Create backup of current database before restore
   createBackup();
 
-  // Close the current database connection before replacing the file
-  sqlite.close();
-  logger.info("Closed current database connection for restore");
+  // From the copy on, the restored file may be live even if a later step
+  // fails (a reconnect can reopen it on the next request), so every path
+  // through here bumps; see importDatabase.
+  try {
+    // Close the current database connection before replacing the file
+    sqlite.close();
+    logger.info("Closed current database connection for restore");
 
-  // Copy the backup file to replace the database
-  copyFileSafeSync(resolvedBackupPath, DATA_DIR, RESOLVED_DB_PATH, DATA_DIR);
-  logger.info(
-    `Database file restored successfully from ${lastBackup.filename}`
-  );
+    // Copy the backup file to replace the database
+    copyFileSafeSync(resolvedBackupPath, DATA_DIR, RESOLVED_DB_PATH, DATA_DIR);
+    logger.info(
+      `Database file restored successfully from ${lastBackup.filename}`
+    );
 
-  // Reinitialize the database connection with the restored file
-  reinitializeDatabase();
+    // Reinitialize the database connection with the restored file
+    reinitializeDatabase();
 
-  // Migrate the restored database to the current schema and record Drizzle's
-  // migration journal, so an older backup does not leave later migrations
-  // unapplied (and does not crash a subsequent startup re-running them). Skip
-  // the legacy JSON data migration so stale on-disk files do not overwrite the
-  // just-restored backup.
-  await runMigrations({ skipLegacyDataMigration: true });
+    // Live from here; migrations yield, so invalidate the old ETag now too.
+    bumpVideosListRevision();
 
-  afterDatabaseReplaced();
+    // Migrate the restored database to the current schema and record Drizzle's
+    // migration journal, so an older backup does not leave later migrations
+    // unapplied (and does not crash a subsequent startup re-running them). Skip
+    // the legacy JSON data migration so stale on-disk files do not overwrite the
+    // just-restored backup.
+    await runMigrations({ skipLegacyDataMigration: true });
+
+    afterDatabaseReplaced();
+  } finally {
+    bumpVideosListRevision();
+  }
 }
 
 /**

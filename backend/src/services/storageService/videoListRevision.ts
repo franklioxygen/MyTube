@@ -14,7 +14,7 @@ import crypto from "crypto";
 // update), videoDeletion, tagService (rename/delete tags), metadataService
 // (duration backfill), filenameTemplate/renameJobService, authorAvatarService,
 // bulkVideoOrganizationService, downloadedMediaIdentity, and database
-// merge/import/restore. Startup-only migrations don't need a bump — they run
+// merge/import/restore (databaseBackupService). Startup-only migrations don't need a bump — they run
 // before the first request in a fresh process.
 const bootId = crypto.randomBytes(4).toString("hex");
 let revision = 0;
