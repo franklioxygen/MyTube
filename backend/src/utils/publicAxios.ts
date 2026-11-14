@@ -3,30 +3,40 @@ import type { LookupOptions } from "node:dns";
 import net from "node:net";
 import { SocksProxyAgent } from "socks-proxy-agent";
 import { HttpsProxyAgent } from "https-proxy-agent";
-import { assertPublicAddress, resolvePublicHost } from "./securityNetwork";
+import { assertPublicAddress, resolvePrivateHost, resolvePublicHost } from "./securityNetwork";
 import { validateUrl } from "./securityUrl";
 
 const { getProxyForUrl } = require("proxy-from-env") as { getProxyForUrl(url: string): string };
 const isProxyAgent = (agent: unknown) => agent instanceof SocksProxyAgent || agent instanceof HttpsProxyAgent;
-const lookup = (hostname: string, options: LookupOptions,
-  callback: (error: Error | null, address: LookupAddress | LookupAddress[], family?: 4 | 6) => void) => {
-  void resolvePublicHost(hostname).then(addresses => {
-    const selected = addresses.filter(item => !options.family || item.family === options.family)
-      .map(item => ({ address: item.address, family: item.family === 6 ? 6 as const : 4 as const }));
-    if (!selected.length) throw new Error("SSRF protection: no public address for the requested family");
-    if (options.all) callback(null, selected);
-    else callback(null, selected[0].address, selected[0].family);
-  }).catch(error => callback(error, ""));
-};
+type Lookup = (hostname: string, options: LookupOptions,
+  callback: (error: Error | null, address: LookupAddress | LookupAddress[], family?: 4 | 6) => void) => void;
+/** Connect only to addresses `resolve` approved for this very socket. */
+const pinnedLookup = (resolve: typeof resolvePublicHost): Lookup =>
+  (hostname, options, callback) => {
+    void resolve(hostname).then(addresses => {
+      const selected = addresses.filter(item => !options.family || item.family === options.family)
+        .map(item => ({ address: item.address, family: item.family === 6 ? 6 as const : 4 as const }));
+      if (!selected.length) throw new Error("SSRF protection: no permitted address for the requested family");
+      if (options.all) callback(null, selected);
+      else callback(null, selected[0].address, selected[0].family);
+    }).catch(error => callback(error, ""));
+  };
+const lookup = pinnedLookup(resolvePublicHost);
+const privateLookup = pinnedLookup(resolvePrivateHost);
 
 /**
- * Pin direct lookups; retain Axios' own proxies, TLS, streams and redirects.
- * `trustedOrigin` is an administrator-configured origin (a storage server or a
- * LAN federation peer) that may skip the public-address checks.
+ * An administrator-configured origin that may skip the public-address checks:
+ * a storage server as a plain origin, or a LAN federation peer, whose host
+ * must keep resolving only to private addresses (`privateOnly`).
  */
-function guardedConfig(url: string, config: AxiosRequestConfig, trustedOrigin?: string): AxiosRequestConfig {
-  // Only an administrator-configured storage origin may opt out of public-IP checks.
-  const origin = trustedOrigin ? new URL(trustedOrigin).origin : undefined;
+export type TrustedOrigin = string | { origin: string; privateOnly: true };
+
+/** Pin direct lookups; retain Axios' own proxies, TLS, streams and redirects. */
+function guardedConfig(url: string, config: AxiosRequestConfig, trustedOrigin?: TrustedOrigin): AxiosRequestConfig {
+  // Only an administrator-configured origin may opt out of public-IP checks.
+  const trust = typeof trustedOrigin === "string" ? { origin: trustedOrigin, privateOnly: false } : trustedOrigin;
+  const origin = trust ? new URL(trust.origin).origin : undefined;
+  const trustedLookup = trust?.privateOnly ? privateLookup : undefined;
   const checkTarget = (target: URL) => {
     if (["http:", "https:"].includes(target.protocol) && target.origin === origin) return true;
     validateUrl(target.href);
@@ -44,7 +54,7 @@ function guardedConfig(url: string, config: AxiosRequestConfig, trustedOrigin?: 
   // Public direct sockets use validated lookups; administrator proxies/storage origins are trusted.
   return {
     ...config, adapter: "http", httpVersion: 1,
-    lookup: proxied || trusted ? undefined : lookup,
+    lookup: proxied ? undefined : trusted ? trustedLookup : lookup,
     beforeRedirect(options, response, request) {
       config.beforeRedirect?.(options, response, request);
       // Axios has already applied the next hop's proxy policy before this hook.
@@ -55,12 +65,12 @@ function guardedConfig(url: string, config: AxiosRequestConfig, trustedOrigin?: 
       const authority = net.isIP(host) === 6 ? `[${host}]` : host;
       const target = new URL(absolute ? options.path : `${options.protocol}//${authority}${options.port ? `:${options.port}` : ""}/`);
       const trustedHop = checkTarget(target);
-      options.lookup = throughProxy || trustedHop ? undefined : lookup;
+      options.lookup = throughProxy ? undefined : trustedHop ? trustedLookup : lookup;
     },
   };
 }
 
-export function publicAxiosGet<T = unknown>(url: string, config: AxiosRequestConfig = {}, trustedOrigin?: string): Promise<AxiosResponse<T>> {
+export function publicAxiosGet<T = unknown>(url: string, config: AxiosRequestConfig = {}, trustedOrigin?: TrustedOrigin): Promise<AxiosResponse<T>> {
   const guarded = guardedConfig(url, config, trustedOrigin);
   // nosemgrep: rules_lgpl_javascript_ssrf_rule-node-ssrf
   return axios.get<T>(url, guarded);
@@ -69,7 +79,7 @@ export function publicAxiosGet<T = unknown>(url: string, config: AxiosRequestCon
 /** Any method, under the same guards as publicAxiosGet. */
 export function publicAxiosRequest<T = unknown>(
   config: AxiosRequestConfig & { url: string },
-  trustedOrigin?: string
+  trustedOrigin?: TrustedOrigin
 ): Promise<AxiosResponse<T>> {
   const guarded = guardedConfig(config.url, config, trustedOrigin);
   // nosemgrep: rules_lgpl_javascript_ssrf_rule-node-ssrf

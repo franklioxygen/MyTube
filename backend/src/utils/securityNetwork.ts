@@ -68,3 +68,29 @@ export async function resolvePublicHost(hostname: string): Promise<LookupAddress
   for (const { address } of addresses) assertPublicAddress(address);
   return addresses;
 }
+
+const isPublicAddress = (address: string): boolean => {
+  try {
+    assertPublicAddress(address);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * Resolve an administrator-approved LAN host and require every answer to stay
+ * private, so a renamed or rebound host cannot carry the LAN exception (plain
+ * HTTP, credentials) out to a public address.
+ */
+export async function resolvePrivateHost(hostname: string): Promise<LookupAddress[]> {
+  const host = normalizeHost(hostname);
+  const addresses = isIP(host)
+    ? [{ address: host, family: isIP(host) }]
+    : await lookupHost(host, LOOKUP_TIMEOUT);
+  if (!addresses.length) throw new Error("SSRF protection: DNS returned no addresses");
+  if (addresses.some(({ address }) => isPublicAddress(address))) {
+    throw new Error("SSRF protection: A LAN destination resolved to a public address");
+  }
+  return addresses;
+}

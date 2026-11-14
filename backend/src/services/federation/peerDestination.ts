@@ -8,8 +8,10 @@ import { assertPublicAddress } from "../../utils/securityNetwork";
  * Only an administrator registers a peer, by a base URL. Public peers must
  * use HTTPS and get public-address checks on every request. A peer whose host
  * resolves only to private addresses is a LAN exception: exactly that origin
- * is trusted, so plain HTTP inside a home network keeps working. Every request
- * is then built from the stored base URL and fixed paths, never from input.
+ * may use plain HTTP inside a home network, and every connection to it checks
+ * again that the host still resolves only to private addresses (a DHCP address
+ * change keeps working; a move to a public address is refused). Every request
+ * is built from the stored base URL and fixed paths, never from input.
  */
 
 export class PeerDestinationError extends Error {

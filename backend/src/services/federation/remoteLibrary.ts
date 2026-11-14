@@ -3,7 +3,7 @@ import { sqlite } from "../../db";
 import { trackFederationStream } from "./activeStreams";
 import { FEDERATION_ASSET_KINDS, type FederationAssetKind } from "./assetService";
 import type { FederationVideoDetail, FederationVideoSummary } from "./libraryExport";
-import { peerAuthHeaders, peerJsonRequest, PeerError, protocolUrl } from "./peerClient";
+import { peerAuthHeaders, peerJsonRequest, PeerError, peerTrustedOrigin, protocolUrl } from "./peerClient";
 import {
   connectionFor,
   peerStreamKey,
@@ -202,7 +202,7 @@ export async function streamRemoteAsset(
     res,
     {
       url,
-      trustedOrigin: connection.lanOrigin ?? undefined,
+      trustedOrigin: peerTrustedOrigin(connection),
       headers: peerAuthHeaders(connection),
       maxRedirects: 0,
     },

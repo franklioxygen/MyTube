@@ -31,6 +31,20 @@ vi.mock("../../config/paths", async (importOriginal) => {
   };
 });
 
+// Lets a test act while the handler awaits its file check.
+const fileCheck = vi.hoisted(() => ({ during: null as null | (() => void) }));
+vi.mock("../../services/federation/assetService", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../services/federation/assetService")>();
+  return {
+    ...actual,
+    isRegularFile: async (absolutePath: string) => {
+      const result = await actual.isRegularFile(absolutePath);
+      fileCheck.during?.();
+      return result;
+    },
+  };
+});
+
 import {
   AVATARS_DIR,
   IMAGES_DIR,
@@ -315,5 +329,23 @@ describe("video assets", () => {
     } finally {
       await new Promise((resolve) => server.close(resolve));
     }
+  });
+
+  it("does not start a transfer whose token is revoked during the file check", async () => {
+    const { token, credential } = mint();
+    let trackedDuringCheck = 0;
+    fileCheck.during = () => {
+      trackedDuringCheck = countFederationStreams();
+      revokeFederationToken(token.id);
+    };
+
+    try {
+      await expect(media(credential)).rejects.toThrow();
+    } finally {
+      fileCheck.during = null;
+    }
+    // The request was already registered, so the revocation reached it.
+    expect(trackedDuringCheck).toBe(1);
+    expect(countFederationStreams()).toBe(0);
   });
 });

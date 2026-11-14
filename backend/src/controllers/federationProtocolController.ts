@@ -146,8 +146,11 @@ export async function getVideoAsset(req: Request, res: Response): Promise<void> 
     return;
   }
 
+  // Register before any await, so revoking the token meanwhile still ends
+  // this request rather than letting it start streaming afterwards.
+  trackFederationStream(principal.tokenId, res);
+
   if (asset.type === "cloud") {
-    trackFederationStream(principal.tokenId, res);
     await proxyCloudAsset(req, res, asset.filename, asset.fileType, (reason) => {
       if (reason === "unavailable") {
         unavailable();
@@ -160,7 +163,10 @@ export async function getVideoAsset(req: Request, res: Response): Promise<void> 
     return;
   }
 
-  if (!(await isRegularFile(asset.absolutePath))) {
+  const isFile = await isRegularFile(asset.absolutePath);
+  // The token was revoked, rotated or suspended while the file was checked.
+  if (res.destroyed) return;
+  if (!isFile) {
     unavailable();
     return;
   }
@@ -187,7 +193,6 @@ export async function getVideoAsset(req: Request, res: Response): Promise<void> 
     sendError(res, 404, "FEDERATION_ASSET_UNAVAILABLE", "This asset is not available.");
   };
 
-  trackFederationStream(principal.tokenId, res);
   // The path is never consumer input: it comes only from the video's stored
   // reference, confined to the media roots by resolveSafeChildPath or
   // resolveMountFilePath. The consumer picks an allowlisted kind and a track

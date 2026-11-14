@@ -1,4 +1,4 @@
-import { publicAxiosRequest } from "../../utils/publicAxios";
+import { publicAxiosRequest, type TrustedOrigin } from "../../utils/publicAxios";
 import { getInstanceId } from "./instanceIdentity";
 
 /**
@@ -54,6 +54,13 @@ const CREDENTIAL_CODES = new Set([
 export const protocolUrl = (peer: PeerConnection, path: string): string =>
   `${peer.baseUrl}/api/federation/v1${path}`;
 
+/**
+ * A LAN peer skips the public-address checks only while its host still
+ * resolves to private addresses; a public peer gets the full checks.
+ */
+export const peerTrustedOrigin = (peer: PeerConnection): TrustedOrigin | undefined =>
+  peer.lanOrigin ? { origin: peer.lanOrigin, privateOnly: true } : undefined;
+
 /** Headers that identify this prime to the peer. */
 export const peerAuthHeaders = (peer: PeerConnection): Record<string, string> => ({
   Authorization: `Federation ${peer.credential}`,
@@ -102,7 +109,7 @@ export async function peerJsonRequest(
         maxBodyLength: MAX_RESPONSE_BYTES,
         validateStatus: () => true,
       },
-      peer.lanOrigin ?? undefined
+      peerTrustedOrigin(peer)
     );
   } catch (error) {
     throw new PeerError(

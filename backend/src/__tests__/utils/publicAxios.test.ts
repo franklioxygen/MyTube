@@ -3,11 +3,12 @@ import https from "node:https";
 import tls from "node:tls";
 import dns from "node:dns/promises";
 import net from "node:net";
-import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { publicAxiosGet } from "../../utils/publicAxios";
 import { getAxiosProxyConfig } from "../../utils/ytdlp/proxy";
 
 const PUBLIC = "93.184.216.34";
+const LAN = "192.168.1.20";
 let port: number, proxyPort: number, hits: string[], forwarded: string[], checked: string[];
 const servers: net.Server[] = [], sockets = new Set<net.Socket>();
 const listen = (server: net.Server) => new Promise<number>(resolve => {
@@ -48,7 +49,7 @@ beforeEach(async () => {
         if (error) return done(error, "");
         const addresses = typeof address === "string" ? [{ address, family }] : address;
         checked.push(...addresses.map(item => item.address));
-        expect(addresses.every(item => item.address === PUBLIC)).toBe(true);
+        expect(addresses.every(item => item.address === PUBLIC || item.address === LAN)).toBe(true);
         done(null, lookupOptions.all ? [{ address: "127.0.0.1", family: 4 }] : "127.0.0.1", 4);
       });
     } }, callback);
@@ -89,6 +90,31 @@ it.each(["127.0.0.1", "localhost"])("allows only the configured storage origin a
   expect(checked).toEqual([]); expect(dns.lookup).not.toHaveBeenCalled();
   await expect(Promise.resolve().then(() => publicAxiosGet(`http://${host}:${proxyPort}/secret`, {}, origin))).rejects.toBeDefined();
   expect(forwarded).toEqual([]);
+});
+describe("a LAN federation peer origin", () => {
+  const lanTrust = () => ({ origin: `http://nas.example:${port}`, privateOnly: true as const });
+  const answer = (addresses: string[]) => vi.mocked(dns.lookup).mockResolvedValue(
+    addresses.map(address => ({ address, family: 4 })) as never
+  );
+
+  it("connects while the host resolves only to private addresses", async () => {
+    answer([LAN]);
+    expect((await publicAxiosGet(`http://nas.example:${port}/video`, {}, lanTrust())).data).toBe("public content");
+    expect(checked).toEqual([LAN]); expect(hits).toEqual(["/video"]);
+  });
+  it.each([[[PUBLIC]], [[LAN, PUBLIC]], [[PUBLIC, LAN]]])("refuses a host that now resolves to %j", async addresses => {
+    answer(addresses);
+    await expect(publicAxiosGet(`http://nas.example:${port}/video`, {}, lanTrust())).rejects.toThrow("SSRF protection");
+    expect(hits).toEqual([]); expect(checked).toEqual([]);
+  });
+  it("re-checks the host on every new connection", async () => {
+    answer([LAN]);
+    await publicAxiosGet(`http://nas.example:${port}/first`, {}, lanTrust());
+    http.globalAgent.destroy();
+    answer([PUBLIC]);
+    await expect(publicAxiosGet(`http://nas.example:${port}/secret`, {}, lanTrust())).rejects.toThrow("SSRF protection");
+    expect(hits).toEqual(["/first"]);
+  });
 });
 it.each(["redirect", "literal/198.18.0.1", "literal/[2001:db8::1]"])("guards a redirect leaving a trusted storage origin via %s", async path => {
   const origin = `http://127.0.0.1:${port}`;

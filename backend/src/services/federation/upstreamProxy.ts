@@ -1,7 +1,7 @@
 import type { AxiosResponse } from "axios";
 import type { Request, Response } from "express";
 import type { Readable } from "stream";
-import { publicAxiosRequest } from "../../utils/publicAxios";
+import { publicAxiosRequest, type TrustedOrigin } from "../../utils/publicAxios";
 import { logger } from "../../utils/logger";
 
 /**
@@ -32,7 +32,7 @@ const BODYLESS_STATUSES = new Set([304, 412, 416]);
 export interface UpstreamTarget {
   url: string;
   /** Administrator-configured origin allowed to skip public-address checks. */
-  trustedOrigin?: string;
+  trustedOrigin?: TrustedOrigin;
   /** Credentials of this instance, never the consumer's. */
   headers?: Record<string, string>;
   maxRedirects: number;
