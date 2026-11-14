@@ -4,6 +4,7 @@ import { db } from "../../db";
 import { videos } from "../../db/schema";
 import { projectAuthorAvatar, projectAuthorAvatars } from "../authorAvatarService";
 import { CLOUD_PREFIX, getCloudStorageOrigin } from "./cloudAssetProxy";
+import { getLibraryExportRevision } from "../storageService/videoListRevision";
 import { FIELD_LIMITS } from "./protocolSchema";
 import type { FederationVisibilityCeiling } from "./tokenService";
 
@@ -147,6 +148,15 @@ const hasPrefix = (value: string | null | undefined, prefixes: readonly string[]
 
 /** True when cloud references can currently be streamed. Read once per batch. */
 export const isCloudStorageAvailable = (): boolean => getCloudStorageOrigin() !== null;
+
+/**
+ * The library revision the protocol reports and snapshots pin. Turning cloud
+ * storage on or off changes what every cloud item advertises without touching
+ * a video, so its state is part of the revision instead of relying on each
+ * settings write to bump it.
+ */
+export const currentExportRevision = (): string =>
+  `${getLibraryExportRevision()}-${isCloudStorageAvailable() ? "cloud" : "local"}`;
 
 /** Media this instance can stream: managed files, mounts, configured cloud. */
 export const isServableMedia = (

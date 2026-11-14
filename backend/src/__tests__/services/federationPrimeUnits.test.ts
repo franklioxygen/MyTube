@@ -123,4 +123,12 @@ describe("peer destination policy", () => {
     ).rejects.toThrow(/both public and private/);
     await expect(resolvePeerDestination("https://missing.example", resolver({}))).rejects.toThrow(/could not be resolved/);
   });
+
+  it.each(["64:ff9b::5db8:d822", "2002:5db8:d822::1", "198.18.0.1"])(
+    "refuses a host at %s, which is neither public nor a LAN", async (address) => {
+      await expect(
+        resolvePeerDestination("http://nas.example", resolver({ "nas.example": [address] }))
+      ).rejects.toThrow(/neither public nor private/);
+    }
+  );
 });

@@ -69,19 +69,30 @@ export async function resolvePublicHost(hostname: string): Promise<LookupAddress
   return addresses;
 }
 
-const isPublicAddress = (address: string): boolean => {
-  try {
-    assertPublicAddress(address);
-    return true;
-  } catch {
-    return false;
-  }
-};
+// Where a LAN destination may be: private, shared (CGNAT, e.g. a Tailscale
+// network), loopback and link-local ranges, IPv4-mapped forms included. Other
+// non-public space (NAT64, 6to4, Teredo, benchmarking, documentation,
+// multicast) can translate to a public host, so it is not private either.
+const privateRanges = new BlockList();
+for (const [address, prefix] of [
+  ["10.0.0.0", 8], ["100.64.0.0", 10], ["127.0.0.0", 8],
+  ["169.254.0.0", 16], ["172.16.0.0", 12], ["192.168.0.0", 16],
+] as const) {
+  privateRanges.addSubnet(address, prefix, "ipv4");
+}
+for (const [address, prefix] of [["::1", 128], ["fc00::", 7], ["fe80::", 10]] as const) {
+  privateRanges.addSubnet(address, prefix, "ipv6");
+}
+
+export function isPrivateAddress(address: string): boolean {
+  const family = isIP(address);
+  return family !== 0 && privateRanges.check(address, family === 6 ? "ipv6" : "ipv4");
+}
 
 /**
- * Resolve an administrator-approved LAN host and require every answer to stay
- * private, so a renamed or rebound host cannot carry the LAN exception (plain
- * HTTP, credentials) out to a public address.
+ * Resolve an administrator-approved LAN host and require every answer to be in
+ * a private range, so a renamed or rebound host cannot carry the LAN
+ * exception (plain HTTP, credentials) to a public or translated address.
  */
 export async function resolvePrivateHost(hostname: string): Promise<LookupAddress[]> {
   const host = normalizeHost(hostname);
@@ -89,8 +100,8 @@ export async function resolvePrivateHost(hostname: string): Promise<LookupAddres
     ? [{ address: host, family: isIP(host) }]
     : await lookupHost(host, LOOKUP_TIMEOUT);
   if (!addresses.length) throw new Error("SSRF protection: DNS returned no addresses");
-  if (addresses.some(({ address }) => isPublicAddress(address))) {
-    throw new Error("SSRF protection: A LAN destination resolved to a public address");
+  if (addresses.some(({ address }) => !isPrivateAddress(address))) {
+    throw new Error("SSRF protection: A LAN destination resolved outside the private ranges");
   }
   return addresses;
 }

@@ -67,15 +67,26 @@ describe("public destination validation", () => {
 });
 
 describe("LAN destination validation", () => {
-  it("returns private answers", async () => {
-    const answers = [{ address: "192.168.1.20", family: 4 }, { address: "fd00::20", family: 6 }];
+  it("returns private, shared, loopback and link-local answers", async () => {
+    const answers = [
+      { address: "192.168.1.20", family: 4 }, { address: "100.101.102.103", family: 4 },
+      { address: "127.0.0.1", family: 4 }, { address: "169.254.1.1", family: 4 },
+      { address: "fd00::20", family: 6 }, { address: "fe80::1", family: 6 },
+      { address: "::1", family: 6 }, { address: "::ffff:10.0.0.2", family: 6 },
+    ];
     lookup.mockResolvedValue(answers);
     await expect(resolvePrivateHost("nas.example")).resolves.toEqual(answers);
   });
 
-  it.each([[["8.8.8.8"]], [["192.168.1.20", "8.8.8.8"]], [["8.8.8.8", "10.0.0.2"]]])(
-    "rejects answers containing a public address: %j", async (addresses) => {
-      lookup.mockResolvedValue(addresses.map((address) => ({ address, family: 4 })));
+  it.each([
+    [["8.8.8.8"]], [["192.168.1.20", "8.8.8.8"]], [["8.8.8.8", "10.0.0.2"]],
+    // Not public, but able to reach a public host: NAT64, 6to4, Teredo,
+    // IPv4-mapped public, and ranges that are simply not a LAN.
+    [["64:ff9b::808:808"]], [["2002:808:808::1"]], [["2001::1"]], [["::ffff:8.8.8.8"]],
+    [["198.18.0.1"]], [["0.0.0.0"]], [["224.0.0.1"]], [["::"]],
+  ])(
+    "rejects answers outside the private ranges: %j", async (addresses) => {
+      lookup.mockResolvedValue(addresses.map((address) => ({ address, family: address.includes(":") ? 6 : 4 })));
       await expect(resolvePrivateHost("nas.example")).rejects.toThrow("SSRF protection");
     },
   );

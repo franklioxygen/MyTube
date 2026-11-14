@@ -1,6 +1,6 @@
 import dns from "node:dns/promises";
 import { isIP } from "node:net";
-import { assertPublicAddress } from "../../utils/securityNetwork";
+import { assertPublicAddress, isPrivateAddress } from "../../utils/securityNetwork";
 
 /**
  * Destination policy for federation peers (design §4.3).
@@ -8,10 +8,11 @@ import { assertPublicAddress } from "../../utils/securityNetwork";
  * Only an administrator registers a peer, by a base URL. Public peers must
  * use HTTPS and get public-address checks on every request. A peer whose host
  * resolves only to private addresses is a LAN exception: exactly that origin
- * may use plain HTTP inside a home network, and every connection to it checks
- * again that the host still resolves only to private addresses (a DHCP address
- * change keeps working; a move to a public address is refused). Every request
- * is built from the stored base URL and fixed paths, never from input.
+ * may use plain HTTP inside a home network. It is reached directly, never
+ * through a proxy, and every connection checks again that the host still
+ * resolves only to private addresses (a DHCP address change keeps working; a
+ * move to any other address is refused). Every request is built from the
+ * stored base URL and fixed paths, never from input.
  */
 
 export class PeerDestinationError extends Error {
@@ -89,9 +90,14 @@ export async function resolvePeerDestination(
   }
 
   const publicCount = addresses.filter(isPublicAddress).length;
-  if (publicCount > 0 && publicCount < addresses.length) {
+  const privateCount = addresses.filter(isPrivateAddress).length;
+  if (publicCount > 0 && privateCount > 0) {
     // Picking either side could let a later lookup reach the other.
     throw new PeerDestinationError("The peer host resolves to both public and private addresses.");
+  }
+  if (publicCount + privateCount < addresses.length) {
+    // E.g. NAT64 or 6to4, which can translate to a public host.
+    throw new PeerDestinationError("The peer host resolves to an address that is neither public nor private.");
   }
   const isPublic = publicCount === addresses.length;
   if (isPublic && url.protocol !== "https:") {

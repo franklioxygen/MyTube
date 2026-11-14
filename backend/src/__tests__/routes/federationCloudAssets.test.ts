@@ -200,6 +200,8 @@ afterAll(async () => {
 describe("cloud assets", () => {
   it("advertises cloud storage and reports cloud items available only while configured", async () => {
     const { credential } = mint();
+    const revision = async () => (await get(credential, "/library/revision?audience=public")).body.libraryRevision;
+    const withCloud = await revision();
     expect((await get(credential, "/capabilities")).body.assets.mediaStorage).toEqual(["local", "mount", "cloud"]);
     expect((await get(credential, "/videos/cloud?audience=public")).body.assets).toMatchObject({
       media: true,
@@ -207,6 +209,8 @@ describe("cloud assets", () => {
     });
 
     state.enabled = false;
+    // What cloud items advertise changed, so a peer must not skip re-reading.
+    expect(await revision()).not.toBe(withCloud);
     expect((await get(credential, "/capabilities")).body.assets.mediaStorage).toEqual(["local", "mount"]);
     expect((await get(credential, "/videos/cloud?audience=public")).body.assets).toMatchObject({
       media: false,

@@ -50,10 +50,18 @@ function guardedConfig(url: string, config: AxiosRequestConfig, trustedOrigin?: 
     if (agent && !isProxyAgent(agent)) throw new Error("SSRF protection: unsupported custom HTTP agent");
   }
   const initialAgent = parsed.protocol === "https:" ? config.httpsAgent : config.httpAgent;
-  const proxied = isProxyAgent(initialAgent) || Boolean(config.proxy || (config.proxy !== false && getProxyForUrl(url)));
+  // A LAN origin is reached directly: a proxy would resolve the host itself
+  // and skip the private-range check, carrying credentials wherever it points.
+  const direct = Boolean(trust?.privateOnly) && trusted;
+  if (direct && (config.httpAgent || config.httpsAgent || config.proxy)) {
+    throw new Error("SSRF protection: a LAN destination cannot use a proxy");
+  }
+  const proxied = !direct &&
+    (isProxyAgent(initialAgent) || Boolean(config.proxy || (config.proxy !== false && getProxyForUrl(url))));
   // Public direct sockets use validated lookups; administrator proxies/storage origins are trusted.
   return {
     ...config, adapter: "http", httpVersion: 1,
+    ...(direct ? { proxy: false as const } : {}),
     lookup: proxied ? undefined : trusted ? trustedLookup : lookup,
     beforeRedirect(options, response, request) {
       config.beforeRedirect?.(options, response, request);

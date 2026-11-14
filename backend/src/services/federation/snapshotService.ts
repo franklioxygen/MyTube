@@ -2,8 +2,8 @@ import crypto from "crypto";
 import { asc, desc } from "drizzle-orm";
 import { db } from "../../db";
 import { videos } from "../../db/schema";
-import { getLibraryExportRevision } from "../storageService/videoListRevision";
 import {
+  currentExportRevision,
   effectiveAudience,
   isCloudStorageAvailable,
   publicOnly,
@@ -85,7 +85,7 @@ export function createSnapshot(
 
   const audience = effectiveAudience(requested, principal.visibilityCeiling);
   // Synchronous: no write can land between reading the revision and the ids.
-  const libraryRevision = getLibraryExportRevision();
+  const libraryRevision = currentExportRevision();
   const ids = db
     .select({ id: videos.id })
     .from(videos)
@@ -168,7 +168,7 @@ export function readSnapshotPage(
 
   if (
     snapshot.policyRevision !== principal.policyRevision ||
-    snapshot.libraryRevision !== getLibraryExportRevision()
+    snapshot.libraryRevision !== currentExportRevision()
   ) {
     snapshots.delete(snapshot.id);
     return { ok: false, reason: "stale" };

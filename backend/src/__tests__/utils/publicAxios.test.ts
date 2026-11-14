@@ -94,7 +94,7 @@ it.each(["127.0.0.1", "localhost"])("allows only the configured storage origin a
 describe("a LAN federation peer origin", () => {
   const lanTrust = () => ({ origin: `http://nas.example:${port}`, privateOnly: true as const });
   const answer = (addresses: string[]) => vi.mocked(dns.lookup).mockResolvedValue(
-    addresses.map(address => ({ address, family: 4 })) as never
+    addresses.map(address => ({ address, family: address.includes(":") ? 6 : 4 })) as never
   );
 
   it("connects while the host resolves only to private addresses", async () => {
@@ -102,10 +102,28 @@ describe("a LAN federation peer origin", () => {
     expect((await publicAxiosGet(`http://nas.example:${port}/video`, {}, lanTrust())).data).toBe("public content");
     expect(checked).toEqual([LAN]); expect(hits).toEqual(["/video"]);
   });
-  it.each([[[PUBLIC]], [[LAN, PUBLIC]], [[PUBLIC, LAN]]])("refuses a host that now resolves to %j", async addresses => {
+  // Including NAT64 and 6to4 forms that translate to a public IPv4 host.
+  it.each([[[PUBLIC]], [[LAN, PUBLIC]], [[PUBLIC, LAN]], [["64:ff9b::5db8:d822"]], [["2002:5db8:d822::1"]], [["198.18.0.1"]]])("refuses a host that now resolves to %j", async addresses => {
     answer(addresses);
     await expect(publicAxiosGet(`http://nas.example:${port}/video`, {}, lanTrust())).rejects.toThrow("SSRF protection");
     expect(hits).toEqual([]); expect(checked).toEqual([]);
+  });
+  it("connects directly even when a proxy is configured", async () => {
+    vi.stubEnv("HTTP_PROXY", `http://127.0.0.1:${proxyPort}`);
+    answer([LAN]);
+    expect((await publicAxiosGet(`http://nas.example:${port}/video`, {}, lanTrust())).data).toBe("public content");
+    expect(forwarded).toEqual([]); expect(checked).toEqual([LAN]);
+
+    // So the proxy cannot carry it to a host that moved off the LAN.
+    answer([PUBLIC]);
+    http.globalAgent.destroy();
+    await expect(publicAxiosGet(`http://nas.example:${port}/video`, {}, lanTrust())).rejects.toThrow("SSRF protection");
+    expect(forwarded).toEqual([]);
+  });
+  it("refuses an explicit proxy for a LAN origin", async () => {
+    await expect(Promise.resolve().then(() => publicAxiosGet(`http://nas.example:${port}/video`,
+      { proxy: { protocol: "http", host: "127.0.0.1", port: proxyPort } }, lanTrust()))).rejects.toThrow("cannot use a proxy");
+    expect(forwarded).toEqual([]); expect(hits).toEqual([]);
   });
   it("re-checks the host on every new connection", async () => {
     answer([LAN]);

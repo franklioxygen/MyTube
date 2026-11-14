@@ -10,6 +10,7 @@ import {
 } from "../services/federation/assetService";
 import { getInstanceId } from "../services/federation/instanceIdentity";
 import {
+  currentExportRevision,
   effectiveAudience,
   isCloudStorageAvailable,
   isFederationAudience,
@@ -25,7 +26,6 @@ import {
   SNAPSHOT_TTL_MS,
 } from "../services/federation/snapshotService";
 import type { FederationPrincipal } from "../services/federation/tokenService";
-import { getLibraryExportRevision } from "../services/storageService/videoListRevision";
 import { getStringParam } from "../utils/paramUtils";
 
 export const FEDERATION_PROTOCOL = "mytube-federation";
@@ -215,7 +215,7 @@ export function getLibraryRevision(req: Request, res: Response): void {
 
   res.json({
     audience: effectiveAudience(requested, principal.visibilityCeiling),
-    libraryRevision: getLibraryExportRevision(),
+    libraryRevision: currentExportRevision(),
     policyRevision: principal.policyRevision,
   });
 }

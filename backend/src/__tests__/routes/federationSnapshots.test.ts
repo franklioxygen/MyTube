@@ -15,6 +15,7 @@ import {
   suspendUsableFederationTokens,
   type MintFederationTokenInput,
 } from "../../services/federation/tokenService";
+import { currentExportRevision } from "../../services/federation/libraryExport";
 import { initializeStorage } from "../../services/storageService/initialization";
 import {
   getLibraryExportRevision,
@@ -133,7 +134,7 @@ describe("library revision", () => {
     expect(response.headers["cache-control"]).toBe("no-store");
     expect(response.body).toEqual({
       audience: "public",
-      libraryRevision: getLibraryExportRevision(),
+      libraryRevision: currentExportRevision(),
       policyRevision: token.policyRevision,
     });
   });
@@ -181,7 +182,7 @@ describe("snapshots", () => {
       audience: "public",
       totalCount: PUBLIC_COUNT,
       pageSize: 500,
-      libraryRevision: getLibraryExportRevision(),
+      libraryRevision: currentExportRevision(),
       instanceId: expect.any(String),
     });
 
