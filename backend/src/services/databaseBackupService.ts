@@ -61,6 +61,23 @@ function afterDatabaseReplaced(): void {
 }
 
 /**
+ * The same quarantine, as soon as a replaced database is reopened and before
+ * migrations yield: otherwise a token revoked after the backup was taken could
+ * authenticate again, and a restored peer sync, while they run. Best effort:
+ * an older file may lack these tables until migrations create them, and the
+ * pass after migrations covers that case (and rolls back if it fails).
+ */
+function quarantineBeforeMigrations(): void {
+  try {
+    afterDatabaseReplaced();
+  } catch (error) {
+    logger.info(
+      `Federation quarantine deferred until migrations: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+}
+
+/**
  * Put the backup taken before an import or restore back in place after the
  * operation failed, so a half-applied file (possibly carrying restored
  * federation credentials that were never suspended) does not stay live. Best
@@ -70,10 +87,8 @@ function afterDatabaseReplaced(): void {
 function rollBackToBackup(backupPath: string, operation: "import" | "restore"): void {
   if (!pathExistsSafeSync(backupPath, DATA_DIR)) return;
   try {
-    const resolvedBackupPath = path.resolve(backupPath);
-    if (!isPathWithinDirectory(resolvedBackupPath, RESOLVED_DATA_DIR)) {
-      throw new ValidationError("Invalid backup file path", "file");
-    }
+    // Throws unless the backup is inside the data directory.
+    const resolvedBackupPath = resolveSafePath(backupPath, DATA_DIR);
     invalidateInFlightSyncs();
     copyFileSafeSync(resolvedBackupPath, DATA_DIR, RESOLVED_DB_PATH, DATA_DIR);
     // The failure may have happened after the connection was reopened on the
@@ -142,6 +157,7 @@ export async function importDatabase(fileBuffer: Buffer): Promise<void> {
     // holding the old list ETag must not get a 304 meanwhile. The finally
     // bumps again once migrations end, for anyone who listed mid-migration.
     bumpVideosListRevision();
+    quarantineBeforeMigrations();
 
     // Bring the imported database up to the current schema. An older backup
     // may predate recent migrations; running them (rather than an ad-hoc table
@@ -340,6 +356,7 @@ export async function restoreFromLastBackup(): Promise<void> {
 
     // Live from here; migrations yield, so invalidate the old ETag now too.
     bumpVideosListRevision();
+    quarantineBeforeMigrations();
 
     // Migrate the restored database to the current schema and record Drizzle's
     // migration journal, so an older backup does not leave later migrations

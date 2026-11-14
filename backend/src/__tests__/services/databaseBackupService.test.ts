@@ -242,6 +242,18 @@ const createSqlitePrepareMock = (
   });
 
 /** One bump once the replaced file is live, before migrations yield, and one after. */
+// Restored federation rows are quarantined as soon as the file is live,
+// before migrations yield, and again once the schema is current.
+const expectQuarantineAroundMigrations = () => {
+  const suspends = vi.mocked(suspendUsableFederationTokens).mock.invocationCallOrder;
+  const migration = vi.mocked(runMigrations).mock.invocationCallOrder[0];
+  expect(suspends).toHaveLength(2);
+  expect(vi.mocked(reinitDb).mock.invocationCallOrder[0]).toBeLessThan(suspends[0]);
+  expect(suspends[0]).toBeLessThan(migration);
+  expect(migration).toBeLessThan(suspends[1]);
+  expect(disablePeersAfterRestore).toHaveBeenCalledTimes(2);
+};
+
 const expectBumpsAroundMigrations = () => {
   const bumps = vi.mocked(bumpVideosListRevision).mock.invocationCallOrder;
   const migration = vi.mocked(runMigrations).mock.invocationCallOrder[0];
@@ -358,14 +370,9 @@ describe("databaseBackupService", () => {
       // list, neither while migrations run nor after they finish.
       expectBumpsAroundMigrations();
       // An imported backup can resurrect revoked federation tokens, so they
-      // wait for the owner; this must run on the migrated, imported database.
-      expect(suspendUsableFederationTokens).toHaveBeenCalledTimes(1);
-      expect(
-        vi.mocked(runMigrations).mock.invocationCallOrder[0]
-      ).toBeLessThan(vi.mocked(suspendUsableFederationTokens).mock.invocationCallOrder[0]);
+      // wait for the owner, as do restored peer bindings.
+      expectQuarantineAroundMigrations();
       expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining("Suspended 2 federation token(s)"));
-      // Restored peer bindings wait for the owner and a fresh sync.
-      expect(disablePeersAfterRestore).toHaveBeenCalledTimes(1);
       // Syncs begun against the old file are invalidated before it is
       // replaced (the first copy is the pre-import safety backup).
       expect(invalidateInFlightSyncs).toHaveBeenCalledTimes(1);
@@ -374,10 +381,25 @@ describe("databaseBackupService", () => {
       );
     });
 
-    it("rolls the import back when restored tokens cannot be suspended", async () => {
+    it("defers the early quarantine when the file lacks federation tables", async () => {
+      // An older backup gets its federation tables from the migrations.
       vi.mocked(suspendUsableFederationTokens).mockImplementationOnce(() => {
         throw new Error("no such table: federation_tokens");
       });
+
+      await databaseBackupService.importDatabase(Buffer.from("sqlite-bytes"));
+
+      expect(suspendUsableFederationTokens).toHaveBeenCalledTimes(2);
+      expect(logger.info).not.toHaveBeenCalledWith("Restored database from backup after failed import");
+    });
+
+    it("rolls the import back when restored tokens cannot be suspended", async () => {
+      // The pass after migrations is the one that must hold.
+      vi.mocked(suspendUsableFederationTokens)
+        .mockImplementationOnce(() => 0)
+        .mockImplementationOnce(() => {
+          throw new Error("no such table: federation_tokens");
+        });
 
       await expect(
         databaseBackupService.importDatabase(Buffer.from("sqlite-bytes"))
@@ -422,17 +444,12 @@ describe("databaseBackupService", () => {
       vi.mocked(fs.copyFileSync as any).mockImplementation(() => {
         copyCall += 1;
         if (copyCall === 2) {
+          // The rollback's own path check, next, rejects the backup.
+          vi.mocked(resolveSafePath as any).mockImplementationOnce(() => {
+            throw new Error("Path traversal detected");
+          });
           throw new Error("replace failed");
         }
-      });
-
-      let checkCall = 0;
-      vi.mocked(isPathWithinDirectory as any).mockImplementation(() => {
-        checkCall += 1;
-        if (checkCall === 3) {
-          return false;
-        }
-        return true;
       });
 
       await expect(
@@ -1173,10 +1190,7 @@ describe("databaseBackupService", () => {
         expect.stringContaining("Database file restored successfully")
       );
       expectBumpsAroundMigrations();
-      expect(suspendUsableFederationTokens).toHaveBeenCalledTimes(1);
-      expect(
-        vi.mocked(runMigrations).mock.invocationCallOrder[0]
-      ).toBeLessThan(vi.mocked(suspendUsableFederationTokens).mock.invocationCallOrder[0]);
+      expectQuarantineAroundMigrations();
     });
 
     it("moves the list revision even when migrating the restored file fails", async () => {
@@ -1198,7 +1212,11 @@ describe("databaseBackupService", () => {
       expect(logger.info).toHaveBeenCalledWith(
         "Restored database from backup after failed restore"
       );
-      expect(suspendUsableFederationTokens).not.toHaveBeenCalled();
+      // Quarantined before the migration could yield; never left usable.
+      expect(suspendUsableFederationTokens).toHaveBeenCalledTimes(1);
+      expect(vi.mocked(suspendUsableFederationTokens).mock.invocationCallOrder[0]).toBeLessThan(
+        vi.mocked(runMigrations).mock.invocationCallOrder[0]
+      );
     });
 
     it("rolls the restore back when restored tokens cannot be suspended", async () => {
@@ -1206,9 +1224,11 @@ describe("databaseBackupService", () => {
         "mytube-backup-ok.db.backup",
       ]);
       vi.mocked(fs.statSync as any).mockReturnValue({ mtimeMs: 500 });
-      vi.mocked(suspendUsableFederationTokens).mockImplementationOnce(() => {
-        throw new Error("no such table: federation_tokens");
-      });
+      vi.mocked(suspendUsableFederationTokens)
+        .mockImplementationOnce(() => 0)
+        .mockImplementationOnce(() => {
+          throw new Error("no such table: federation_tokens");
+        });
 
       await expect(databaseBackupService.restoreFromLastBackup()).rejects.toThrow(
         "no such table: federation_tokens"
