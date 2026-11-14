@@ -3,6 +3,8 @@ import React, { useEffect } from 'react';
 import { useCloudStorageUrl } from '../../hooks/useCloudStorageUrl';
 import { useVideoResolution } from '../../hooks/useVideoResolution';
 import { Collection, Video } from '../../types';
+import { isRemoteVideo, videoCan } from '../../utils/libraryItem';
+import RemoteOriginNotice from './VideoInfo/RemoteOriginNotice';
 import EditableTitle from './VideoInfo/EditableTitle';
 import VideoActionButtons from './VideoInfo/VideoActionButtons';
 import VideoAuthorInfo from './VideoInfo/VideoAuthorInfo';
@@ -13,12 +15,13 @@ import VideoTags from './VideoInfo/VideoTags';
 
 interface VideoInfoProps {
     video: Video;
-    onTitleSave: (newTitle: string) => Promise<void>;
-    onRatingChange: (newRating: number) => Promise<void>;
+    // Editing handlers are omitted for what the item does not support here.
+    onTitleSave?: (newTitle: string) => Promise<void>;
+    onRatingChange?: (newRating: number) => Promise<void>;
     onAuthorClick: () => void;
     onAvatarClick?: () => void;
-    onAddToCollection: () => void;
-    onDelete: () => void;
+    onAddToCollection?: () => void;
+    onDelete?: () => void;
     isDeleting: boolean;
     isSavingTitle?: boolean;
     isTogglingVisibility?: boolean;
@@ -27,7 +30,7 @@ interface VideoInfoProps {
     videoCollections: Collection[];
     onCollectionClick: (id: string) => void;
     availableTags: string[];
-    onTagsUpdate: (tags: string[]) => Promise<void>;
+    onTagsUpdate?: (tags: string[]) => Promise<void>;
     isSubscribed?: boolean;
     onSubscribe?: () => void;
     onUnsubscribe?: () => void;
@@ -101,10 +104,13 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
 
             <EditableTitle title={video.title} onSave={onTitleSave} isSaving={isSavingTitle} />
 
+            {isRemoteVideo(video) && <RemoteOriginNotice video={video} />}
+
             <VideoRating
                 rating={video.rating}
                 viewCount={video.viewCount}
                 onRatingChange={onRatingChange}
+                showViewCount={videoCan(video, 'canRecordView')}
             />
 
             <VideoTags

@@ -74,8 +74,10 @@
 
 - `GET /api/videos` - 获取所有视频 (当前实现无服务器端分页/过滤)
   - 认证: 支持会话 Cookie，或 API Key (`X-API-Key` / `Authorization: ApiKey <key>`)
+  - 对所有者（管理员会话或未启用登录），列表里还包含从已连接实例同步来的条目（见“联邦（主节点侧）”），与本机视频按时间从新到旧合并。这些条目带有 `origin`、`availability` 和 `capabilities`，资源路径指向 `/api/federation/media`。API Key 和访客只能看到本机视频。
 - `GET /api/videos/:id` -通过 ID 获取单个视频
   - 认证: 支持会话 Cookie，或 API Key (`X-API-Key` / `Authorization: ApiKey <key>`)
+  - 对所有者，远程条目的 ID 会返回从所属节点实时读取的详情（`private, no-store`）。节点无法响应时，返回上次同步的摘要，`availability` 为 `"offline"`，且不含媒体路径。
 - `GET /api/mount-video/:id` - 通过视频 ID 流式传输挂载目录视频 (支持 Range)
   - 认证: 支持会话 Cookie，或 API Key (`X-API-Key` / `Authorization: ApiKey <key>`)
 - `PUT /api/videos/:id` - 更新视频元数据
@@ -264,7 +266,7 @@
 
 ## 联邦（主节点侧）
 
-本实例可以凭其他实例签发的凭证读取它们的媒体库。目前以下端点都只对所有者开放（管理员会话或未启用登录），访客和 API Key 一律拒绝。远程条目暂不合并进 `GET /api/videos`。
+本实例可以凭其他实例签发的凭证读取它们的媒体库。目前以下端点都只对所有者开放（管理员会话或未启用登录），访客和 API Key 一律拒绝。对所有者，同步来的条目也会出现在 `GET /api/videos` 中；收藏夹、收藏、统计和播放进度暂不包含它们。
 
 - `GET /api/federation/peers` - 已注册的节点及其状态，永不返回凭证。
 - `POST /api/federation/peers` - 请求体：`{ name, baseUrl, credential }`。会先握手，固定节点的实例 ID，加密保存凭证（密钥在 `MYTUBE_FEDERATION_KEY` 或 `data/federation.key`，不在数据库里），然后开始同步。
@@ -286,6 +288,7 @@
 - `GET`/`HEAD /api/federation/media/:id/:kind?track=` - 媒体网关，支持 `media`、`thumbnail`、`avatar`、`subtitle` 四种类型。支持 Range 和条件请求，响应为 `private, no-store`，只回传内容和校验相关的响应头。
   - 节点故障映射为 `502`/`504`，永不返回 `401`；节点拒绝凭证时，该节点会被隔离。
   - 停用或移除节点会中断其传输。
+- `GET`/`HEAD /api/federation/media/:id/subtitle/:track` - 与 `?track=` 相同的字幕轨道，以路径形式提供，媒体库条目列出的字幕使用这种形式。
 
 双实例系统测试会从临时根目录启动两个真实后端，在 `backend/` 下运行 `npm run test:federation-system`（`KEEP=1` 保留根目录和日志）。
 

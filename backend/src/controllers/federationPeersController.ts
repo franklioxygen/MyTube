@@ -150,6 +150,22 @@ export async function getRemoteItem(req: Request, res: Response): Promise<void> 
   res.json(result.detail);
 }
 
+/**
+ * GET|HEAD /api/federation/media/:id/subtitle/:track. The same subtitle as
+ * `?track=`, as a path: the player encodes subtitle paths segment by segment,
+ * which would turn a query string into part of the path.
+ */
+export async function getRemoteSubtitle(req: Request, res: Response): Promise<void> {
+  const track = getStringParam(req.params.track);
+  if (!isGatewayTrack(track)) {
+    sendError(res, 400, "FEDERATION_INVALID_TRACK", "Invalid track.");
+    return;
+  }
+  await streamRemoteAsset(req, res, getStringParam(req.params.id) ?? "", "subtitle", track, (reason) =>
+    sendFailure(res, reason)
+  );
+}
+
 /** GET|HEAD /api/federation/media/:id/:kind?track= */
 export async function getRemoteMedia(req: Request, res: Response): Promise<void> {
   const kind = getStringParam(req.params.kind);

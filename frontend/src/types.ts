@@ -34,7 +34,34 @@ export interface Video {
   authorAvatarFilename?: string;
   authorAvatarPath?: string;
   authorAvatarOrigin?: "custom" | "auto" | "none";
+  /** Set on items synced from another instance; absent on native videos. */
+  origin?: LibraryOrigin;
+  /** Remote items only: `stale` after a failed sync, `offline` when unreachable now. */
+  availability?: "online" | "stale" | "offline";
+  lastSyncedAt?: number | null;
+  /** Remote items only: what this instance can do with them. */
+  capabilities?: LibraryCapabilities;
   [key: string]: any;
+}
+
+export type LibraryOrigin =
+  | { kind: "local" }
+  | { kind: "remote"; instanceId: string; instanceName: string };
+
+export interface LibraryCapabilities {
+  canPlay: boolean;
+  canSaveProgress: boolean;
+  canRecordView: boolean;
+  canAddToCollection: boolean;
+  canEdit: boolean;
+  canRate: boolean;
+  canDelete: boolean;
+  canReadComments: boolean;
+  canUseDanmaku: boolean;
+  canManageSubtitles: boolean;
+  canRefreshThumbnail: boolean;
+  canExport: boolean;
+  canShare: boolean;
 }
 
 /**

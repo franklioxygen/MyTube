@@ -11,6 +11,21 @@ const videos = ['a', 'b', 'c'].map((id) => ({ id }));
 beforeEach(() => { mocks.role = 'admin'; mocks.loginRequired = true; mocks.checking = false; mocks.snackbar.mockClear(); });
 
 describe('video selection state', () => {
+    it('never selects items synced from another instance', () => {
+        const remote = { id: 'fed_1', origin: { kind: 'remote' as const, instanceId: 'peer', instanceName: 'NAS' } };
+        const { result } = renderHook(() => useVideoSelection({ scopeKey: 'all', videos: [...videos, remote] }));
+        expect(result.current.isSelectable('fed_1')).toBe(false);
+        expect(result.current.isSelectable('a')).toBe(true);
+
+        act(() => result.current.togglePage(['a', 'fed_1']));
+        expect([...result.current.selectedIds]).toEqual(['a']);
+        act(() => result.current.toggle('fed_1'));
+        expect([...result.current.selectedIds]).toEqual(['a']);
+        // Toggling the same page again clears what it could select.
+        act(() => result.current.togglePage(['a', 'fed_1']));
+        expect([...result.current.selectedIds]).toEqual([]);
+    });
+
     it('preserves cross-page choices and deselects only the current page', () => {
         const { result } = renderHook(() => useVideoSelection({ scopeKey: 'all', videos }));
         act(() => result.current.togglePage(['a', 'b']));

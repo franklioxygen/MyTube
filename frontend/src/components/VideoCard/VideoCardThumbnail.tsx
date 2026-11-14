@@ -7,6 +7,7 @@ import { Video } from '../../types';
 import { formatDuration, parseDuration } from '../../utils/formatUtils';
 import { THUMBNAIL_PLACEHOLDER_SRC, handleThumbnailError } from '../../utils/thumbnailPlaceholder';
 import { VideoCardCollectionInfo } from '../../utils/videoCardUtils';
+import RemoteOriginChip from '../RemoteOriginChip';
 
 interface VideoCardThumbnailProps {
     video: Video;
@@ -228,6 +229,17 @@ const VideoCardThumbnailView: React.FC<VideoCardThumbnailProps> = ({
                     <MusicNote fontSize="small" />
                 </Box>
             )}
+
+            <RemoteOriginChip
+                video={video}
+                sx={{
+                    position: 'absolute',
+                    top: (isNew ? 32 : 8) + (video.mediaType === 'audio' ? 36 : 0),
+                    left: 8,
+                    maxWidth: 'calc(100% - 16px)',
+                    zIndex: 3,
+                }}
+            />
 
             {collectionInfo.isFirstInAnyCollection && (
                 <Chip

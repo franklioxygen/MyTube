@@ -24,7 +24,7 @@ export function useVideoQueries({ videoId, videos, showComments }: UseVideoQueri
     // omits description/subtitles (heavy columns), so seeding it as
     // initialData would let the global staleTime suppress the fetch and leave
     // the player without them.
-    const { data: rawVideo, isLoading: loading, error } = useQuery({
+    const { data: rawVideo, isLoading: loading, isPlaceholderData, error } = useQuery({
         queryKey: ['video', videoId],
         queryFn: async () => {
             const response = await api.get(`/videos/${videoId}`);
@@ -54,6 +54,8 @@ export function useVideoQueries({ videoId, videos, showComments }: UseVideoQueri
     return {
         video,
         loading,
+        /** True while `video` is still the list row, before the fresh detail. */
+        isPlaceholderData,
         error,
         comments,
         loadingComments

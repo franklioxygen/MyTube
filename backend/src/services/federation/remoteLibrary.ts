@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import type { Request, Response } from "express";
 import { sqlite } from "../../db";
 import { trackFederationStream } from "./activeStreams";
@@ -41,14 +42,14 @@ interface JoinedRow {
 
 const SERVABLE = `p.enabled = 1 AND p.library_revision IS NOT NULL AND p.status IN (${SERVABLE_PEER_STATUSES.map((s) => `'${s}'`).join(", ")})`;
 
-const withOrigin = (row: PeerRow) => ({
+export const withOrigin = (row: PeerRow) => ({
   kind: "remote" as const,
   instanceId: row.peer_instance_id,
   instanceName: row.name,
 });
 
 /** Assets the gateway cannot stream are reported unavailable. */
-const servableAssets = (
+export const servableAssets = (
   assets: FederationVideoSummary["assets"],
   peer: PeerRow
 ): FederationVideoSummary["assets"] =>
@@ -90,6 +91,61 @@ export function listRemoteItems(offset: number, limit: number): { total: number;
       };
     }),
   };
+}
+
+export interface ServableRemoteRow {
+  id: string;
+  summary: FederationVideoSummary;
+  peer: PeerRow;
+}
+
+const toServableRow = (row: PeerRow & { item_id: string; summary: string }): ServableRemoteRow => {
+  const { item_id: id, summary, ...peer } = row;
+  return { id, summary: JSON.parse(summary) as FederationVideoSummary, peer: peer as PeerRow };
+};
+
+/** Every servable remote item, newest first (library id breaks ties). */
+export function listServableRemoteRows(): ServableRemoteRow[] {
+  return (
+    sqlite
+      .prepare(
+        `SELECT p.*, rv.id AS item_id, rv.summary AS summary
+         FROM federation_remote_videos rv
+         JOIN federation_peers p ON p.id = rv.peer_id
+         WHERE rv.deleted_at IS NULL AND ${SERVABLE}
+         ORDER BY rv.created_at DESC, rv.id ASC`
+      )
+      .all() as Array<PeerRow & { item_id: string; summary: string }>
+  ).map(toServableRow);
+}
+
+/** One servable remote item's committed summary, or null. */
+export function readServableRemoteRow(id: string): ServableRemoteRow | null {
+  const row = sqlite
+    .prepare(
+      `SELECT p.*, rv.id AS item_id, rv.summary AS summary
+       FROM federation_remote_videos rv
+       JOIN federation_peers p ON p.id = rv.peer_id
+       WHERE rv.id = ? AND rv.deleted_at IS NULL AND ${SERVABLE}`
+    )
+    .get(id) as (PeerRow & { item_id: string; summary: string }) | undefined;
+  return row ? toServableRow(row) : null;
+}
+
+/**
+ * What the owner's library list depends on beyond the native table: which
+ * peers are served, under which name, and which committed revision. Empty
+ * when no peer exists, so a library without federation keeps its ETag.
+ */
+export function remoteLibraryTag(): string {
+  const rows = sqlite
+    .prepare(
+      `SELECT id, name, enabled, status, library_revision, policy_revision, can_stream_media
+       FROM federation_peers ORDER BY id`
+    )
+    .all();
+  if (rows.length === 0) return "";
+  return crypto.createHash("sha256").update(JSON.stringify(rows)).digest("base64url").slice(0, 16);
 }
 
 /** An item plus its binding, only while that binding may be served. */

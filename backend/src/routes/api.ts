@@ -55,6 +55,7 @@ const apiRouteDefinitions: ApiRouteDefinition[] = [
   { method: "get", path: "/federation/library", handlers: [requireAdmin, federationNoStore, federationPeersController.getRemoteLibrary] },
   { method: "get", path: "/federation/library/:id", handlers: [requireAdmin, federationNoStore, federationPeersController.getRemoteItem] },
   { method: "get", path: "/federation/media/:id/:kind", handlers: [requireAdmin, federationPeersController.getRemoteMedia] },
+  { method: "get", path: "/federation/media/:id/subtitle/:track", handlers: [requireAdmin, federationPeersController.getRemoteSubtitle] },
   { method: "delete", path: "/federation/tokens/:id", handlers: [requireAdmin, federationNoStore, federationManagementController.deleteToken] },
   { method: "post", path: "/authors/avatar/from-source", allowApiKey: false, handlers: [requireAdmin, authorAvatarController.avatarSourceLimiter, asyncHandler(authorAvatarController.fetchSourceAvatar)] },
   { method: "get", path: "/authors/profile", allowApiKey: false, handlers: [requireAdmin, asyncHandler(authorAvatarController.readProfile)] },

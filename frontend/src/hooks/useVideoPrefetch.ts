@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef } from "react";
 import { Video } from "../types";
 import { api } from "../utils/apiClient";
 import { getFileUrl, isCloudStoragePath } from "../utils/cloudStorage";
+import { isRemoteVideo } from "../utils/libraryItem";
 
 interface UseVideoPrefetchProps {
   videoId: string;
@@ -19,8 +20,9 @@ export const useVideoPrefetch = ({ videoId, video }: UseVideoPrefetchProps) => {
   const hasPrefetchedRef = useRef(false);
 
   const prefetchVideo = useCallback(() => {
-    // Prevent duplicate prefetching
-    if (hasPrefetchedRef.current) {
+    // Prevent duplicate prefetching. A remote item's detail is a round trip to
+    // its peer, so it is fetched only when the video is actually opened.
+    if (hasPrefetchedRef.current || isRemoteVideo(video)) {
       return;
     }
 

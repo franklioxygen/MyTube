@@ -74,8 +74,10 @@ For both upload endpoints, `authorKey` takes precedence and must exactly match a
 
 - `GET /api/videos` - Get all videos (no server-side pagination/filtering in current implementation)
   - Auth: accepts a session cookie, or API key (`X-API-Key` / `Authorization: ApiKey <key>`)
+  - For the owner (an admin session, or login-disabled mode), the list also holds items synced from connected instances (see Federation, Prime Side), merged newest first. They carry `origin`, `availability`, and `capabilities`, and their asset paths point at `/api/federation/media`. API keys and visitors get native videos only.
 - `GET /api/videos/:id` - Get one video by ID
   - Auth: accepts a session cookie, or API key (`X-API-Key` / `Authorization: ApiKey <key>`)
+  - For the owner, a remote item's ID returns fresh detail from its peer (`private, no-store`). If the peer cannot answer, the last synced summary is returned with `availability: "offline"`, without a media path.
 - `GET /api/mount-video/:id` - Stream a mount-directory video by video ID (supports Range)
   - Auth: accepts a session cookie, or API key (`X-API-Key` / `Authorization: ApiKey <key>`)
 - `PUT /api/videos/:id` - Update video metadata
@@ -279,7 +281,7 @@ Protocol `POST`/`DELETE` requests are exempt from CSRF only when they carry a va
 
 ## Federation (Prime Side)
 
-This instance can read other instances' libraries with credentials they issued. All of these endpoints are owner-only (an admin session, or login-disabled mode) for now. Visitors and API keys are refused. Remote items are not yet merged into `GET /api/videos`.
+This instance can read other instances' libraries with credentials they issued. All of these endpoints are owner-only (an admin session, or login-disabled mode) for now. Visitors and API keys are refused. For the owner, synced items also appear in `GET /api/videos`; collections, favorites, statistics, and playback progress do not include them yet.
 
 - `GET /api/federation/peers` - Registered peers with their status. Credentials are never returned.
 - `POST /api/federation/peers` - Body: `{ name, baseUrl, credential }`. Performs the handshake, pins the peer's instance ID, stores the credential encrypted (key in `MYTUBE_FEDERATION_KEY` or `data/federation.key`, never in the database), and starts a sync.
@@ -301,6 +303,7 @@ This instance can read other instances' libraries with credentials they issued. 
 - `GET`/`HEAD /api/federation/media/:id/:kind?track=` - The media gateway, for kinds `media`, `thumbnail`, `avatar`, and `subtitle`. It supports Range and conditional requests, responds `private, no-store`, and passes back only content and validator headers.
   - Peer failures map to `502`/`504`, never `401`. A peer that refuses the credential is quarantined.
   - Disabling or removing the peer ends its streams.
+- `GET`/`HEAD /api/federation/media/:id/subtitle/:track` - The same subtitle track as `?track=`, as a path, which is how library items list their subtitles.
 
 Run the two-instance system test, which starts two real backends from throwaway roots, with `npm run test:federation-system` in `backend/` (`KEEP=1` keeps the roots and logs).
 

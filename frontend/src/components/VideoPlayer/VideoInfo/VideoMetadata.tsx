@@ -8,6 +8,7 @@ import { Collection, Video } from '../../../types';
 
 import { getBackendUrl } from '../../../utils/apiUrl';
 import { encodeLocalMediaPath, isHttpUrl } from '../../../utils/localMediaPath';
+import { videoCan } from '../../../utils/libraryItem';
 
 const BACKEND_URL = getBackendUrl();
 
@@ -131,7 +132,7 @@ const VideoMetadata: React.FC<VideoMetadataProps> = ({
                         </a>
                     </Typography>
                 )}
-                {(videoUrl || (video.videoPath && !video.videoPath.startsWith("cloud:"))) && (
+                {videoCan(video, 'canExport') && (videoUrl || (video.videoPath && !video.videoPath.startsWith("cloud:"))) && (
                     <Typography
                         variant="body2"
                         sx={{

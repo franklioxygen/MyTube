@@ -11,8 +11,8 @@ interface VideoKebabMenuProps {
     onClose: () => void;
     onExited?: () => void;
     onPlayWith: (anchor: HTMLElement) => void;
-    onShare: () => void;
-    onAddToCollection: () => void;
+    onShare?: () => void;
+    onAddToCollection?: () => void;
     onDelete?: () => void;
     isDeleting?: boolean;
     isTogglingVisibility?: boolean;
@@ -60,8 +60,10 @@ const VideoKebabMenu: React.FC<VideoKebabMenuProps> = ({
 
     const actions: VideoMenuAction[] = [
         { id: 'playWith', label: t('playWith'), icon: <Cast />, onClick: () => onPlayWith(kebabMenuAnchor) },
-        { id: 'share', label: t('share'), icon: <Share />, onClick: onShare },
     ];
+    if (onShare) {
+        actions.push({ id: 'share', label: t('share'), icon: <Share />, onClick: onShare });
+    }
 
     if (userRole !== 'visitor') {
         if (onToggleVisibility) {
@@ -79,7 +81,9 @@ const VideoKebabMenu: React.FC<VideoKebabMenuProps> = ({
                 icon: isLocked ? <Lock /> : <LockOpen />, onClick: onToggleLock, loading: isTogglingLock,
             });
         }
-        actions.push({ id: 'collection', label: t('addToCollection'), icon: <Add />, onClick: onAddToCollection });
+        if (onAddToCollection) {
+            actions.push({ id: 'collection', label: t('addToCollection'), icon: <Add />, onClick: onAddToCollection });
+        }
         if (onDelete) {
             actions.push({ id: 'delete', label: t('delete'), icon: <Delete />, onClick: onDelete, loading: isDeleting, destructive: true });
         }

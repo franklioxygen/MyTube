@@ -2,12 +2,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useSnackbar } from '../contexts/SnackbarContext';
+import type { LibraryOrigin } from '../types';
 import { MAX_BULK_VIDEOS } from '../utils/bulkVideoOrganization';
+import { isRemoteVideo } from '../utils/libraryItem';
 
 interface Options {
     scopeKey: string;
     modeScopeKey?: string;
-    videos: readonly { id: string }[];
+    videos: readonly { id: string; origin?: LibraryOrigin }[];
     enabled?: boolean;
     alwaysOn?: boolean;
     libraryReady?: boolean;
@@ -26,7 +28,13 @@ export function useVideoSelection({ scopeKey, modeScopeKey = 'videos', videos, e
     const current = state.scope === scope;
     const active = canWrite && (alwaysOn || (state.modeScope === modeScope && state.active));
     const locked = active && current && state.locked;
-    const available = useMemo(() => new Set(videos.map((video) => video.id)), [videos]);
+    // Items synced from another instance take no part in bulk actions, which
+    // all act on this instance's videos.
+    const available = useMemo(
+        () => new Set(videos.filter((video) => !isRemoteVideo(video)).map((video) => video.id)),
+        [videos],
+    );
+    const isSelectable = useCallback((id: string) => available.has(id), [available]);
     const selectedIds = useMemo(() => new Set(
         current && active ? [...state.ids].filter((id) => !libraryReady || available.has(id)) : [],
     ), [active, available, current, libraryReady, state.ids]);
@@ -77,7 +85,7 @@ export function useVideoSelection({ scopeKey, modeScopeKey = 'videos', videos, e
         });
     }
 
-    return { scope, canWrite, active, locked, selectedIds, toggle, togglePage: toggleMany, clear, enter, exit, setLocked };
+    return { scope, canWrite, active, locked, selectedIds, isSelectable, toggle, togglePage: toggleMany, clear, enter, exit, setLocked };
 }
 
 export type VideoSelection = ReturnType<typeof useVideoSelection>;
