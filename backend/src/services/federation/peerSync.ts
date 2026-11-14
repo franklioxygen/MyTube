@@ -100,6 +100,13 @@ const statusFor = (error: unknown): PeerStatus => {
   return "error";
 };
 
+/** The peer must answer for the audience this binding asked for. */
+const assertAudience = (answered: "public" | "owner", row: PeerRow): void => {
+  if (answered !== row.audience) {
+    throw new ProtocolError(`The peer answered for the ${answered} audience, not ${row.audience}.`);
+  }
+};
+
 async function readSnapshot(
   connection: PeerConnection,
   row: PeerRow
@@ -111,6 +118,8 @@ async function readSnapshot(
     if (snapshot.instanceId !== row.peer_instance_id) {
       throw new SyncAbort("identity_mismatch", "The peer answered with a different instance id.");
     }
+    // A narrower snapshot would make every item outside it look deleted.
+    assertAudience(snapshot.audience, row);
     if (snapshot.totalCount > MAX_REMOTE_ITEMS) {
       throw new SyncAbort("error", `The peer library exceeds ${MAX_REMOTE_ITEMS} items.`);
     }
@@ -267,6 +276,7 @@ async function runSync(peerId: string): Promise<SyncResult> {
     const revision = parseLibraryRevision(
       await peerJsonRequest(connection, "get", `/library/revision?audience=${row.audience}`)
     );
+    assertAudience(revision.audience, row);
     // Matching revisions prove the committed items are what the peer would
     // export now (the policy revision is random, so it cannot match by luck).
     if (
@@ -276,13 +286,15 @@ async function runSync(peerId: string): Promise<SyncResult> {
     ) {
       if (getDatabaseEpoch() !== epoch) throw overtaken(REPLACED);
       const now = Date.now();
-      sqlite
+      const { changes } = sqlite
         .prepare(
           `UPDATE federation_peers
              SET status = 'ok', last_error = NULL, last_attempt_at = ?, last_success_at = ?, updated_at = ?
            WHERE id = ? AND generation = ? AND enabled = 1`
         )
         .run(now, now, now, row.id, row.generation);
+      // Disabled, re-credentialed, quarantined or removed meanwhile.
+      if (changes === 0) throw overtaken(OVERTAKEN);
       return { peerId, status: "ok", changed: false };
     }
 
@@ -290,6 +302,7 @@ async function runSync(peerId: string): Promise<SyncResult> {
     const after = parseLibraryRevision(
       await peerJsonRequest(connection, "get", `/library/revision?audience=${row.audience}`)
     );
+    assertAudience(after.audience, row);
     if (after.libraryRevision !== snapshot.libraryRevision || after.policyRevision !== snapshot.policyRevision) {
       throw new PeerError("stale", "The peer library changed while it was being read.");
     }

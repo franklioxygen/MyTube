@@ -91,6 +91,10 @@ const peer = {
   pageDelayMs: 0,
   /** While set, page requests wait here, after announcing they arrived. */
   pageGate: null as { reached: () => void; open: Promise<void> } | null,
+  /** The same, for revision requests. */
+  revisionGate: null as { reached: () => void; open: Promise<void> } | null,
+  /** Answers for this audience whatever was asked, like a misconfigured peer. */
+  cappedAudience: null as "public" | null,
   detailStatus: null as number | null,
   snapshotRequests: 0,
   seenHeaders: [] as http.IncomingHttpHeaders[],
@@ -127,8 +131,16 @@ const startPeer = async () => {
       limits: { snapshotPageSize: 2, snapshotTtlMs: 600000 },
     });
   });
-  v1.get("/library/revision", (req, res) => {
-    res.json({ audience: req.query.audience, libraryRevision: peer.libraryRevision, policyRevision: peer.policyRevision });
+  v1.get("/library/revision", async (req, res) => {
+    if (peer.revisionGate) {
+      peer.revisionGate.reached();
+      await peer.revisionGate.open;
+    }
+    res.json({
+      audience: peer.cappedAudience ?? req.query.audience,
+      libraryRevision: peer.libraryRevision,
+      policyRevision: peer.policyRevision,
+    });
   });
   const snapshots = new Map<string, FederationVideoSummary[]>();
   v1.post("/snapshots", (req, res) => {
@@ -138,7 +150,7 @@ const startPeer = async () => {
     res.status(201).json({
       snapshotId: id,
       instanceId: peer.instanceId,
-      audience: req.body.audience,
+      audience: peer.cappedAudience ?? req.body.audience,
       libraryRevision: peer.libraryRevision,
       policyRevision: peer.policyRevision,
       totalCount: peer.items.length,
@@ -285,6 +297,8 @@ beforeEach(async () => {
     changeRevisionDuringRead: false,
     pageDelayMs: 0,
     pageGate: null,
+    revisionGate: null,
+    cappedAudience: null,
     detailStatus: null,
     snapshotRequests: 0,
     seenHeaders: [],
@@ -493,6 +507,37 @@ describe("syncing", () => {
     const count = sqlite.prepare("SELECT COUNT(*) AS c FROM federation_remote_videos").get() as { c: number };
     expect(count.c).toBe(3);
     expect((await library(api)).total).toBe(3);
+  });
+
+  it("keeps the last good state when the peer answers for another audience", async () => {
+    peer.ceiling = "owner";
+    const { api, id } = await registerAndSync();
+    peer.items = [...initialItems(), summary("x", "2026-02-01T00:00:00.000Z")];
+    peer.libraryRevision = "lib-2";
+    peer.cappedAudience = "public";
+
+    const result = (await api.post(`/api/federation/peers/${id}/sync`)).body.result;
+    expect(result).toMatchObject({ status: "error", error: expect.stringContaining("audience") });
+    expect((await library(api)).total).toBe(3);
+  });
+
+  it("reports an unchanged sync that a disable overtook as a failure", async () => {
+    const { id } = await registerAndSync();
+    let release!: () => void;
+    const reached = new Promise<void>((resolve) => {
+      peer.revisionGate = { reached: resolve, open: new Promise<void>((open) => (release = open)) };
+    });
+
+    const running = syncPeer(id);
+    try {
+      await reached;
+      updatePeer(id, { enabled: false });
+    } finally {
+      peer.revisionGate = null;
+      release();
+    }
+
+    expect(await running).toMatchObject({ status: "error", changed: false });
   });
 
   it("resumes with the same ids after the credential is replaced", async () => {
