@@ -6,6 +6,9 @@ import fs from "fs-extra";
 import path from "path";
 import { SUBTITLES_DIR, VIDEOS_DIR } from "../config/paths";
 import { NotFoundError, ValidationError } from "../errors/DownloadErrors";
+import { isOwnerSession } from "../middleware/requireAdmin";
+import { listRemoteVideos, mergeLibrary, readRemoteVideo } from "../services/federation/libraryView";
+import { remoteLibraryTag } from "../services/federation/remoteLibrary";
 import { syncMediaServerArtifactsForRecord } from "../services/mediaServerExport";
 import { invalidateRecommendationSignalsCache } from "../services/recommendationSignalsService";
 import * as storageService from "../services/storageService";
@@ -80,14 +83,19 @@ export const getVideos = async (
   // enforces this so the frontend filter (VideoContext) is no longer the only
   // gate. Fixes GHSA-hcm6-w6x8-6jhr.
   const role = getVisibilityScopedRole(req);
+  // Items synced from other instances are the owner's alone for now
+  // (federation design §6.2); visitors and API keys see native videos only.
+  const remoteTag = isOwnerSession(req) ? remoteLibraryTag() : "";
 
   // Conditional-request short-circuit: the frontend refetches the whole list
   // after every completed download and on many mutations. When nothing in the
   // videos table changed since the client's copy, answer 304 from the
   // in-process revision counter without hydrating/serializing the table.
-  const etag = storageService.getVideosListETag(
+  // Remote items move the tag through their peers' committed revisions.
+  const nativeEtag = storageService.getVideosListETag(
     role === "visitor" ? "visitor" : "all"
   );
+  const etag = remoteTag ? nativeEtag.replace(/"$/, `-fed-${remoteTag}"`) : nativeEtag;
   const ifNoneMatch = req.headers["if-none-match"];
   if (
     typeof ifNoneMatch === "string" &&
@@ -116,7 +124,16 @@ export const getVideos = async (
   // List views never render description/subtitles; the player loads the full
   // row via GET /videos/:id. Omitting them keeps the payload flat as the
   // library and its per-video description sizes grow.
-  const videos = storageService.getVideoSummaries(role, page);
+  const remote = remoteTag ? listRemoteVideos() : [];
+  const videos =
+    remote.length > 0
+      ? mergeLibrary(
+          // A page of the merged list needs every native row before its end.
+          storageService.getVideoSummaries(role, page && { limit: page.offset + page.limit, offset: 0 }),
+          remote,
+          page
+        )
+      : storageService.getVideoSummaries(role, page);
   // Return array directly for backward compatibility (frontend expects response.data to be Video[])
   sendData(res, projectAuthorAvatars(videos));
 };
@@ -136,6 +153,13 @@ export const getVideoById = async (
   const video = storageService.getVideoById(id, getVisibilityScopedRole(req));
 
   if (!video) {
+    // An item synced from another instance, for its owner only.
+    const remote = isOwnerSession(req) ? await readRemoteVideo(id) : null;
+    if (remote) {
+      res.set("Cache-Control", "private, no-store");
+      sendData(res, projectAuthorAvatar(remote));
+      return;
+    }
     throw new NotFoundError("Video", id);
   }
 
