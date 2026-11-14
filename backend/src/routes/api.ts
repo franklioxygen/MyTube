@@ -6,6 +6,8 @@ import * as collectionController from "../controllers/collectionController";
 import * as bulkVideoOrganizationController from "../controllers/bulkVideoOrganizationController";
 import * as downloadController from "../controllers/downloadController";
 import * as favoriteController from "../controllers/favoriteController";
+import * as federationManagementController from "../controllers/federationManagementController";
+import * as federationPeersController from "../controllers/federationPeersController";
 import * as mediaCollisionAuditController from "../controllers/mediaCollisionAuditController";
 import * as mediaIntegrityAuditController from "../controllers/mediaIntegrityAuditController";
 import * as recommendationController from "../controllers/recommendationController";
@@ -20,6 +22,7 @@ import * as videoDownloadController from "../controllers/videoDownloadController
 import * as videoMetadataController from "../controllers/videoMetadataController";
 import { authorSearchLimiter, searchAuthors } from "../controllers/authorSearchController";
 import { asyncHandler } from "../middleware/errorHandler";
+import { federationNoStore } from "../middleware/federationAuthMiddleware";
 import { requireAdmin } from "../middleware/requireAdmin";
 import * as danmakuController from "../controllers/danmakuController";
 
@@ -33,6 +36,26 @@ export type ApiRouteDefinition = {
 };
 
 const apiRouteDefinitions: ApiRouteDefinition[] = [
+  // Federation credentials this instance issues (issue #354). Session admins
+  // only; responses may carry a one-time secret, so they are never cached.
+  { method: "get", path: "/federation/tokens", handlers: [requireAdmin, federationNoStore, federationManagementController.listTokens] },
+  { method: "post", path: "/federation/tokens", handlers: [requireAdmin, federationNoStore, federationManagementController.createToken] },
+  { method: "post", path: "/federation/tokens/:id/rotate", handlers: [requireAdmin, federationNoStore, federationManagementController.rotateToken] },
+  { method: "post", path: "/federation/tokens/:id/revoke", handlers: [requireAdmin, federationNoStore, federationManagementController.revokeToken] },
+  { method: "post", path: "/federation/tokens/:id/resume", handlers: [requireAdmin, federationNoStore, federationManagementController.resumeToken] },
+  { method: "post", path: "/federation/identity/reset", handlers: [requireAdmin, federationNoStore, federationManagementController.resetIdentity] },
+  // Prime side: peers this instance reads from, their synced library, and the
+  // media gateway. Owner-only until visitor freshness checks exist.
+  { method: "get", path: "/federation/peers", handlers: [requireAdmin, federationNoStore, federationPeersController.getPeers] },
+  { method: "post", path: "/federation/peers", handlers: [requireAdmin, federationNoStore, federationPeersController.postPeer] },
+  { method: "patch", path: "/federation/peers/:id", handlers: [requireAdmin, federationNoStore, federationPeersController.patchPeer] },
+  { method: "put", path: "/federation/peers/:id/credential", handlers: [requireAdmin, federationNoStore, federationPeersController.putPeerCredential] },
+  { method: "post", path: "/federation/peers/:id/sync", handlers: [requireAdmin, federationNoStore, federationPeersController.postPeerSync] },
+  { method: "delete", path: "/federation/peers/:id", handlers: [requireAdmin, federationNoStore, federationPeersController.deletePeer] },
+  { method: "get", path: "/federation/library", handlers: [requireAdmin, federationNoStore, federationPeersController.getRemoteLibrary] },
+  { method: "get", path: "/federation/library/:id", handlers: [requireAdmin, federationNoStore, federationPeersController.getRemoteItem] },
+  { method: "get", path: "/federation/media/:id/:kind", handlers: [requireAdmin, federationPeersController.getRemoteMedia] },
+  { method: "delete", path: "/federation/tokens/:id", handlers: [requireAdmin, federationNoStore, federationManagementController.deleteToken] },
   { method: "post", path: "/authors/avatar/from-source", allowApiKey: false, handlers: [requireAdmin, authorAvatarController.avatarSourceLimiter, asyncHandler(authorAvatarController.fetchSourceAvatar)] },
   { method: "get", path: "/authors/profile", allowApiKey: false, handlers: [requireAdmin, asyncHandler(authorAvatarController.readProfile)] },
   { method: "put", path: "/authors/avatar", allowApiKey: false, handlers: [requireAdmin, authorAvatarController.avatarUpload.single("avatar"), asyncHandler(authorAvatarController.uploadAvatar)] },

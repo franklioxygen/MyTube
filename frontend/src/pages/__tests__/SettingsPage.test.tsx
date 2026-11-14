@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, useNavigate } from 'react-router';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { overlay } from '../../theme/colors';
 import SettingsPage from '../SettingsPage';
 
@@ -224,6 +224,10 @@ vi.mock('../../components/Settings/RssFeedSettings', () => ({
   default: () => <div data-testid="rss-feed-settings">rssFeedSettings</div>,
 }));
 
+vi.mock('../../components/Settings/FederationSettings', () => ({
+  default: () => <div data-testid="federation-settings">federationSettings</div>,
+}));
+
 vi.mock('../../components/Settings/VideoDefaultSettings', () => ({
   default: ({ onChange, onSeekIntervalsValidityChange }: any) => (
     <div data-testid="video-default-settings">
@@ -404,6 +408,8 @@ const SettingsPageWithNavigation = () => {
 };
 
 describe('SettingsPage', () => {
+  afterEach(() => vi.unstubAllEnvs());
+
   beforeEach(() => {
     vi.clearAllMocks();
     vi.useRealTimers();
@@ -454,6 +460,8 @@ describe('SettingsPage', () => {
   it('renders visitor desktop view with only the interface tab and no non-basic content', async () => {
     mockIsDesktop = true;
     mockUserRole = 'visitor';
+    // Even with the federation preview built in, visitors must not see it.
+    vi.stubEnv('VITE_ENABLE_FEDERATION', 'true');
 
     renderPage('/settings?tab=downloads');
 
@@ -463,6 +471,7 @@ describe('SettingsPage', () => {
     expect(screen.queryByTestId('interface-display-settings')).not.toBeInTheDocument();
     expect(screen.queryByTestId('security-settings')).not.toBeInTheDocument();
     expect(screen.queryByTestId('rss-feed-settings')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('federation-settings')).not.toBeInTheDocument();
   });
 
   it('opens the media integrity audit from a library deep link for admins only', () => {
@@ -477,8 +486,20 @@ describe('SettingsPage', () => {
     expect(screen.queryByTestId('media-integrity-audit-settings')).not.toBeInTheDocument();
   });
 
-  it('renders RSS settings for admin and login-disabled access models', () => {
+  it('hides the federation preview unless the build enables it', () => {
     mockIsDesktop = true;
+    // Explicit, so an environment that builds the preview cannot leak in.
+    vi.stubEnv('VITE_ENABLE_FEDERATION', '');
+
+    renderPage('/settings?tab=integrations');
+
+    expect(screen.getByTestId('rss-feed-settings')).toBeInTheDocument();
+    expect(screen.queryByTestId('federation-settings')).not.toBeInTheDocument();
+  });
+
+  it('renders RSS and federation settings for admin and login-disabled access models', () => {
+    mockIsDesktop = true;
+    vi.stubEnv('VITE_ENABLE_FEDERATION', 'true');
 
     const { rerender } = render(
       <MemoryRouter initialEntries={['/settings?tab=integrations']}>
@@ -487,6 +508,7 @@ describe('SettingsPage', () => {
     );
 
     expect(screen.getByTestId('rss-feed-settings')).toBeInTheDocument();
+    expect(screen.getByTestId('federation-settings')).toBeInTheDocument();
 
     mockUserRole = undefined;
     rerender(
@@ -496,6 +518,7 @@ describe('SettingsPage', () => {
     );
 
     expect(screen.getByTestId('rss-feed-settings')).toBeInTheDocument();
+    expect(screen.getByTestId('federation-settings')).toBeInTheDocument();
   });
 
   it('applies tab query and hash scrolling/highlight behavior', async () => {

@@ -1,7 +1,8 @@
 import { Request } from "express";
 import crypto from "crypto";
 import { getAuthCookieName } from "../services/authService";
-import { isApiKeyAuthorized } from "../utils/apiKeyAuth";
+import { hasUsableFederationCredential } from "../services/federation/tokenService";
+import { isApiKeyAuthorized, readHeaderValue } from "../utils/apiKeyAuth";
 
 export const CSRF_SECRET =
   process.env.CSRF_SECRET || crypto.randomBytes(32).toString("hex");
@@ -36,5 +37,18 @@ export const isRssManagementRequest = (req: Request): boolean => {
   );
 };
 
+export const FEDERATION_PROTOCOL_PATH = "/api/federation/v1/";
+
+/**
+ * The federation protocol authenticates only by an Authorization header,
+ * never by cookies, so CSRF does not apply to it. The exemption still needs a
+ * verified, usable credential: a matching path or an unverified header alone
+ * is not enough.
+ */
+export const isVerifiedFederationProtocolRequest = (req: Request): boolean =>
+  req.path.startsWith(FEDERATION_PROTOCOL_PATH) &&
+  hasUsableFederationCredential(readHeaderValue(req.headers.authorization));
+
 export const shouldSkipCsrfProtection = (req: Request): boolean =>
-  !isRssManagementRequest(req) && isApiKeyAuthorized(req);
+  (!isRssManagementRequest(req) && isApiKeyAuthorized(req)) ||
+  isVerifiedFederationProtocolRequest(req);

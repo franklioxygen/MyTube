@@ -242,6 +242,68 @@ Favorites are scoped to the authenticated owner. When login protection is disabl
   - Empty or missing `sources` means all sources, including future or unknown source values
   - `maxItems` accepts `1` through `200`; the settings UI exposes a friendlier `10` through `200` slider
 
+## Federation (Peer Side)
+
+Groundwork for connecting several MyTube instances (issue #354). This instance can issue credentials that another MyTube server presents to it.
+
+This is a preview: remote items do not yet appear in the library, so the settings section for both sides is hidden unless the frontend is built with `VITE_ENABLE_FEDERATION=true`. The endpoints below are available regardless.
+
+- Token management requires an admin session (or login-disabled mode). API key authentication is rejected. Responses return `Cache-Control: no-store`.
+- `GET /api/federation/tokens` - `{ instanceId, tokens }`. Secrets are never listed.
+- `POST /api/federation/tokens` - Mint a credential
+  - Body: `{ label?: string, scopes: ("library:read" | "media:read")[], visibilityCeiling?: "public" | "owner", expiresAt?: number | null }`
+  - `visibilityCeiling` defaults to `public`; hidden content is shared only with an explicit `owner` ceiling. `expiresAt` is epoch milliseconds, at most ten years ahead.
+  - `201` response: `{ token, credential }`. `credential` (`<id>.<secret>`) is shown only in this response.
+- `POST /api/federation/tokens/:id/rotate` - Replace the secret; the old secret stops working immediately and `policyRevision` changes. Also lifts a restore suspension. Returns `{ token, credential }`; `409` for revoked or expired tokens.
+- `POST /api/federation/tokens/:id/resume` - Confirm a token suspended by a database restore; issues a new `policyRevision`. `409` for revoked or expired tokens.
+- `POST /api/federation/tokens/:id/revoke` - Revoke immediately (idempotent)
+- `DELETE /api/federation/tokens/:id` - Delete a token
+- `POST /api/federation/identity/reset` - For a deployment cloned from one that keeps running: issue a new `instanceId` and revoke every issued token. Returns `{ instanceId, revokedTokens }`.
+- Token `status` is `active`, `suspended`, `expired`, or `revoked`. A database import or restore suspends every usable token, because a backup predates revocations made after it; the owner resumes or rotates each one. `policyRevision` is an opaque string that changes whenever a token's terms do.
+
+Protocol endpoints live under `/api/federation/v1` and accept only `Authorization: Federation <id>.<secret>` plus an `X-MyTube-Instance-Id: <consumer instance UUID>` header. Sessions and API keys are never accepted there. The first consumer to use a token is pinned to it; another instance, or this instance itself, is refused. Errors carry a `code` such as `FEDERATION_UNAUTHORIZED`, `FEDERATION_TOKEN_REVOKED`, `FEDERATION_TOKEN_EXPIRED`, `FEDERATION_TOKEN_SUSPENDED`, `FEDERATION_CONSUMER_REQUIRED`, `FEDERATION_CONSUMER_MISMATCH`, or `FEDERATION_SELF_CONNECTION`.
+
+- `GET /api/federation/v1/capabilities` - Handshake: `{ protocol, protocolVersions, instanceId, credential: { id, scopes, visibilityCeiling, policyRevision, expiresAt }, features, limits: { snapshotPageSize, snapshotTtlMs } }`
+
+Library export (requires the `library:read` scope). Only this instance's own videos are exported, never items it imports from other instances. The effective `audience` is `owner` only when both requested and allowed by the credential's ceiling; otherwise `public`, which excludes hidden videos. Exports never include file paths, storage URLs, descriptions, subtitle contents, or watch state (progress, views, last played).
+
+- `GET /api/federation/v1/library/revision?audience=public|owner` - `{ audience, libraryRevision, policyRevision }`. Opaque values; when both are unchanged, nothing exported changed. Playback progress and view counts do not change `libraryRevision`.
+- `POST /api/federation/v1/snapshots` - Body: `{ audience }`. `201`: `{ snapshotId, instanceId, audience, libraryRevision, policyRevision, totalCount, pageSize, expiresAt }`. Snapshots expire after 10 minutes. A credential keeps at most two (creating a third replaces its oldest); `429 FEDERATION_SNAPSHOT_CAPACITY` with `Retry-After` when the instance-wide limit is reached.
+- `GET /api/federation/v1/snapshots/:snapshotId/videos?cursor=` - Up to 500 items per page: `{ snapshotId, totalCount, items, nextCursor, complete }`. Only `complete: true` on the final page proves the listing is whole; a genuinely empty library returns `totalCount: 0` and `complete: true`. Any exported change or change of credential terms answers `409 FEDERATION_SNAPSHOT_STALE` and discards the snapshot. Another credential's snapshot is `404`.
+  - Item: `{ id, title, author, date, source, sourceUrl, sourceVideoId, channelUrl, addedAt, createdAt, updatedAt, partNumber, totalParts, seriesTitle, rating, duration, width, height, fileSize, mediaType, tags, visibility, assets: { media, thumbnail, avatar, subtitles }, assetRevision }`. `assetRevision` changes whenever any of the item's assets, including its author's effective avatar, does.
+- `DELETE /api/federation/v1/snapshots/:snapshotId` - Release a finished snapshot early.
+- `GET /api/federation/v1/videos/:nativeId?audience=` (`library:read`) - Fresh detail: the snapshot item plus `description` and `subtitles: [{ trackId, language, format }]`. A hidden video is `404 FEDERATION_VIDEO_NOT_FOUND` to the public audience, exactly like an unknown one.
+- `GET`/`HEAD /api/federation/v1/videos/:nativeId/assets/:kind?audience=&track=` (`media:read`) - Bytes for `media`, `thumbnail`, `avatar` (the author's effective avatar), or `subtitle` (`track` is a `trackId` from the detail). Visibility is checked on every request. Supports `Range`/`If-Range`, `ETag`/`Last-Modified` conditionals, `206`/`304`/`412`/`416`, and `HEAD`; responses are `no-store`. Media is served from managed files, mounted directories, and, when configured, cloud storage (`capabilities.assets.mediaStorage`). Cloud bytes are proxied by this instance: signed storage links never leave it, only `Range` and conditional headers go upstream, and only content and validator headers come back. A storage timeout is `504 FEDERATION_UPSTREAM_TIMEOUT` and other storage faults are `502 FEDERATION_UPSTREAM_ERROR`. Remote-URL thumbnails and subtitles report as unavailable. A missing asset is `404 FEDERATION_ASSET_UNAVAILABLE` and says nothing about the video. Revoking, suspending, rotating, or deleting a token ends its transfers immediately.
+
+Protocol `POST`/`DELETE` requests are exempt from CSRF only when they carry a valid, usable federation credential. Protocol traffic bypasses the general API rate limit; only failed authentication counts toward its own limit.
+
+## Federation (Prime Side)
+
+This instance can read other instances' libraries with credentials they issued. All of these endpoints are owner-only (an admin session, or login-disabled mode) for now. Visitors and API keys are refused. Remote items are not yet merged into `GET /api/videos`.
+
+- `GET /api/federation/peers` - Registered peers with their status. Credentials are never returned.
+- `POST /api/federation/peers` - Body: `{ name, baseUrl, credential }`. Performs the handshake, pins the peer's instance ID, stores the credential encrypted (key in `MYTUBE_FEDERATION_KEY` or `data/federation.key`, never in the database), and starts a sync.
+  - A host that resolves only to private addresses is a LAN exception and may use `http`. A public host must use `https`. A host that resolves to both is refused.
+  - `409 FEDERATION_PEER_EXISTS` for an instance already registered (under any URL), and `409 FEDERATION_SELF_CONNECTION` for this instance itself.
+- `PATCH /api/federation/peers/:id` - `{ name?, enabled? }`. Disabling hides the peer's items, ends its streams, and discards any sync in flight. Enabling requires a fresh sync.
+- `PUT /api/federation/peers/:id/credential` - `{ credential }`. Replaces the credential, which must authenticate as the same instance.
+- `POST /api/federation/peers/:id/sync` - Runs a sync and waits for it: `{ result: { status, changed, upserted?, tombstoned?, error? }, peer }`.
+- `DELETE /api/federation/peers/:id` - Removes the peer and every item synced from it.
+- Peer `status`:
+  - `pending`: not synced yet.
+  - `ok`: synced.
+  - `error`: the last sync failed transiently. Items are still listed, with `availability: "stale"`.
+  - `credential_rejected`, `credential_missing`, `identity_mismatch`, `incompatible`: the peer's items are hidden until the owner acts.
+- A sync commits only a complete, validated snapshot whose revisions did not change while it was read. Items missing from such a snapshot are tombstoned; a failed or partial read changes nothing.
+- A database import or restore disables every peer.
+- `GET /api/federation/library?offset=&limit=` - `{ total, items }`, where each item is a snapshot item with a prime-generated `fed_…` `id`, `origin: { kind: "remote", instanceId, instanceName }`, `availability`, and `lastSyncedAt`.
+- `GET /api/federation/library/:id` - Fresh detail read from the owning peer.
+- `GET`/`HEAD /api/federation/media/:id/:kind?track=` - The media gateway, for kinds `media`, `thumbnail`, `avatar`, and `subtitle`. It supports Range and conditional requests, responds `private, no-store`, and passes back only content and validator headers.
+  - Peer failures map to `502`/`504`, never `401`. A peer that refuses the credential is quarantined.
+  - Disabling or removing the peer ends its streams.
+
+Run the two-instance system test, which starts two real backends from throwaway roots, with `npm run test:federation-system` in `backend/` (`KEEP=1` keeps the roots and logs).
+
 ## Settings
 
 - `GET /api/settings` - Get app settings (password hashes are excluded)

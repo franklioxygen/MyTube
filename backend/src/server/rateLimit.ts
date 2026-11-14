@@ -1,5 +1,6 @@
 import { Express, Request, RequestHandler, Response } from "express";
 import rateLimit from "express-rate-limit";
+import { hasUsableFederationCredential } from "../services/federation/tokenService";
 import { buildErrorRssXml, getBaseUrl, setRssNoStoreHeaders } from "../services/rssService";
 import { getClientIp } from "../utils/security";
 import { logger } from "../utils/logger";
@@ -14,6 +15,7 @@ export interface AuthLimiters {
   feedLimiter: RequestHandler;
   statisticsIngestionLimiter: RequestHandler;
   liveTranslationSessionLimiter: RequestHandler;
+  federationProtocolLimiter: RequestHandler;
 }
 
 type RateLimitedRequest = Request & {
@@ -165,6 +167,42 @@ const createLiveTranslationSessionLimiter = (): RequestHandler => {
   });
 };
 
+// Counts only requests that fail authentication. Secrets are 256-bit, so this
+// bounds noise from misconfigured or probing clients. An authenticated
+// consumer's 404s (a missing thumbnail) or 409s (a stale snapshot) are normal
+// protocol traffic and must not lock it out. Nor may its concurrency: the
+// limiter counts a request on arrival, so a prime loading a thumbnail grid or
+// holding long media streams would fill the window. A request carrying a
+// usable credential is therefore never counted; the check has no side effects
+// and the protocol router verifies the credential again.
+const FEDERATION_MAX_FAILED_REQUESTS = 30;
+
+const createFederationProtocolLimiter = (): RequestHandler =>
+  rateLimit({
+    windowMs: AUTH_WINDOW_MS,
+    max: FEDERATION_MAX_FAILED_REQUESTS,
+    standardHeaders: true,
+    legacyHeaders: false,
+    skip: (req) => hasUsableFederationCredential(req.headers.authorization),
+    skipSuccessfulRequests: true,
+    requestWasSuccessful: (req, res) =>
+      res.statusCode < 400 || req.federationPrincipal !== undefined,
+    keyGenerator: (req) => getClientIp(req),
+    validate: RATE_LIMIT_VALIDATE_OPTIONS,
+    handler: (req, res) => {
+      logger.warn("Federation protocol rate limit triggered", {
+        ip: getClientIp(req),
+        method: req.method,
+        path: req.path,
+      });
+      res.status(429).json({
+        success: false,
+        code: "FEDERATION_RATE_LIMITED",
+        error: "Too many rejected federation requests. Please retry later.",
+      });
+    },
+  });
+
 export const configureRateLimiting = (app: Express): AuthLimiters => {
   const generalLimiter = createGeneralLimiter();
   const authLimiters: AuthLimiters = {
@@ -180,6 +218,7 @@ export const configureRateLimiting = (app: Express): AuthLimiters => {
     statisticsIngestionLimiter: createStatisticsIngestionLimiter(),
     // Ticket minting has per-use Gemini cost; rate limit it per client.
     liveTranslationSessionLimiter: createLiveTranslationSessionLimiter(),
+    federationProtocolLimiter: createFederationProtocolLimiter(),
   };
 
   app.use((req, res, next) => {
@@ -192,6 +231,11 @@ export const configureRateLimiting = (app: Express): AuthLimiters => {
       req.path.startsWith("/images/") ||
       req.path.startsWith("/subtitles/") ||
       req.path.startsWith("/avatars/") ||
+      // Authenticated server-to-server traffic (thumbnails, Range seeks) with
+      // its own failed-authentication limiter.
+      req.path.startsWith("/api/federation/v1/") ||
+      // The prime's media gateway: Range seeks from the owner's player.
+      req.path.startsWith("/api/federation/media/") ||
       req.path.startsWith("/api/download") ||
       req.path.startsWith("/api/check-video-download") ||
       req.path.startsWith("/api/check-bilibili") ||

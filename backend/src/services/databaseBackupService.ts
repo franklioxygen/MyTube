@@ -6,6 +6,8 @@ import { DATA_DIR } from "../config/paths";
 import { sqlite } from "../db";
 import { runMigrations } from "../db/migrate";
 import { NotFoundError, ValidationError } from "../errors/DownloadErrors";
+import { disablePeersAfterRestore, invalidateInFlightSyncs } from "./federation/peerService";
+import { suspendUsableFederationTokens } from "./federation/tokenService";
 import { logger } from "../utils/logger";
 import {
   copyFileSafeSync,
@@ -35,6 +37,68 @@ import { MERGEABLE_TABLES } from "./databaseBackup/types";
 
 export type { DatabaseMergeSummary } from "./databaseBackup/types";
 import type { DatabaseMergeSummary } from "./databaseBackup/types";
+
+/**
+ * Runs once a replaced database is migrated. A backup can bring back
+ * federation tokens revoked after it was taken, so every usable token waits
+ * for owner confirmation; restored peer bindings likewise wait for the owner
+ * and a fresh sync before serving anything. (The callers' finally blocks move
+ * the list revision, which the federation export revision follows.)
+ */
+function afterDatabaseReplaced(): void {
+  const suspended = suspendUsableFederationTokens();
+  if (suspended > 0) {
+    logger.warn(
+      `Suspended ${suspended} federation token(s) restored with the database; confirm them in federation settings to resume.`
+    );
+  }
+  const disabledPeers = disablePeersAfterRestore();
+  if (disabledPeers > 0) {
+    logger.warn(
+      `Disabled ${disabledPeers} federation peer(s) restored with the database; re-enable them to sync again.`
+    );
+  }
+}
+
+/**
+ * The same quarantine, as soon as a replaced database is reopened and before
+ * migrations yield: otherwise a token revoked after the backup was taken could
+ * authenticate again, and a restored peer sync, while they run. Best effort:
+ * an older file may lack these tables until migrations create them, and the
+ * pass after migrations covers that case (and rolls back if it fails).
+ */
+function quarantineBeforeMigrations(): void {
+  try {
+    afterDatabaseReplaced();
+  } catch (error) {
+    logger.info(
+      `Federation quarantine deferred until migrations: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+}
+
+/**
+ * Put the backup taken before an import or restore back in place after the
+ * operation failed, so a half-applied file (possibly carrying restored
+ * federation credentials that were never suspended) does not stay live. Best
+ * effort: a failed rollback is logged and the caller rethrows the original
+ * error.
+ */
+function rollBackToBackup(backupPath: string, operation: "import" | "restore"): void {
+  if (!pathExistsSafeSync(backupPath, DATA_DIR)) return;
+  try {
+    // Throws unless the backup is inside the data directory.
+    const resolvedBackupPath = resolveSafePath(backupPath, DATA_DIR);
+    invalidateInFlightSyncs();
+    copyFileSafeSync(resolvedBackupPath, DATA_DIR, RESOLVED_DB_PATH, DATA_DIR);
+    // The failure may have happened after the connection was reopened on the
+    // replaced file, so point it back at the rolled-back database.
+    reinitializeDatabase();
+    logger.info(`Restored database from backup after failed ${operation}`);
+  } catch (restoreError) {
+    logger.error("Failed to restore database from backup:", restoreError);
+  }
+}
 
 /**
  * Export database as backup file
@@ -76,6 +140,8 @@ export async function importDatabase(fileBuffer: Buffer): Promise<void> {
   const backupPath = createBackup();
 
   try {
+    // Nothing a federation sync read from the old file may land in the new one.
+    invalidateInFlightSyncs();
     // Close the current database connection before replacing the file
     sqlite.close();
     logger.info("Closed current database connection for import");
@@ -91,6 +157,7 @@ export async function importDatabase(fileBuffer: Buffer): Promise<void> {
     // holding the old list ETag must not get a 304 meanwhile. The finally
     // bumps again once migrations end, for anyone who listed mid-migration.
     bumpVideosListRevision();
+    quarantineBeforeMigrations();
 
     // Bring the imported database up to the current schema. An older backup
     // may predate recent migrations; running them (rather than an ad-hoc table
@@ -99,32 +166,12 @@ export async function importDatabase(fileBuffer: Buffer): Promise<void> {
     // exists". Skip the legacy JSON data migration so stale on-disk files do
     // not overwrite the just-imported backup.
     await runMigrations({ skipLegacyDataMigration: true });
+
+    // Inside the try: if this fails, the import rolls back rather than
+    // leaving restored credentials usable.
+    afterDatabaseReplaced();
   } catch (error: unknown) {
-    // Restore backup if import failed
-    if (pathExistsSafeSync(backupPath, DATA_DIR)) {
-      try {
-        const resolvedBackupPath = path.resolve(backupPath);
-        const isSafeBackupPath = isPathWithinDirectory(
-          resolvedBackupPath,
-          RESOLVED_DATA_DIR,
-        );
-        if (!isSafeBackupPath) {
-          throw new ValidationError("Invalid backup file path", "file");
-        }
-        copyFileSafeSync(
-          resolvedBackupPath,
-          DATA_DIR,
-          RESOLVED_DB_PATH,
-          DATA_DIR,
-        );
-        // The failure may have happened after the connection was reopened on
-        // the (bad) imported file, so point it back at the restored backup.
-        reinitializeDatabase();
-        logger.info("Restored database from backup after failed import");
-      } catch (restoreError) {
-        logger.error("Failed to restore database from backup:", restoreError);
-      }
-    }
+    rollBackToBackup(backupPath, "import");
 
     // Log the actual error for debugging
     logger.error(
@@ -286,12 +333,14 @@ export async function restoreFromLastBackup(): Promise<void> {
   validateDatabase(resolvedBackupPath);
 
   // Create backup of current database before restore
-  createBackup();
+  const preRestoreBackupPath = createBackup();
 
   // From the copy on, the restored file may be live even if a later step
   // fails (a reconnect can reopen it on the next request), so every path
   // through here bumps; see importDatabase.
   try {
+    // Nothing a federation sync read from the old file may land in the new one.
+    invalidateInFlightSyncs();
     // Close the current database connection before replacing the file
     sqlite.close();
     logger.info("Closed current database connection for restore");
@@ -307,6 +356,7 @@ export async function restoreFromLastBackup(): Promise<void> {
 
     // Live from here; migrations yield, so invalidate the old ETag now too.
     bumpVideosListRevision();
+    quarantineBeforeMigrations();
 
     // Migrate the restored database to the current schema and record Drizzle's
     // migration journal, so an older backup does not leave later migrations
@@ -314,6 +364,13 @@ export async function restoreFromLastBackup(): Promise<void> {
     // the legacy JSON data migration so stale on-disk files do not overwrite the
     // just-restored backup.
     await runMigrations({ skipLegacyDataMigration: true });
+
+    // Inside the try, as for import: if this fails, the restore rolls back
+    // rather than leaving restored credentials usable.
+    afterDatabaseReplaced();
+  } catch (error: unknown) {
+    rollBackToBackup(preRestoreBackupPath, "restore");
+    throw error;
   } finally {
     bumpVideosListRevision();
   }

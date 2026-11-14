@@ -227,6 +227,68 @@
   - `sources` 为空或缺失表示不限制来源，也会包含未来新增或未知的来源值
   - `maxItems` 接受 `1` 到 `200`；设置页 UI 使用更适合常规操作的 `10` 到 `200` 滑块
 
+## 联邦（对等节点侧）
+
+多个 MyTube 实例互联的基础能力（issue #354）。本实例可以签发凭证，供另一台 MyTube 服务器访问本实例时出示。
+
+目前是预览功能：远程条目还不会出现在媒体库中，所以两侧的设置区默认隐藏，只有构建前端时设置 `VITE_ENABLE_FEDERATION=true` 才会显示。下列端点不受此开关影响。
+
+- 令牌管理要求管理员会话（或未启用登录）。API Key 认证会被拒绝。响应返回 `Cache-Control: no-store`。
+- `GET /api/federation/tokens` - 返回 `{ instanceId, tokens }`，列表中永不包含密钥。
+- `POST /api/federation/tokens` - 签发凭证
+  - 请求体: `{ label?: string, scopes: ("library:read" | "media:read")[], visibilityCeiling?: "public" | "owner", expiresAt?: number | null }`
+  - `visibilityCeiling` 默认为 `public`；只有显式指定 `owner` 才会共享隐藏内容。`expiresAt` 为毫秒时间戳，最长十年。
+  - 返回 `201`：`{ token, credential }`。`credential`（`<id>.<secret>`）只在此响应中出现一次。
+- `POST /api/federation/tokens/:id/rotate` - 更换密钥；旧密钥立即失效，`policyRevision` 随之改变。同时解除恢复导致的暂停。返回 `{ token, credential }`；已吊销或已过期的令牌返回 `409`。
+- `POST /api/federation/tokens/:id/resume` - 确认因数据库恢复而暂停的令牌，并生成新的 `policyRevision`。已吊销或已过期的令牌返回 `409`。
+- `POST /api/federation/tokens/:id/revoke` - 立即吊销（可重复调用）
+- `DELETE /api/federation/tokens/:id` - 删除令牌
+- `POST /api/federation/identity/reset` - 用于从另一台仍在运行的部署克隆出来的实例：生成新的 `instanceId`，并吊销所有已签发的令牌。返回 `{ instanceId, revokedTokens }`。
+- 令牌 `status` 为 `active`、`suspended`、`expired` 或 `revoked`。导入或恢复数据库后，所有仍可用的令牌都会被暂停，因为备份早于之后的吊销操作；需由所有者逐个恢复或轮换。`policyRevision` 是不透明字符串，令牌条款每次变化都会改变。
+
+协议端点位于 `/api/federation/v1` 下，只接受 `Authorization: Federation <id>.<secret>`，并要求请求头 `X-MyTube-Instance-Id: <调用方实例 UUID>`。这里永远不接受会话或 API Key。令牌首次被使用时绑定调用方实例；其他实例或本实例自身的请求会被拒绝。错误响应带有 `code`，例如 `FEDERATION_UNAUTHORIZED`、`FEDERATION_TOKEN_REVOKED`、`FEDERATION_TOKEN_EXPIRED`、`FEDERATION_TOKEN_SUSPENDED`、`FEDERATION_CONSUMER_REQUIRED`、`FEDERATION_CONSUMER_MISMATCH`、`FEDERATION_SELF_CONNECTION`。
+
+- `GET /api/federation/v1/capabilities` - 握手：`{ protocol, protocolVersions, instanceId, credential: { id, scopes, visibilityCeiling, policyRevision, expiresAt }, features, limits: { snapshotPageSize, snapshotTtlMs } }`
+
+媒体库导出（需要 `library:read` 权限范围）。只导出本实例自己的视频，绝不导出从其他实例导入的条目。只有当请求方要求 `owner`、且凭证上限也允许 `owner` 时，实际 `audience` 才是 `owner`；否则为 `public`，不含隐藏视频。导出内容永不包含文件路径、存储 URL、简介、字幕内容或观看状态（进度、播放次数、最近播放时间）。
+
+- `GET /api/federation/v1/library/revision?audience=public|owner` - 返回 `{ audience, libraryRevision, policyRevision }`。均为不透明值；两者都未变时，导出内容没有任何变化。播放进度和播放次数不会改变 `libraryRevision`。
+- `POST /api/federation/v1/snapshots` - 请求体：`{ audience }`。返回 `201`：`{ snapshotId, instanceId, audience, libraryRevision, policyRevision, totalCount, pageSize, expiresAt }`。快照 10 分钟后过期。每个凭证最多同时保留两个（创建第三个会替换最旧的）；达到全实例上限时返回 `429 FEDERATION_SNAPSHOT_CAPACITY` 并带 `Retry-After`。
+- `GET /api/federation/v1/snapshots/:snapshotId/videos?cursor=` - 每页最多 500 条：`{ snapshotId, totalCount, items, nextCursor, complete }`。只有最后一页的 `complete: true` 才能证明列表完整；媒体库确实为空时返回 `totalCount: 0` 且 `complete: true`。导出内容或凭证条款发生任何变化时返回 `409 FEDERATION_SNAPSHOT_STALE`，并丢弃该快照。其他凭证的快照返回 `404`。
+  - 条目：`{ id, title, author, date, source, sourceUrl, sourceVideoId, channelUrl, addedAt, createdAt, updatedAt, partNumber, totalParts, seriesTitle, rating, duration, width, height, fileSize, mediaType, tags, visibility, assets: { media, thumbnail, avatar, subtitles }, assetRevision }`。条目的任一资源（包括作者当前生效的头像）变化时，`assetRevision` 都会改变。
+- `DELETE /api/federation/v1/snapshots/:snapshotId` - 提前释放已读完的快照。
+- `GET /api/federation/v1/videos/:nativeId?audience=`（需要 `library:read`）- 实时详情：快照条目加上 `description` 和 `subtitles: [{ trackId, language, format }]`。对 public 范围而言，隐藏视频与不存在的视频一样返回 `404 FEDERATION_VIDEO_NOT_FOUND`。
+- `GET`/`HEAD /api/federation/v1/videos/:nativeId/assets/:kind?audience=&track=`（需要 `media:read`）- 获取 `media`、`thumbnail`、`avatar`（作者当前生效的头像）或 `subtitle`（`track` 为详情中的 `trackId`）的内容。每次请求都会检查可见性。支持 `Range`/`If-Range`、`ETag`/`Last-Modified` 条件请求、`206`/`304`/`412`/`416` 和 `HEAD`；响应为 `no-store`。媒体可来自托管文件、挂载目录，以及已配置的云存储（见 `capabilities.assets.mediaStorage`）。云端内容由本实例代为转发：存储签名链接不会离开本实例，只向上游转发 `Range` 和条件请求头，也只回传内容和校验相关的响应头。存储超时返回 `504 FEDERATION_UPSTREAM_TIMEOUT`，其他存储故障返回 `502 FEDERATION_UPSTREAM_ERROR`。远程 URL 形式的缩略图和字幕报告为不可用。资源缺失时返回 `404 FEDERATION_ASSET_UNAVAILABLE`，不代表视频本身不存在。吊销、暂停、轮换或删除令牌会立即中断其正在进行的传输。
+
+协议的 `POST`/`DELETE` 请求只有在携带有效、可用的联邦凭证时才免于 CSRF 校验。协议请求不受通用 API 限流约束；只有认证失败的请求计入其专用限流。
+
+## 联邦（主节点侧）
+
+本实例可以凭其他实例签发的凭证读取它们的媒体库。目前以下端点都只对所有者开放（管理员会话或未启用登录），访客和 API Key 一律拒绝。远程条目暂不合并进 `GET /api/videos`。
+
+- `GET /api/federation/peers` - 已注册的节点及其状态，永不返回凭证。
+- `POST /api/federation/peers` - 请求体：`{ name, baseUrl, credential }`。会先握手，固定节点的实例 ID，加密保存凭证（密钥在 `MYTUBE_FEDERATION_KEY` 或 `data/federation.key`，不在数据库里），然后开始同步。
+  - 只解析到内网地址的主机视为局域网例外，可用 `http`；公网主机必须用 `https`；同时解析到公网和内网的主机会被拒绝。
+  - 同一实例已注册（无论用哪个 URL）返回 `409 FEDERATION_PEER_EXISTS`；注册本实例自身返回 `409 FEDERATION_SELF_CONNECTION`。
+- `PATCH /api/federation/peers/:id` - `{ name?, enabled? }`。停用会隐藏该节点的条目、中断其传输，并作废进行中的同步。重新启用后需要再同步一次。
+- `PUT /api/federation/peers/:id/credential` - `{ credential }`。更换凭证，新凭证必须认证为同一实例。
+- `POST /api/federation/peers/:id/sync` - 执行一次同步并等待结果：`{ result: { status, changed, upserted?, tombstoned?, error? }, peer }`。
+- `DELETE /api/federation/peers/:id` - 移除该节点及从它同步来的所有条目。
+- 节点 `status`：
+  - `pending`：尚未同步。
+  - `ok`：已同步。
+  - `error`：最近一次同步出现暂时性失败，条目仍会列出，`availability` 为 `"stale"`。
+  - `credential_rejected`、`credential_missing`、`identity_mismatch`、`incompatible`：在所有者处理之前隐藏该节点的条目。
+- 同步只提交完整、校验通过、且读取期间版本号没有变化的快照。这样的快照里缺失的条目会被标记删除；读取失败或只读到一部分时不做任何更改。
+- 导入或恢复数据库后，所有节点都会被停用。
+- `GET /api/federation/library?offset=&limit=` - 返回 `{ total, items }`。每个条目是快照条目，加上主节点生成的 `fed_…` 形式的 `id`、`origin: { kind: "remote", instanceId, instanceName }`、`availability` 和 `lastSyncedAt`。
+- `GET /api/federation/library/:id` - 从所属节点实时读取的详情。
+- `GET`/`HEAD /api/federation/media/:id/:kind?track=` - 媒体网关，支持 `media`、`thumbnail`、`avatar`、`subtitle` 四种类型。支持 Range 和条件请求，响应为 `private, no-store`，只回传内容和校验相关的响应头。
+  - 节点故障映射为 `502`/`504`，永不返回 `401`；节点拒绝凭证时，该节点会被隔离。
+  - 停用或移除节点会中断其传输。
+
+双实例系统测试会从临时根目录启动两个真实后端，在 `backend/` 下运行 `npm run test:federation-system`（`KEEP=1` 保留根目录和日志）。
+
 ## 设置
 
 - `GET /api/settings` - 获取应用设置 (不包含密码哈希)

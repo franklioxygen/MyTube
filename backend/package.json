@@ -13,6 +13,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "test:federation-system": "node src/__tests__/system/federationSystem.cjs",
     "reset-password": "ts-node scripts/reset-password.ts",
     "postinstall": "node scripts/postinstall.cjs"
   },

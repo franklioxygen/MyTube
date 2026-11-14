@@ -31,6 +31,7 @@ import InterfaceDisplaySettings from '../components/Settings/InterfaceDisplaySet
 import MediaIntegrityAuditSettings from '../components/Settings/MediaIntegrityAuditSettings';
 import MountDirectoriesSettings from '../components/Settings/MountDirectoriesSettings';
 import RssFeedSettings from '../components/Settings/RssFeedSettings';
+import FederationSettings from '../components/Settings/FederationSettings';
 import SecuritySettings from '../components/Settings/SecuritySettings';
 import StatisticsSettings from '../components/Settings/StatisticsSettings';
 import TagsSettings from '../components/Settings/TagsSettings';
@@ -631,6 +632,10 @@ const SettingsPage: React.FC = () => {
     const renderIntegrationsContent = () => (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
             <RssFeedSettings />
+            {/* Federation is a preview until remote items appear in the library
+                (#354), so its settings stay hidden unless the frontend is built
+                with VITE_ENABLE_FEDERATION=true. */}
+            {import.meta.env.VITE_ENABLE_FEDERATION === 'true' && <FederationSettings />}
             <AdvancedSettings
                 debugMode={debugMode}
                 onDebugModeChange={setDebugMode}
