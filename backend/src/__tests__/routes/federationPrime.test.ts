@@ -30,6 +30,7 @@ import { invalidateInFlightSyncs, updatePeer } from "../../services/federation/p
 import { syncPeer } from "../../services/federation/peerSync";
 import { initializeStorage } from "../../services/storageService/initialization";
 import { DATA_DIR } from "../../config/paths";
+import { listRemoteVideos } from "../../services/federation/libraryView";
 
 /**
  * Layer 1: the prime side against a scripted fake peer on loopback (a LAN
@@ -767,6 +768,9 @@ describe("remote items in the library", () => {
   it("pages the merged list, not each side separately", async () => {
     const { api } = await registerAndSync();
     expect(titles((await api.get("/api/videos?limit=2&offset=1")).body)).toEqual(["Native clip", "Title c"]);
+    // A page reads only the remote rows it can need, newest first.
+    expect(listRemoteVideos(2).map((video) => video.title)).toEqual(["Title b", "Title c"]);
+    expect(listRemoteVideos()).toHaveLength(3);
   });
 
   it("keeps them from visitors and API keys", async () => {

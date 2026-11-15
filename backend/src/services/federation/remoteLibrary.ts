@@ -104,8 +104,11 @@ const toServableRow = (row: PeerRow & { item_id: string; summary: string }): Ser
   return { id, summary: JSON.parse(summary) as FederationVideoSummary, peer: peer as PeerRow };
 };
 
-/** Every servable remote item, newest first (library id breaks ties). */
-export function listServableRemoteRows(): ServableRemoteRow[] {
+/**
+ * Servable remote items, newest first (library id breaks ties); at most
+ * `limit` of them when given.
+ */
+export function listServableRemoteRows(limit?: number): ServableRemoteRow[] {
   return (
     sqlite
       .prepare(
@@ -113,9 +116,11 @@ export function listServableRemoteRows(): ServableRemoteRow[] {
          FROM federation_remote_videos rv
          JOIN federation_peers p ON p.id = rv.peer_id
          WHERE rv.deleted_at IS NULL AND ${SERVABLE}
-         ORDER BY rv.created_at DESC, rv.id ASC`
+         ORDER BY rv.created_at DESC, rv.id ASC
+         LIMIT ?`
       )
-      .all() as Array<PeerRow & { item_id: string; summary: string }>
+      // SQLite reads a negative limit as no limit.
+      .all(limit ?? -1) as Array<PeerRow & { item_id: string; summary: string }>
   ).map(toServableRow);
 }
 

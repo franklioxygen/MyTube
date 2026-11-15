@@ -127,8 +127,12 @@ vi.mock('../useAuthorTagFilter', () => ({
     useAuthorTagFilter: () => defaultTagFilter(),
 }));
 
+const capturedActionArgs = vi.hoisted(() => ({ current: null as null | { authorVideos: Array<{ id: string }> } }));
 vi.mock('../useAuthorVideoActions', () => ({
-    useAuthorVideoActions: () => defaultActions(),
+    useAuthorVideoActions: (args: { authorVideos: Array<{ id: string }> }) => {
+        capturedActionArgs.current = args;
+        return defaultActions();
+    },
 }));
 
 vi.mock('../utils', () => ({
@@ -228,6 +232,21 @@ describe('AuthorVideosPage', () => {
             </ThemeProvider>
         );
     };
+
+    it('acts on this instance\'s videos only for delete, tag and collection actions', () => {
+        mockAuthorVideos = [
+            ...mockVideos,
+            {
+                id: 'fed_1',
+                title: 'Remote',
+                author: 'TestAuthor',
+                tags: [],
+                origin: { kind: 'remote', instanceId: 'peer', instanceName: 'NAS' },
+            },
+        ];
+        renderPage();
+        expect(capturedActionArgs.current?.authorVideos.map((video) => video.id)).toEqual(['v1', 'v2']);
+    });
 
     it('shows saved profile artwork for empty authors and retains video artwork precedence', () => {
         mockAuthorVideos = [];

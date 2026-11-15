@@ -126,7 +126,8 @@ export const getVideos = async (
   // List views never render description/subtitles; the player loads the full
   // row via GET /videos/:id. Omitting them keeps the payload flat as the
   // library and its per-video description sizes grow.
-  const remote = remoteTag ? listRemoteVideos() : [];
+  // Rows past offset + limit on either side cannot enter the requested page.
+  const remote = remoteTag ? listRemoteVideos(page && page.offset + page.limit) : [];
   const videos =
     remote.length > 0
       ? mergeLibrary(

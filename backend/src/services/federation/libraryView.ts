@@ -106,9 +106,9 @@ function toRemoteVideo(
 
 const availabilityOf = (peer: PeerRow): RemoteAvailability => (peer.status === "ok" ? "online" : "stale");
 
-/** Every servable remote item as a library video, newest first. */
-export function listRemoteVideos(): Video[] {
-  return listServableRemoteRows().map(({ id, summary, peer }) => {
+/** Servable remote items as library videos, newest first; at most `limit`. */
+export function listRemoteVideos(limit?: number): Video[] {
+  return listServableRemoteRows(limit).map(({ id, summary, peer }) => {
     const { id: _remoteId, ...rest } = summary;
     // No sync time in list rows: it moves on every unchanged sync, which the
     // list ETag deliberately ignores so polling stays a 304. Details carry it.

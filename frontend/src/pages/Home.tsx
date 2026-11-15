@@ -1,5 +1,5 @@
 import { Alert, Box, Container, Pagination, Typography, useMediaQuery, useTheme } from '@mui/material';
-import React, { Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import React, { Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router';
 import { HomeHeader } from '../components/HomeHeader';
 import { HomeLoadingSkeleton } from '../components/HomeLoadingSkeleton';
@@ -22,6 +22,7 @@ import { useViewMode } from '../hooks/useViewMode';
 import type { ViewMode } from '../hooks/useViewMode';
 import FavoritePage from './FavoritePage';
 import { lazyWithRetry } from '../utils/lazyWithRetry';
+import { videoCan } from '../utils/libraryItem';
 
 const HOME_SORT_STORAGE_SLOT = 'homeSortOption';
 
@@ -120,6 +121,12 @@ const Home: React.FC<HomeProps> = ({ initialViewMode }) => {
         authorTags: settings?.authorTags,
         collectionTags: settings?.collectionTags
     });
+    // "Delete all filtered" removes this instance's files: items from another
+    // instance are not deleted from here.
+    const deletableFilteredVideos = useMemo(
+        () => filteredVideos.filter((video) => videoCan(video, 'canDelete')),
+        [filteredVideos]
+    );
 
     // Use the custom hook for sorting
     const {
@@ -221,13 +228,13 @@ const Home: React.FC<HomeProps> = ({ initialViewMode }) => {
                         isOpen={isDeleteFilteredOpen}
                         onClose={() => setIsDeleteFilteredOpen(false)}
                         onConfirm={async () => {
-                            if (filteredVideos.length > 0) {
-                                await deleteVideos(filteredVideos.map((v) => v.id));
+                            if (deletableFilteredVideos.length > 0) {
+                                await deleteVideos(deletableFilteredVideos.map((v) => v.id));
                             }
                         }}
                         title={t('deleteAllFilteredVideos')}
                         message={t('confirmDeleteFilteredVideos', {
-                            count: filteredVideos.length
+                            count: deletableFilteredVideos.length
                         })}
                         confirmText={t('delete')}
                         cancelText={t('cancel')}

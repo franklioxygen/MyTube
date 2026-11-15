@@ -22,6 +22,7 @@ import { useAuthorTagFilter } from './useAuthorTagFilter';
 import { useAuthorVideoActions } from './useAuthorVideoActions';
 import { getAuthorVideos, getVideoCountLabel } from './utils';
 import { viewportHeight } from '../../utils/viewportUnits';
+import { isRemoteVideo } from '../../utils/libraryItem';
 
 const AuthorVideosPage: React.FC = () => {
     const { t } = useLanguage();
@@ -44,6 +45,10 @@ const AuthorVideosPage: React.FC = () => {
     const authorVideos = useMemo(
         () => getAuthorVideos(videos, authorName),
         [videos, authorName]
+    );
+    const nativeAuthorVideos = useMemo(
+        () => authorVideos.filter((video) => !isRemoteVideo(video)),
+        [authorVideos]
     );
     const authorDisplayName = authorVideos[0]?.author || authorName || '';
     const showTagsOnThumbnail = settings?.showTagsOnThumbnail ?? true;
@@ -95,7 +100,8 @@ const AuthorVideosPage: React.FC = () => {
 
     const actions = useAuthorVideoActions({
         authorDisplayName,
-        authorVideos,
+        // Delete, tag and collection actions act on this instance's videos.
+        authorVideos: nativeAuthorVideos,
         commonTags,
         collections,
         deleteVideo,
