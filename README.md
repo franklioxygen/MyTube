@@ -49,6 +49,7 @@ Built using the [franklioxygen/agent-workflows](https://github.com/franklioxygen
 - **Subscriptions**: Manage YouTube, Bilibili and Twitch channel subscriptions to automatically download new content.
 - **Keyboard Shortcuts**: YouTube-style player shortcuts — play/pause, seeking, volume, speed, captions, fullscreen, cinema mode, frame stepping, and Up Next navigation. See [Keyboard Shortcuts](documents/en/keyboard-shortcuts.md).
 - **RSS Feeds**: Create private RSS links for external feed readers with per-link filters for channels, authors, tags, sources, recent videos, and item limits.
+- **Multi-instance Library**: Connect several MyTube servers with access keys, then browse and play all of their videos from one. Configure it under **Settings → Integrations & Advanced**. See [Multi-instance Library](documents/en/multi-instance-library.md).
 - **Login Protection & Visitor Access**: Secure your application with password login, optional passkeys (WebAuthn), and an admin-only 3×3 Gesture Login, while named read-only visitor accounts allow safe sharing. Gesture failures are shared across devices; one or two expire 12 hours after the latest failure, while three lock gesture access until one successful admin password login.
 - **Internationalization**: Support for multiple languages including English, Chinese, Spanish, French, German, Japanese, Korean, Arabic, Portuguese, and Russian.
 - **Cookie Management**: Support for uploading `cookies.txt` to enable downloading of age-restricted or premium content.

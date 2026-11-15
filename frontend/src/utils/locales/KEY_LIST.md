@@ -11,7 +11,7 @@ UPDATE_KEY_LIST=1 npx vitest run src/utils/locales/__tests__/localeParity.test.t
 
 This list is intentionally unnumbered. When new keys are inserted, only the local section order changes.
 
-Total keys: 1573
+Total keys: 1583
 
 ## Summary
 
@@ -65,7 +65,7 @@ Total keys: 1573
 | Filename template reference (information panel) | 45 | `filenameRefInformationTitle` | `filenameRefItemNestedPathDesc` |
 | Statistics | 87 | `statisticsTitle` | `openCollection` |
 | Gesture Login (admin only) | 51 | `or` | `danmakuDelete` |
-| Multi-instance federation | 71 | `federationTitle` | `federationLoadError` |
+| Multi-instance federation | 81 | `federationTitle` | `federationLoadError` |
 
 ### Author avatar management
 
@@ -1815,6 +1815,16 @@ Total keys: 1573
 | --- |
 | `federationTitle` |
 | `federationDescription` |
+| `federationHelpToggle` |
+| `federationHelpStepsTitle` |
+| `federationHelpStep1` |
+| `federationHelpStep2` |
+| `federationHelpStep3` |
+| `federationHelpNotesTitle` |
+| `federationHelpNoteOwner` |
+| `federationHelpNoteNetwork` |
+| `federationHelpNoteBackup` |
+| `federationHelpGuide` |
 | `federationThisInstance` |
 | `federationInstanceId` |
 | `federationCopy` |

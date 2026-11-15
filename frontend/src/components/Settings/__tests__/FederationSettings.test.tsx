@@ -11,9 +11,11 @@ const api = vi.hoisted(() => ({
     delete: vi.fn(),
 }));
 const showSnackbar = vi.hoisted(() => vi.fn());
+const languageState = vi.hoisted(() => ({ language: 'en' }));
 
 vi.mock('../../../contexts/LanguageContext', () => ({
     useLanguage: () => ({
+        language: languageState.language,
         t: (key: string, params?: Record<string, unknown>) => (params ? `${key}:${JSON.stringify(params)}` : key),
     }),
 }));
@@ -68,6 +70,7 @@ const renderSettings = () =>
 
 beforeEach(() => {
     vi.clearAllMocks();
+    languageState.language = 'en';
     tokens = [token()];
     peers = [peer()];
     api.get.mockImplementation(async (url: string) => {
@@ -85,6 +88,50 @@ const confirmDialog = async (confirmLabel: string) => {
     const dialog = await screen.findByRole('dialog');
     fireEvent.click(within(dialog).getByRole('button', { name: confirmLabel }));
 };
+
+describe('how it works', () => {
+    it('shows the steps, naming the real controls, only when asked', async () => {
+        renderSettings();
+        const toggle = screen.getByRole('button', { name: 'federationHelpToggle' });
+        expect(toggle).toHaveAttribute('aria-expanded', 'false');
+        expect(screen.queryByText('federationHelpStepsTitle')).not.toBeInTheDocument();
+
+        fireEvent.click(toggle);
+        expect(toggle).toHaveAttribute('aria-expanded', 'true');
+        expect(screen.getByText('federationHelpStepsTitle')).toBeInTheDocument();
+        expect(
+            screen.getByText('federationHelpStep1:{"action":"federationCreateToken","section":"federationTokensTitle"}')
+        ).toBeInTheDocument();
+        expect(
+            screen.getByText('federationHelpStep2:{"action":"federationAddPeer","section":"federationPeersTitle"}')
+        ).toBeInTheDocument();
+        expect(screen.getByText('federationHelpNoteBackup')).toBeInTheDocument();
+        expect(screen.getByRole('link', { name: 'federationHelpGuide' })).toHaveAttribute(
+            'href',
+            'https://github.com/franklioxygen/MyTube/blob/master/documents/en/multi-instance-library.md'
+        );
+
+        fireEvent.click(toggle);
+        await waitFor(() => expect(screen.queryByText('federationHelpStepsTitle')).not.toBeInTheDocument());
+    });
+
+    it('links the Chinese guide in Chinese and the English guide otherwise', () => {
+        languageState.language = 'zh';
+        const { unmount } = renderSettings();
+        fireEvent.click(screen.getByRole('button', { name: 'federationHelpToggle' }));
+        expect(screen.getByRole('link', { name: 'federationHelpGuide' }).getAttribute('href')).toMatch(
+            /\/documents\/zh\/multi-instance-library\.md$/
+        );
+        unmount();
+
+        languageState.language = 'ja';
+        renderSettings();
+        fireEvent.click(screen.getByRole('button', { name: 'federationHelpToggle' }));
+        expect(screen.getByRole('link', { name: 'federationHelpGuide' }).getAttribute('href')).toMatch(
+            /\/documents\/en\/multi-instance-library\.md$/
+        );
+    });
+});
 
 describe('federation access keys', () => {
     it('shows this instance and issues a key that is revealed once', async () => {
