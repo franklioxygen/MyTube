@@ -163,6 +163,25 @@ describe('federation access keys', () => {
         await waitFor(() => expect(screen.queryByDisplayValue(CREDENTIAL)).not.toBeInTheDocument());
     });
 
+    it('always grants browsing, which connecting requires, and lets the owner leave out playback', async () => {
+        api.post.mockResolvedValueOnce({ data: { token: token({ id: 'token-2' }), credential: CREDENTIAL } });
+        renderSettings();
+
+        fireEvent.click(await screen.findByRole('button', { name: 'federationCreateToken' }));
+        const dialog = await screen.findByRole('dialog');
+        const browse = within(dialog).getByRole('checkbox', { name: 'federationScopeLibrary' });
+        expect(browse).toBeChecked();
+        expect(browse).toBeDisabled();
+
+        fireEvent.click(within(dialog).getByRole('checkbox', { name: 'federationScopeMedia' }));
+        fireEvent.change(within(dialog).getByLabelText('federationTokenLabel'), { target: { value: 'Den' } });
+        fireEvent.click(within(dialog).getByRole('button', { name: 'federationCreateToken' }));
+
+        await waitFor(() =>
+            expect(api.post).toHaveBeenCalledWith('/federation/tokens', expect.objectContaining({ scopes: ['library:read'] }))
+        );
+    });
+
     it('tells the owner to copy the key by hand when the clipboard fails', async () => {
         api.post.mockResolvedValueOnce({ data: { token: token(), credential: CREDENTIAL } });
         copyTextToClipboard.mockRejectedValueOnce(new Error('denied')).mockResolvedValueOnce(false);

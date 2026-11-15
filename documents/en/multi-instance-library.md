@@ -26,7 +26,7 @@ Open **Settings → Integrations & Advanced → Multi-instance library → Acces
 | Option | Meaning |
 |---|---|
 | Label | A name to recognize the key by, such as "Living room". |
-| Permissions | **Browse the library** lists the videos. **Play media** also streams them; without it, the videos are listed but do not play. |
+| Permissions | **Browse the library** lists the videos and is always on, because connecting needs it. **Play media** also streams them; without it, the videos are listed but do not play. |
 | Hidden videos | **Visible videos only** shares what visitors can see. **Includes hidden videos** also shares hidden ones. |
 | Expires | Optional. The key stops working after this. |
 
@@ -52,7 +52,7 @@ The first sync runs straight away. After that, the instance syncs about once a m
 
 | Works | Not yet |
 |---|---|
-| Browsing, search, tags, authors | Visitors seeing remote videos (they stay owner-only) |
+| Browsing, search, tags, authors | Visitors seeing remote videos (they stay owner-only; with login protection off, everyone counts as the owner, see *Network and security*) |
 | Playback with seeking and subtitles | Collections and favorites with remote videos |
 | A warning when the other instance is offline | Saving progress or counting views on this instance; the resume position stays on your device |
 | Automatic sync about every minute | Editing, rating, tagging, or deleting remote videos (do that on their own instance) |
@@ -90,11 +90,11 @@ On the watching instance:
 - A plain `http` address is accepted only when it resolves to private addresses, and is checked again on every connection, so a name that later points to the internet is refused. Requests to such an instance never go through a proxy.
 - Remote videos are shown only to the owner. With login protection off, everyone who can open the watching instance counts as the owner and sees them, so turn login on or limit who can reach it.
 - The sharing instance stores only a hash of each key. Visibility is checked on every request, so hiding a video stops keys limited to visible videos from reading it straight away. A key that includes hidden videos still reads it; revoke that key to stop access.
-- The watching instance stores keys encrypted with `data/federation.key`, or with the `MYTUBE_FEDERATION_KEY` environment variable when it is set. Neither the other instance's address nor its storage links reach your browser.
+- The watching instance stores keys encrypted with `federation.key` in its data directory (`data/`, unless `MYTUBE_BACKEND_DATA_DIR` moves it), or with the `MYTUBE_FEDERATION_KEY` environment variable when it is set. Neither the other instance's address nor its storage links reach your browser.
 - The included Nginx configuration streams `/api/federation/media` and `/api/federation/v1` unbuffered. If you use your own reverse proxy, do the same so seeking works.
 
 ## Backups and restores
 
-- Back up the key that protects saved access keys along with your database: the `MYTUBE_FEDERATION_KEY` value if you set it, otherwise `data/federation.key`. If it is lost or changes, connected instances show *Access key unavailable*. Restore the original key, restart MyTube and choose **Sync now** to recover them; only if the key is gone for good do you need to replace their access keys one by one.
+- Back up the key that protects saved access keys along with your database: the `MYTUBE_FEDERATION_KEY` value if you set it, otherwise `federation.key` from the data directory. If it is lost or changes, connected instances show *Access key unavailable*. Restore the original key, restart MyTube and choose **Sync now** to recover them; only if the key is gone for good do you need to replace their access keys one by one.
 - Restoring or importing a database suspends every key the instance had issued, and turns off every connection it had made. Resume or replace the keys, and turn the connections back on, once you have checked them.
 - If you copy a deployment and keep both copies running, choose **Reset identity** on the copy. It gets a new instance ID, and the keys it inherited are revoked.
