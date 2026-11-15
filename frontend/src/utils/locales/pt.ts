@@ -1933,7 +1933,7 @@ export const pt = {
   federationHelpStep2: "Na instância em que você assiste, escolha “{action}” em “{section}” e informe o endereço da outra instância e a chave. Use um endereço que este servidor consiga acessar, como o endereço dela na rede local.",
   federationHelpStep3: "Os vídeos dela são sincronizados aqui cerca de uma vez por minuto e aparecem na sua biblioteca, identificados pela instância de origem.",
   federationHelpNotesTitle: "Bom saber",
-  federationHelpNoteOwner: "Só você vê os vídeos de outras instâncias. Aqui eles são somente leitura: edite, avalie ou exclua na instância de origem.",
+  federationHelpNoteOwner: "Os vídeos de outras instâncias aparecem só para administradores. Se “{setting}” estiver desativado, qualquer pessoa que consiga abrir esta instância os vê. Aqui eles são somente leitura: edite, avalie ou exclua na instância de origem.",
   federationHelpNoteNetwork: "As duas instâncias precisam de uma versão do MyTube que inclua este recurso. Endereços da rede local podem usar http; endereços na internet precisam usar https.",
   federationHelpNoteBackup: "Faça backup, junto com o banco de dados, da chave que protege as chaves de acesso salvas: o valor de MYTUBE_FEDERATION_KEY, se você o definiu, ou então data/federation.key. Sem ela, as chaves salvas das instâncias conectadas não podem ser lidas.",
   federationHelpGuide: "Ler o guia completo",

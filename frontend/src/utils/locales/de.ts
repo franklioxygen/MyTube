@@ -1944,7 +1944,7 @@ export const de = {
   federationHelpStep2: "Wähle auf der Instanz, auf der du schaust, unter „{section}“ die Option „{action}“ und gib die Adresse der anderen Instanz sowie den Schlüssel ein. Verwende eine Adresse, die dieser Server erreicht, etwa ihre Adresse im lokalen Netz.",
   federationHelpStep3: "Ihre Videos werden etwa einmal pro Minute hierher synchronisiert und erscheinen in deiner Mediathek, gekennzeichnet mit ihrer Herkunftsinstanz.",
   federationHelpNotesTitle: "Gut zu wissen",
-  federationHelpNoteOwner: "Nur du siehst Videos anderer Instanzen. Hier sind sie schreibgeschützt: Bearbeiten, Bewerten oder Löschen geschieht auf ihrer eigenen Instanz.",
+  federationHelpNoteOwner: "Videos anderer Instanzen sehen nur Administratoren. Ist „{setting}“ aus, sieht sie jeder, der diese Instanz öffnen kann. Hier sind sie schreibgeschützt: Bearbeiten, Bewerten oder Löschen geschieht auf ihrer eigenen Instanz.",
   federationHelpNoteNetwork: "Beide Instanzen brauchen eine MyTube-Version mit dieser Funktion. Adressen im lokalen Netz dürfen http verwenden, Adressen im Internet müssen https verwenden.",
   federationHelpNoteBackup: "Sichere zusammen mit der Datenbank den Schlüssel, der gespeicherte Zugriffsschlüssel schützt: den Wert von MYTUBE_FEDERATION_KEY, falls gesetzt, sonst data/federation.key. Ohne ihn lassen sich die gespeicherten Schlüssel verbundener Instanzen nicht lesen.",
   federationHelpGuide: "Vollständige Anleitung lesen",

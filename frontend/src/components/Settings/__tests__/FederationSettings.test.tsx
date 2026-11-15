@@ -105,6 +105,7 @@ describe('how it works', () => {
         expect(
             screen.getByText('federationHelpStep2:{"action":"federationAddPeer","section":"federationPeersTitle"}')
         ).toBeInTheDocument();
+        expect(screen.getByText('federationHelpNoteOwner:{"setting":"enableLogin"}')).toBeInTheDocument();
         expect(screen.getByText('federationHelpNoteBackup')).toBeInTheDocument();
         expect(screen.getByRole('link', { name: 'federationHelpGuide' })).toHaveAttribute(
             'href',

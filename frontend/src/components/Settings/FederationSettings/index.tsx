@@ -57,7 +57,7 @@ const FederationSettings: React.FC = () => {
                         {t('federationHelpNotesTitle')}
                     </Typography>
                     <Typography variant="body2" component="ul" sx={{ pl: 2.5, mt: 0, mb: 1 }}>
-                        <li>{t('federationHelpNoteOwner')}</li>
+                        <li>{t('federationHelpNoteOwner', { setting: t('enableLogin') })}</li>
                         <li>{t('federationHelpNoteNetwork')}</li>
                         <li>{t('federationHelpNoteBackup')}</li>
                     </Typography>

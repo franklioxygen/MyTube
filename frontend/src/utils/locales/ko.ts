@@ -1892,7 +1892,7 @@ export const ko = {
   federationHelpStep2: "시청에 사용할 인스턴스에서 '{section}'의 '{action}'을(를) 선택하고, 상대 인스턴스의 주소와 키를 입력하세요. 주소는 로컬 네트워크 주소처럼 이 서버에서 접속할 수 있는 주소여야 합니다.",
   federationHelpStep3: "상대 인스턴스의 동영상은 약 1분마다 이곳으로 동기화되어, 어느 인스턴스의 것인지 표시된 채 라이브러리에 나타납니다.",
   federationHelpNotesTitle: "알아 두기",
-  federationHelpNoteOwner: "다른 인스턴스의 동영상은 본인만 볼 수 있습니다. 여기서는 읽기 전용이므로 편집, 평점, 삭제는 원래 인스턴스에서 하세요.",
+  federationHelpNoteOwner: "다른 인스턴스의 동영상은 관리자에게만 표시됩니다. '{setting}'이(가) 꺼져 있으면 이 인스턴스를 열 수 있는 누구나 볼 수 있습니다. 여기서는 읽기 전용이므로 편집, 평점, 삭제는 원래 인스턴스에서 하세요.",
   federationHelpNoteNetwork: "두 인스턴스 모두 이 기능이 포함된 MyTube 버전이 필요합니다. 로컬 네트워크 주소는 http를 쓸 수 있지만, 인터넷 주소는 https를 써야 합니다.",
   federationHelpNoteBackup: "저장된 액세스 키를 보호하는 키를 데이터베이스와 함께 백업하세요. MYTUBE_FEDERATION_KEY를 설정했다면 그 값을, 아니면 data/federation.key를 백업합니다. 이 키가 없으면 연결된 인스턴스에 저장된 키를 읽을 수 없습니다.",
   federationHelpGuide: "전체 가이드 보기",

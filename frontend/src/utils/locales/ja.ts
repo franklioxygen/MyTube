@@ -1915,7 +1915,7 @@ export const ja = {
   federationHelpStep2: "視聴に使うインスタンスで「{section}」の「{action}」を選び、相手のアドレスとキーを入力します。アドレスは、ローカルネットワークのアドレスなど、このサーバーから到達できるものを使ってください。",
   federationHelpStep3: "相手の動画は約 1 分ごとに同期され、どのインスタンスのものかを示すラベル付きでライブラリに表示されます。",
   federationHelpNotesTitle: "知っておきたいこと",
-  federationHelpNoteOwner: "ほかのインスタンスの動画が見えるのはあなただけです。ここでは読み取り専用なので、編集・評価・削除は元のインスタンスで行ってください。",
+  federationHelpNoteOwner: "ほかのインスタンスの動画は管理者にだけ表示されます。「{setting}」がオフの場合は、このインスタンスを開ける人なら誰でも見られます。ここでは読み取り専用なので、編集・評価・削除は元のインスタンスで行ってください。",
   federationHelpNoteNetwork: "両方のインスタンスに、この機能を含む MyTube のバージョンが必要です。ローカルネットワークのアドレスは http を使えますが、インターネット上のアドレスは https が必要です。",
   federationHelpNoteBackup: "保存済みアクセスキーを保護する鍵をデータベースと一緒にバックアップしてください。MYTUBE_FEDERATION_KEY を設定している場合はその値、そうでなければ data/federation.key です。これがないと、接続先インスタンスの保存済みキーを読み取れません。",
   federationHelpGuide: "詳しいガイドを読む",

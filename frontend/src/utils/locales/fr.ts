@@ -1957,7 +1957,7 @@ export const fr = {
   federationHelpStep2: "Sur l’instance depuis laquelle vous regardez, choisissez « {action} » dans « {section} », puis saisissez l’adresse de l’autre instance et la clé. Utilisez une adresse que ce serveur peut joindre, comme son adresse sur le réseau local.",
   federationHelpStep3: "Ses vidéos sont synchronisées ici environ toutes les minutes et apparaissent dans votre médiathèque, avec leur instance d’origine indiquée.",
   federationHelpNotesTitle: "Bon à savoir",
-  federationHelpNoteOwner: "Vous seul voyez les vidéos des autres instances. Elles sont en lecture seule ici : modifiez-les, notez-les ou supprimez-les sur leur propre instance.",
+  federationHelpNoteOwner: "Les vidéos des autres instances ne sont montrées qu’aux administrateurs. Si « {setting} » est désactivé, toute personne qui peut ouvrir cette instance les voit. Elles sont en lecture seule ici : modifiez-les, notez-les ou supprimez-les sur leur propre instance.",
   federationHelpNoteNetwork: "Les deux instances doivent utiliser une version de MyTube qui inclut cette fonction. Les adresses du réseau local peuvent utiliser http ; celles sur Internet doivent utiliser https.",
   federationHelpNoteBackup: "Sauvegardez avec la base de données la clé qui protège les clés d’accès enregistrées : la valeur de MYTUBE_FEDERATION_KEY si vous l’avez définie, sinon data/federation.key. Sans elle, les clés enregistrées des instances connectées ne peuvent pas être lues.",
   federationHelpGuide: "Lire le guide complet",

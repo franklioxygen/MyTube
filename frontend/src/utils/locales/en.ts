@@ -1883,7 +1883,7 @@ export const en = {
   federationHelpStep2: "On the instance you watch from, choose “{action}” under “{section}”, then enter the other instance's address and the key. Use an address this server can reach, such as its local network address.",
   federationHelpStep3: "Its videos sync here about once a minute and appear in your library, labelled with the instance they come from.",
   federationHelpNotesTitle: "Good to know",
-  federationHelpNoteOwner: "Only you see videos from other instances. They are read-only here: edit, rate or delete them on their own instance.",
+  federationHelpNoteOwner: "Videos from other instances are shown only to admins. If “{setting}” is off, anyone who can open this instance sees them. They are read-only here: edit, rate or delete them on their own instance.",
   federationHelpNoteNetwork: "Both instances need a MyTube version that includes this feature. Local network addresses can use http; addresses on the internet must use https.",
   federationHelpNoteBackup: "Back up the key that protects saved access keys along with your database: the MYTUBE_FEDERATION_KEY value if you set it, otherwise data/federation.key. Without it, the saved keys of connected instances cannot be read.",
   federationHelpGuide: "Read the full guide",

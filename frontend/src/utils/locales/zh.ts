@@ -1812,7 +1812,7 @@ export const zh = {
   federationHelpStep2: "在你用来观看的实例上，在“{section}”中点“{action}”，填写对方的地址和密钥。地址要是本服务器能访问到的，比如对方的局域网地址。",
   federationHelpStep3: "对方的视频大约每分钟同步一次，出现在你的媒体库里，并标出来自哪台实例。",
   federationHelpNotesTitle: "注意事项",
-  federationHelpNoteOwner: "只有你能看到其他实例的视频。它们在这里是只读的：编辑、评分或删除请到它所在的实例上操作。",
+  federationHelpNoteOwner: "其他实例的视频只对管理员显示；如果关闭了“{setting}”，能打开本实例的任何人都能看到。它们在这里是只读的：编辑、评分或删除请到它所在的实例上操作。",
   federationHelpNoteNetwork: "两台实例都需要运行包含此功能的 MyTube 版本。局域网地址可以用 http，公网地址必须用 https。",
   federationHelpNoteBackup: "备份数据库时，请一并备份加密访问密钥用的密钥：设置了 MYTUBE_FEDERATION_KEY 就保存它的值，否则备份 data/federation.key。没有它，已连接实例保存的密钥就无法读取。",
   federationHelpGuide: "查看完整说明",
