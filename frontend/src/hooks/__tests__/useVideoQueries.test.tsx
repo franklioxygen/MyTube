@@ -78,4 +78,24 @@ describe('useVideoQueries', () => {
         });
         expect(result.current.isDetailFresh).toBe(true);
     });
+
+    it('counts a request still in flight when the user switches away and back', async () => {
+        let respond!: () => void;
+        get.mockImplementationOnce(
+            (url: string) => new Promise((resolve) => {
+                respond = () => resolve({ data: remote(url.split('/').pop()!) });
+            }),
+        );
+        const { result, rerender } = setup('fed_1');
+        await waitFor(() => expect(get).toHaveBeenCalledTimes(1));
+
+        rerender({ id: 'fed_2' });
+        await waitFor(() => expect(result.current.isDetailFresh).toBe(true));
+        // Back while the first request for fed_1 is still pending: it is reused.
+        rerender({ id: 'fed_1' });
+        act(() => respond());
+
+        await waitFor(() => expect(result.current.isDetailFresh).toBe(true));
+        expect(result.current.video?.id).toBe('fed_1');
+    });
 });

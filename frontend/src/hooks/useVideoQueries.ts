@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { useId, useMemo, useState } from 'react';
+import { useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../utils/apiClient';
 import { Video } from '../types';
 import { buildAuthorAvatarPathMap, withCanonicalAuthorAvatar } from '../utils/authorAvatar';
@@ -7,10 +7,12 @@ import { isRemoteVideo } from '../utils/libraryItem';
 import { defaultQueryConfig } from '../utils/queryConfig';
 
 /**
- * A detail records which opening of the video requested it. The field
- * survives cache updates (progress, edits), so only a request completed during
- * this opening marks the detail as fresh; a timestamp or flag would also be
- * set by those updates.
+ * A detail records the opening of the video during which its request
+ * completed. The field survives cache updates (progress, edits), so only a
+ * response that arrived during this opening marks the detail as fresh; a
+ * timestamp or flag would also be set by those updates. It is read when the
+ * response arrives, not when the request starts, because a request still in
+ * flight is reused when the user switches away and back.
  */
 const FETCHED_FOR_OPENING = 'fetchedForOpening';
 
@@ -44,12 +46,17 @@ export function useVideoQueries({ videoId, videos, showComments }: UseVideoQueri
         setSwitches(current);
     }
     const opening = `${instance}:${current.count}`;
+    // Updated during the commit, before any response can be handled.
+    const openingRef = useRef(opening);
+    useLayoutEffect(() => {
+        openingRef.current = opening;
+    }, [opening]);
 
     const { data: rawVideo, isLoading: loading, error } = useQuery({
         queryKey: ['video', videoId],
         queryFn: async () => {
             const response = await api.get(`/videos/${videoId}`);
-            return { ...response.data, [FETCHED_FOR_OPENING]: opening };
+            return { ...response.data, [FETCHED_FOR_OPENING]: openingRef.current };
         },
         placeholderData: () => {
             return videos.find(v => v.id === videoId);
@@ -82,8 +89,8 @@ export function useVideoQueries({ videoId, videos, showComments }: UseVideoQueri
         video,
         loading,
         /**
-         * True once a detail request made during this opening has succeeded:
-         * not for the list row, a detail cached from an earlier opening, or a
+         * True once a detail response has arrived during this opening: not
+         * for the list row, a detail cached from an earlier opening, or a
          * cache update such as a progress flush.
          */
         isDetailFresh: rawVideo?.[FETCHED_FOR_OPENING] === opening,
