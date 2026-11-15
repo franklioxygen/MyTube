@@ -145,6 +145,8 @@ const AuthorVideosPage: React.FC = () => {
                         avatarUrl={avatarUrl}
                         videoCountLabel={videoCountLabel}
                         hasVideos={authorVideos.length > 0}
+                        // Tag, collection and delete act on this instance's videos only.
+                        canManageVideos={nativeAuthorVideos.length > 0}
                         isBusy={actions.isCreatingCollection || actions.isDeleting}
                         addTagsLabel={t('addTags')}
                         createCollectionTooltip={t('createCollectionFromAuthorTooltip')}

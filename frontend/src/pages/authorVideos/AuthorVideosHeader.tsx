@@ -13,6 +13,8 @@ interface AuthorVideosHeaderProps {
     avatarUrl: string | null;
     videoCountLabel: string;
     hasVideos: boolean;
+    /** Whether the author has videos on this instance for tag, collection and delete actions. */
+    canManageVideos: boolean;
     isBusy: boolean;
     addTagsLabel: string;
     createCollectionTooltip: string;
@@ -40,6 +42,7 @@ const AuthorVideosHeader: React.FC<AuthorVideosHeaderProps> = ({
     avatarUrl,
     videoCountLabel,
     hasVideos,
+    canManageVideos,
     isBusy,
     addTagsLabel,
     createCollectionTooltip,
@@ -136,16 +139,18 @@ const AuthorVideosHeader: React.FC<AuthorVideosHeaderProps> = ({
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexShrink: 0 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                     {onEditAvatar && <Tooltip title={editAvatarLabel}><IconButton color="primary" onClick={onEditAvatar} disabled={isBusy} aria-label={editAvatarLabel}><PhotoCamera /></IconButton></Tooltip>}
-                    <Tooltip title={addTagsLabel}>
-                        <IconButton
-                            color="primary"
-                            onClick={onOpenTagsModal}
-                            disabled={isBusy}
-                            aria-label="add tags to author"
-                        >
-                            <LocalOffer />
-                        </IconButton>
-                    </Tooltip>
+                    {canManageVideos && (
+                        <Tooltip title={addTagsLabel}>
+                            <IconButton
+                                color="primary"
+                                onClick={onOpenTagsModal}
+                                disabled={isBusy}
+                                aria-label="add tags to author"
+                            >
+                                <LocalOffer />
+                            </IconButton>
+                        </Tooltip>
+                    )}
                     <FavoriteToggle
                         active={isFavorite}
                         onToggle={onToggleFavorite}
@@ -153,7 +158,7 @@ const AuthorVideosHeader: React.FC<AuthorVideosHeaderProps> = ({
                         activeLabel={unfavoriteLabel}
                         disabled={favoriteDisabled}
                     />
-                    {hasVideos && (
+                    {canManageVideos && (
                         <>
                             <Tooltip title={createCollectionTooltip}>
                                 <IconButton

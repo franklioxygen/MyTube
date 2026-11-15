@@ -158,6 +158,7 @@ vi.mock('../AuthorVideosHeader', () => ({
             <span data-testid="author-display-name">{props.authorDisplayName}</span>
             <span data-testid="video-count-label">{props.videoCountLabel}</span>
             <span data-testid="has-videos">{String(props.hasVideos)}</span>
+            <span data-testid="can-manage-videos">{String(props.canManageVideos)}</span>
             <span data-testid="is-busy">{String(props.isBusy)}</span>
             <button data-testid="toggle-sidebar-btn" onClick={props.onToggleSidebar}>Toggle Sidebar</button>
             <button data-testid="open-tags-modal-btn" onClick={props.onOpenTagsModal}>Open Tags</button>
@@ -246,6 +247,21 @@ describe('AuthorVideosPage', () => {
         ];
         renderPage();
         expect(capturedActionArgs.current?.authorVideos.map((video) => video.id)).toEqual(['v1', 'v2']);
+        expect(screen.getByTestId('can-manage-videos')).toHaveTextContent('true');
+    });
+
+    it('offers no tag, collection or delete actions for an author with only remote videos', () => {
+        mockAuthorVideos = [{
+            id: 'fed_1',
+            title: 'Remote',
+            author: 'TestAuthor',
+            tags: [],
+            origin: { kind: 'remote', instanceId: 'peer', instanceName: 'NAS' },
+        }];
+        renderPage();
+        // Still listed and sortable, but nothing here can change them.
+        expect(screen.getByTestId('has-videos')).toHaveTextContent('true');
+        expect(screen.getByTestId('can-manage-videos')).toHaveTextContent('false');
     });
 
     it('shows saved profile artwork for empty authors and retains video artwork precedence', () => {
