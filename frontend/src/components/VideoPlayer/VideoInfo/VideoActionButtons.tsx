@@ -6,7 +6,7 @@ import { useSnackbar } from '../../../contexts/SnackbarContext';
 import { useVideo } from '../../../contexts/VideoContext';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useCloudStorageUrl } from '../../../hooks/useCloudStorageUrl';
-import { encodeLocalMediaPath, isHttpUrl } from '../../../utils/localMediaPath';
+import { encodeLocalMediaPath, isHttpUrl, toAbsoluteMediaUrl } from '../../../utils/localMediaPath';
 import { useShareVideo } from '../../../hooks/useShareVideo';
 import { Video } from '../../../types'; // Add imports
 import { getAvailablePlayers, getPlayerUrl } from '../../../utils/playerUtils'; // Import new utils
@@ -50,9 +50,9 @@ const VideoActionButtons: React.FC<VideoActionButtonsProps> = ({
     const isLocked = video.autoDeleteLocked === 1;
 
     const getVideoUrl = async (): Promise<string> => {
-        // If we have a cloud storage URL, use it directly
+        // If we have a resolved URL, use it, made absolute for the player
         if (videoUrl) {
-            return videoUrl;
+            return toAbsoluteMediaUrl(videoUrl);
         }
 
         // If cloud storage path but URL not loaded yet, try to get it directly
@@ -90,7 +90,7 @@ const VideoActionButtons: React.FC<VideoActionButtonsProps> = ({
     };
 
     const getSyncVideoUrl = (): string | null => {
-        if (videoUrl) return videoUrl;
+        if (videoUrl) return toAbsoluteMediaUrl(videoUrl);
 
         if (video.videoPath && !video.videoPath.startsWith('cloud:')) {
             if (isHttpUrl(video.videoPath)) return video.videoPath;

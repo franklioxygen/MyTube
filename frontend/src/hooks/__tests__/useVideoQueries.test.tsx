@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { defaultQueryConfig } from '../../utils/queryConfig';
@@ -15,6 +15,20 @@ const remote = (id: string) => ({
     capabilities: { canPlay: true },
 });
 
+// The app's defaults: queries stay fresh for five minutes.
+const setup = (initialId: string) => {
+    const client = new QueryClient({ defaultOptions: { queries: { ...defaultQueryConfig, retry: false } } });
+    const wrapper = ({ children }: { children: React.ReactNode }) => (
+        <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    );
+    // The player stays mounted while /video/:id changes.
+    const hook = renderHook(
+        ({ id }) => useVideoQueries({ videoId: id, videos: [], showComments: false }),
+        { wrapper, initialProps: { id: initialId } },
+    );
+    return { client, ...hook };
+};
+
 describe('useVideoQueries', () => {
     beforeEach(() => {
         get.mockReset();
@@ -22,24 +36,46 @@ describe('useVideoQueries', () => {
     });
 
     it('re-reads a cached remote detail on every switch to it', async () => {
-        // The app's defaults: queries stay fresh for five minutes.
-        const client = new QueryClient({ defaultOptions: { queries: { ...defaultQueryConfig, retry: false } } });
-        const wrapper = ({ children }: { children: React.ReactNode }) => (
-            <QueryClientProvider client={client}>{children}</QueryClientProvider>
-        );
-        // The player stays mounted while /video/:id changes.
-        const { result, rerender } = renderHook(
-            ({ id }) => useVideoQueries({ videoId: id, videos: [], showComments: false }),
-            { wrapper, initialProps: { id: 'fed_1' } },
-        );
-        await waitFor(() => expect(result.current.isFetchedAfterMount).toBe(true));
+        const { result, rerender } = setup('fed_1');
+        await waitFor(() => expect(result.current.isDetailFresh).toBe(true));
 
         rerender({ id: 'fed_2' });
-        await waitFor(() => expect(result.current.video?.id).toBe('fed_2'));
+        await waitFor(() => expect(result.current.isDetailFresh).toBe(true));
         rerender({ id: 'fed_1' });
 
-        // Back on a cached remote item: fetched again before it counts as fresh.
+        // Back on a cached remote item: not fresh until it is fetched again.
+        expect(result.current.isDetailFresh).toBe(false);
         await waitFor(() => expect(get.mock.calls.filter(([url]) => url === '/videos/fed_1')).toHaveLength(2));
-        await waitFor(() => expect(result.current.isFetchedAfterMount).toBe(true));
+        await waitFor(() => expect(result.current.isDetailFresh).toBe(true));
+    });
+
+    it('does not count a cache update during a pending request as fresh', async () => {
+        const { client, result, rerender } = setup('fed_1');
+        await waitFor(() => expect(result.current.isDetailFresh).toBe(true));
+        rerender({ id: 'fed_2' });
+        await waitFor(() => expect(result.current.isDetailFresh).toBe(true));
+
+        let respond!: () => void;
+        get.mockImplementationOnce(
+            (url: string) => new Promise((resolve) => {
+                respond = () => resolve({ data: remote(url.split('/').pop()!) });
+            }),
+        );
+        rerender({ id: 'fed_1' });
+        await waitFor(() => expect(get.mock.calls.filter(([url]) => url === '/videos/fed_1')).toHaveLength(2));
+
+        // A progress flush writes the cached detail while the request waits.
+        act(() => {
+            client.setQueryData(['video', 'fed_1'], (old: object | undefined) => (old ? { ...old, progress: 42 } : old));
+        });
+        expect(result.current.isDetailFresh).toBe(false);
+
+        act(() => respond());
+        await waitFor(() => expect(result.current.isDetailFresh).toBe(true));
+        // Later cache updates keep it fresh, so playback is not cut off.
+        act(() => {
+            client.setQueryData(['video', 'fed_1'], (old: object | undefined) => (old ? { ...old, progress: 43 } : old));
+        });
+        expect(result.current.isDetailFresh).toBe(true);
     });
 });

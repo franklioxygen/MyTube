@@ -3,7 +3,7 @@ import { Video } from '../types';
 import { isNewVideo } from '../utils/videoCardUtils';
 import { useCloudStorageUrl } from './useCloudStorageUrl';
 import { useThumbnailCandidates } from './useThumbnailCandidates';
-import { encodeLocalMediaPath, isHttpUrl } from '../utils/localMediaPath';
+import { encodeLocalMediaPath, isHttpUrl, toAbsoluteMediaUrl } from '../utils/localMediaPath';
 import { isRemoteVideo } from '../utils/libraryItem';
 
 interface UseVideoCardMetadataProps {
@@ -26,9 +26,9 @@ export const useVideoCardMetadata = ({ video }: UseVideoCardMetadataProps) => {
 
     // Get video URL with fallback logic
     const getVideoUrl = async (): Promise<string> => {
-        // If we have a cloud storage URL, use it directly
+        // If we have a resolved URL, use it, made absolute for the player
         if (videoUrl) {
-            return videoUrl;
+            return toAbsoluteMediaUrl(videoUrl);
         }
 
         // If cloud storage path but URL not loaded yet, wait for it
