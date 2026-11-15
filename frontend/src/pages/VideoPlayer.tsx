@@ -606,9 +606,13 @@ const VideoPlayer: React.FC = () => {
         navigate(`/video/${videoId}`);
     };
 
+    // "Next" and autoplay skip recommendations that cannot play right now (a
+    // remote item whose peer serves no media, or is offline).
+    const nextPlayableIndex = relatedVideos.findIndex((item) => videoCan(item, 'canPlay'));
+
     const handleNextVideo = () => {
-        if (relatedVideos.length === 0) return;
-        goToUpNextVideo(relatedVideos[0].id, 0, 'keyboard');
+        if (nextPlayableIndex < 0) return;
+        goToUpNextVideo(relatedVideos[nextPlayableIndex].id, nextPlayableIndex, 'keyboard');
     };
 
     // Going back pops the entry it used rather than pushing a new one, so
@@ -635,8 +639,8 @@ const VideoPlayer: React.FC = () => {
     };
 
     const handleVideoEnded = () => {
-        if (autoPlayNext && relatedVideos.length > 0) {
-            const nextVideo = relatedVideos[0];
+        if (autoPlayNext && nextPlayableIndex >= 0) {
+            const nextVideo = relatedVideos[nextPlayableIndex];
             const recordsAutoplay = statisticsIngestion.enabled && video && !isRemoteVideo(video) && !isRemoteVideo(nextVideo);
             const autoplayEventId = recordsAutoplay
                 ? statisticsIngestion.recordEvent({
@@ -801,7 +805,7 @@ const VideoPlayer: React.FC = () => {
                             track: liveSubtitleTrack.track,
                         }}
                         seekIntervals={seekIntervals}
-                        onNextVideo={relatedVideos.length > 0 ? handleNextVideo : undefined}
+                        onNextVideo={nextPlayableIndex >= 0 ? handleNextVideo : undefined}
                         onPreviousVideo={previousVideoId ? handlePreviousVideo : undefined}
                     /> : <VideoControls
                         danmakuVideoId={danmakuVideoId}
@@ -834,7 +838,7 @@ const VideoPlayer: React.FC = () => {
                                 ? () => setCompatibilityMode(true)
                                 : undefined
                         }
-                        onNextVideo={relatedVideos.length > 0 ? handleNextVideo : undefined}
+                        onNextVideo={nextPlayableIndex >= 0 ? handleNextVideo : undefined}
                         onPreviousVideo={previousVideoId ? handlePreviousVideo : undefined}
                     />}
 

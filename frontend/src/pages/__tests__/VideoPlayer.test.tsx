@@ -621,6 +621,21 @@ describe('VideoPlayer', () => {
 
     // ------ handleVideoEnded / autoPlayNext ------
     describe('handleVideoEnded and autoPlayNext', () => {
+        it('skips a recommendation that cannot play when advancing', () => {
+            localStorageMock.setItem('autoPlayNext', 'true');
+            const unplayable = {
+                id: 'fed_1',
+                origin: { kind: 'remote', instanceId: 'peer', instanceName: 'NAS' },
+                capabilities: { canPlay: false },
+            };
+            mockVideoRecommendationsReturn = { relatedVideos: [unplayable, { id: 'v3' }] };
+            render(<VideoPlayer />);
+
+            act(() => { capturedVideoControlsProps.onEnded(); });
+            expect(mockNavigate).toHaveBeenCalledWith('/video/v3', expect.anything());
+            expect(mockNavigate).not.toHaveBeenCalledWith('/video/fed_1', expect.anything());
+        });
+
         it('navigates to next related video when autoPlayNext is on and related videos exist', () => {
             localStorageMock.setItem('autoPlayNext', 'true');
             mockVideoRecommendationsReturn = { relatedVideos: [{ id: 'v2' }, { id: 'v3' }] };

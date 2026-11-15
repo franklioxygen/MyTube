@@ -13,6 +13,7 @@ import FavoriteCollectionRail from './favorite/FavoriteCollectionRail';
 import FavoriteEmptyState from './favorite/FavoriteEmptyState';
 import FavoriteHeroCarousel, { type FavoriteHeroItem } from './favorite/FavoriteHeroCarousel';
 import FavoriteTopRatedRail from './favorite/FavoriteTopRatedRail';
+import { isRemoteVideo } from '../utils/libraryItem';
 
 // The hero carousel leads with up to two "continue watching" videos, then
 // rotates through a few random top-rated videos.
@@ -79,7 +80,8 @@ const FavoritePage: React.FC<FavoritePageProps> = ({ onBrowseCollections, onFind
 
     const topRatedVideos = useMemo(
         () => (Array.isArray(videos) ? videos : [])
-            .filter((video) => video.rating === 5)
+            // A remote item's rating is its peer's, not one the owner gave.
+            .filter((video) => video.rating === 5 && !isRemoteVideo(video))
             .sort((a, b) => getActivityTimestamp(b) - getActivityTimestamp(a)),
         [videos],
     );

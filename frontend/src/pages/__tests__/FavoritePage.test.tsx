@@ -62,4 +62,19 @@ describe('FavoritePage', () => {
         expect(screen.getByTestId('favorite-hero')).toBeInTheDocument();
         expect(screen.getByTestId('top-rated')).toHaveTextContent('1');
     });
+
+    it('leaves out a remote item rated five stars on its own instance', () => {
+        mockVideos = [
+            { id: 'two', title: 'Two', rating: 5, createdAt: '2026-01-01' },
+            {
+                id: 'fed_1',
+                title: 'Remote',
+                rating: 5,
+                createdAt: '2026-01-02',
+                origin: { kind: 'remote', instanceId: 'peer', instanceName: 'NAS' },
+            },
+        ];
+        renderPage();
+        expect(screen.getByTestId('top-rated')).toHaveTextContent('1');
+    });
 });
