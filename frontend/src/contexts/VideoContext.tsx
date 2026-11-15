@@ -11,7 +11,7 @@ import { normalizeTagKey } from '../utils/tagUtils';
 import { useAuth } from './AuthContext';
 import { useLanguage } from './LanguageContext';
 import { useSnackbar } from './SnackbarContext';
-import { libraryPollInterval } from '../utils/libraryItem';
+import { isRemoteVideo, libraryPollInterval } from '../utils/libraryItem';
 const MAX_SEARCH_RESULTS = 200; // Maximum number of search results to keep in memory
 
 // The external platforms `/search` can be asked for, one section of the search
@@ -158,11 +158,13 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         refetchOnWindowFocus: false,
     });
 
-    // Filter invisible videos when in visitor mode
+    // Filter invisible videos when in visitor mode. Items from other instances
+    // are the owner's alone, so a list cached before a switch to a visitor
+    // must not show them either.
     const videos = useMemo(() => {
         const normalizedVideos = withCanonicalAuthorAvatars(videosRaw);
         if (isVisitor) {
-            return normalizedVideos.filter(video => (video.visibility ?? 1) === 1);
+            return normalizedVideos.filter(video => (video.visibility ?? 1) === 1 && !isRemoteVideo(video));
         }
         return normalizedVideos;
     }, [videosRaw, isVisitor]);
