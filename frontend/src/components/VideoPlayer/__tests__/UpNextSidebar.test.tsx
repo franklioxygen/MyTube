@@ -96,5 +96,7 @@ describe('UpNextSidebar', () => {
         expect(screen.getByLabelText('addToCollection')).toBeInTheDocument();
         hoverItem('Remote video');
         expect(screen.queryByLabelText('addToCollection')).not.toBeInTheDocument();
+        // Only the native item shows a view count; the remote one has none to show.
+        expect(screen.getAllByText(/views/)).toHaveLength(1);
     });
 });

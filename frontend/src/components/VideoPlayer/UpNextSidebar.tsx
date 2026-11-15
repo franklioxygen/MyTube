@@ -173,9 +173,12 @@ const UpNextSidebar: React.FC<UpNextSidebarProps> = ({
                                     <Typography variant="caption" color="text.secondary">
                                         {formatDate(relatedVideo.date)}
                                     </Typography>
-                                    <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
-                                        ·  {relatedVideo.viewCount || 0} {t('views')}
-                                    </Typography>
+                                    {/* No count where this instance records no views (remote items). */}
+                                    {videoCan(relatedVideo, 'canRecordView') && (
+                                        <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
+                                            ·  {relatedVideo.viewCount || 0} {t('views')}
+                                        </Typography>
+                                    )}
                                 </Box>
 
                                 {hoveredVideoId === relatedVideo.id && !isMobile && !isTouch && !isVisitor && videoCan(relatedVideo, 'canAddToCollection') && (
