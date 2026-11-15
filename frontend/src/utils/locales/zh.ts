@@ -1814,7 +1814,7 @@ export const zh = {
   federationHelpNotesTitle: "注意事项",
   federationHelpNoteOwner: "其他实例的视频只对管理员显示；如果关闭了“{setting}”，能打开本实例的任何人都能看到。它们在这里是只读的：编辑、评分或删除请到它所在的实例上操作。",
   federationHelpNoteNetwork: "两台实例都需要运行包含此功能的 MyTube 版本。局域网地址可以用 http，公网地址必须用 https。",
-  federationHelpNoteBackup: "备份数据库时，请一并备份加密访问密钥用的密钥：设置了 MYTUBE_FEDERATION_KEY 就保存它的值，否则备份 data/federation.key。没有它，已连接实例保存的密钥就无法读取。",
+  federationHelpNoteBackup: "备份数据库时，请一并备份加密访问密钥用的密钥：设置了 MYTUBE_FEDERATION_KEY 就保存它的值，否则备份数据目录里的 federation.key。没有它，已连接实例保存的密钥就无法读取。",
   federationHelpGuide: "查看完整说明",
   federationThisInstance: "本实例",
   federationInstanceId: "实例 ID",

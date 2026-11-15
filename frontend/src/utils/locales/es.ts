@@ -1948,7 +1948,7 @@ export const es = {
   federationHelpNotesTitle: "A tener en cuenta",
   federationHelpNoteOwner: "Los videos de otras instancias solo se muestran a los administradores. Si «{setting}» está desactivado, cualquiera que pueda abrir esta instancia los ve. Aquí son de solo lectura: edítalos, puntúalos o elimínalos en su propia instancia.",
   federationHelpNoteNetwork: "Ambas instancias necesitan una versión de MyTube que incluya esta función. Las direcciones de la red local pueden usar http; las de internet deben usar https.",
-  federationHelpNoteBackup: "Haz copia de seguridad, junto con la base de datos, de la clave que protege las claves de acceso guardadas: el valor de MYTUBE_FEDERATION_KEY si lo configuraste o, si no, data/federation.key. Sin ella no se pueden leer las claves guardadas de las instancias conectadas.",
+  federationHelpNoteBackup: "Haz copia de seguridad, junto con la base de datos, de la clave que protege las claves de acceso guardadas: el valor de MYTUBE_FEDERATION_KEY si lo configuraste o, si no, federation.key en el directorio de datos. Sin ella no se pueden leer las claves guardadas de las instancias conectadas.",
   federationHelpGuide: "Leer la guía completa",
   federationThisInstance: "Esta instancia",
   federationInstanceId: "ID de instancia",

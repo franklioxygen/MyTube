@@ -1959,7 +1959,7 @@ export const fr = {
   federationHelpNotesTitle: "Bon à savoir",
   federationHelpNoteOwner: "Les vidéos des autres instances ne sont montrées qu’aux administrateurs. Si « {setting} » est désactivé, toute personne qui peut ouvrir cette instance les voit. Elles sont en lecture seule ici : modifiez-les, notez-les ou supprimez-les sur leur propre instance.",
   federationHelpNoteNetwork: "Les deux instances doivent utiliser une version de MyTube qui inclut cette fonction. Les adresses du réseau local peuvent utiliser http ; celles sur Internet doivent utiliser https.",
-  federationHelpNoteBackup: "Sauvegardez avec la base de données la clé qui protège les clés d’accès enregistrées : la valeur de MYTUBE_FEDERATION_KEY si vous l’avez définie, sinon data/federation.key. Sans elle, les clés enregistrées des instances connectées ne peuvent pas être lues.",
+  federationHelpNoteBackup: "Sauvegardez avec la base de données la clé qui protège les clés d’accès enregistrées : la valeur de MYTUBE_FEDERATION_KEY si vous l’avez définie, sinon federation.key dans le répertoire de données. Sans elle, les clés enregistrées des instances connectées ne peuvent pas être lues.",
   federationHelpGuide: "Lire le guide complet",
   federationThisInstance: "Cette instance",
   federationInstanceId: "ID d’instance",

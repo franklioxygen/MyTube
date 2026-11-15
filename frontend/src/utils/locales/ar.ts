@@ -1891,7 +1891,7 @@ export const ar = {
   federationHelpNotesTitle: "معلومات مفيدة",
   federationHelpNoteOwner: "تُعرض فيديوهات النسخ الأخرى للمشرفين فقط. إذا كان «{setting}» متوقفًا، فسيراها كل من يستطيع فتح هذه النسخة. وهي للقراءة فقط هنا: عدّلها أو قيّمها أو احذفها على نسختها الأصلية.",
   federationHelpNoteNetwork: "تحتاج النسختان إلى إصدار من MyTube يتضمن هذه الميزة. يمكن لعناوين الشبكة المحلية استخدام http، أما عناوين الإنترنت فيجب أن تستخدم https.",
-  federationHelpNoteBackup: "احتفظ مع قاعدة البيانات بنسخة احتياطية من المفتاح الذي يحمي مفاتيح الوصول المحفوظة: قيمة MYTUBE_FEDERATION_KEY إن كنت قد عيّنتها، وإلا فالملف data/federation.key. من دونه لا يمكن قراءة المفاتيح المحفوظة للنسخ المتصلة.",
+  federationHelpNoteBackup: "احتفظ مع قاعدة البيانات بنسخة احتياطية من المفتاح الذي يحمي مفاتيح الوصول المحفوظة: قيمة MYTUBE_FEDERATION_KEY إن كنت قد عيّنتها، وإلا فالملف federation.key في مجلد البيانات. من دونه لا يمكن قراءة المفاتيح المحفوظة للنسخ المتصلة.",
   federationHelpGuide: "اقرأ الدليل الكامل",
   federationThisInstance: "هذه النسخة",
   federationInstanceId: "معرّف النسخة",

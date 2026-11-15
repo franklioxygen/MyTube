@@ -1885,7 +1885,7 @@ export const en = {
   federationHelpNotesTitle: "Good to know",
   federationHelpNoteOwner: "Videos from other instances are shown only to admins. If “{setting}” is off, anyone who can open this instance sees them. They are read-only here: edit, rate or delete them on their own instance.",
   federationHelpNoteNetwork: "Both instances need a MyTube version that includes this feature. Local network addresses can use http; addresses on the internet must use https.",
-  federationHelpNoteBackup: "Back up the key that protects saved access keys along with your database: the MYTUBE_FEDERATION_KEY value if you set it, otherwise data/federation.key. Without it, the saved keys of connected instances cannot be read.",
+  federationHelpNoteBackup: "Back up the key that protects saved access keys along with your database: the MYTUBE_FEDERATION_KEY value if you set it, otherwise federation.key in the data directory. Without it, the saved keys of connected instances cannot be read.",
   federationHelpGuide: "Read the full guide",
   federationThisInstance: "This instance",
   federationInstanceId: "Instance ID",

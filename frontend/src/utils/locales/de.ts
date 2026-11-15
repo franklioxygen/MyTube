@@ -1946,7 +1946,7 @@ export const de = {
   federationHelpNotesTitle: "Gut zu wissen",
   federationHelpNoteOwner: "Videos anderer Instanzen sehen nur Administratoren. Ist „{setting}“ aus, sieht sie jeder, der diese Instanz öffnen kann. Hier sind sie schreibgeschützt: Bearbeiten, Bewerten oder Löschen geschieht auf ihrer eigenen Instanz.",
   federationHelpNoteNetwork: "Beide Instanzen brauchen eine MyTube-Version mit dieser Funktion. Adressen im lokalen Netz dürfen http verwenden, Adressen im Internet müssen https verwenden.",
-  federationHelpNoteBackup: "Sichere zusammen mit der Datenbank den Schlüssel, der gespeicherte Zugriffsschlüssel schützt: den Wert von MYTUBE_FEDERATION_KEY, falls gesetzt, sonst data/federation.key. Ohne ihn lassen sich die gespeicherten Schlüssel verbundener Instanzen nicht lesen.",
+  federationHelpNoteBackup: "Sichere zusammen mit der Datenbank den Schlüssel, der gespeicherte Zugriffsschlüssel schützt: den Wert von MYTUBE_FEDERATION_KEY, falls gesetzt, sonst federation.key im Datenverzeichnis. Ohne ihn lassen sich die gespeicherten Schlüssel verbundener Instanzen nicht lesen.",
   federationHelpGuide: "Vollständige Anleitung lesen",
   federationThisInstance: "Diese Instanz",
   federationInstanceId: "Instanz-ID",

@@ -90,7 +90,7 @@ On the watching instance:
 - A plain `http` address is accepted only when it resolves to private addresses, and is checked again on every connection, so a name that later points to the internet is refused. Requests to such an instance never go through a proxy.
 - Remote videos are shown only to the owner. With login protection off, everyone who can open the watching instance counts as the owner and sees them, so turn login on or limit who can reach it.
 - The sharing instance stores only a hash of each key. Visibility is checked on every request, so hiding a video stops keys limited to visible videos from reading it straight away. A key that includes hidden videos still reads it; revoke that key to stop access.
-- The watching instance stores keys encrypted with `federation.key` in its data directory (`data/`, unless `MYTUBE_BACKEND_DATA_DIR` moves it), or with the `MYTUBE_FEDERATION_KEY` environment variable when it is set. Neither the other instance's address nor its storage links reach your browser.
+- The watching instance stores keys encrypted with `federation.key` in its data directory (`data/`, unless `MYTUBE_BACKEND_DATA_DIR` moves it), or with the `MYTUBE_FEDERATION_KEY` environment variable when it is set. Browsing and playback go through this instance, so the library and player never receive the other instance's address or its storage links; the address appears only in these settings.
 - The included Nginx configuration streams `/api/federation/media` and `/api/federation/v1` unbuffered. If you use your own reverse proxy, do the same so seeking works.
 
 ## Backups and restores
