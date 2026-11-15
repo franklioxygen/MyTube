@@ -41,6 +41,13 @@ vi.mock("../../db", () => ({
 
 vi.mock("../../services/downloadService");
 vi.mock("../../services/storageService");
+// No federation peers in these unit tests; remote items have their own suite.
+vi.mock("../../services/federation/remoteLibrary", () => ({ remoteLibraryTag: vi.fn(() => "") }));
+vi.mock("../../services/federation/libraryView", () => ({
+  listRemoteVideos: vi.fn(() => []),
+  mergeLibrary: vi.fn((native: unknown[]) => native),
+  readRemoteVideo: vi.fn(async () => null),
+}));
 vi.mock("../../services/recommendationSignalsService", () => ({
   invalidateRecommendationSignalsCache: vi.fn(),
 }));

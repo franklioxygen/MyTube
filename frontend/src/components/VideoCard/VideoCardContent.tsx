@@ -5,6 +5,7 @@ import { useCloudStorageUrl } from '../../hooks/useCloudStorageUrl';
 import { Video } from '../../types';
 import { authorAvatarFallbackSx } from '../../utils/authorAvatarStyles';
 import { formatRelativeDownloadTime } from '../../utils/formatUtils';
+import { videoCan } from '../../utils/libraryItem';
 import { VideoCardCollectionInfo } from '../../utils/videoCardUtils';
 
 const DATE_COLLAPSE_MS = 300; // duration of the date show/hide transition
@@ -228,9 +229,11 @@ export const VideoCardContent: React.FC<VideoCardContentProps> = ({
                             {formatRelativeDownloadTime(video.addedAt, video.date, t)}
                         </Typography>
                     </Box>
-                    <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
-                        {video.viewCount || 0} {t('views')}
-                    </Typography>
+                    {videoCan(video, 'canRecordView') && (
+                        <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
+                            {video.viewCount || 0} {t('views')}
+                        </Typography>
+                    )}
                 </Box>
             </Box>
         </CardContent>

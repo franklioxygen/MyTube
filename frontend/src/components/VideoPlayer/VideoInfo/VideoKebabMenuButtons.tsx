@@ -9,9 +9,9 @@ const VideoKebabMenu = lazyWithRetry(
 );
 
 interface VideoKebabMenuButtonsProps {
-    onPlayWith: (anchor: HTMLElement) => void;
-    onShare: () => void;
-    onAddToCollection: () => void;
+    onPlayWith?: (anchor: HTMLElement) => void;
+    onShare?: () => void;
+    onAddToCollection?: () => void;
     onDelete?: () => void;
     isDeleting?: boolean;
     isTogglingVisibility?: boolean;

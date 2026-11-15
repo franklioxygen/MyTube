@@ -59,7 +59,11 @@ const FederationPeers: React.FC = () => {
         queryFn: async () => (await federationApi.listPeers()).data.peers,
     });
 
-    const refresh = () => void queryClient.invalidateQueries({ queryKey: PEERS_QUERY_KEY });
+    // Any peer change can add, remove or relabel items in the library.
+    const refresh = () => {
+        void queryClient.invalidateQueries({ queryKey: PEERS_QUERY_KEY });
+        void queryClient.invalidateQueries({ queryKey: ['videos'] });
+    };
     const fail = (error: unknown) =>
         showSnackbar(t('federationActionFailed', { error: getErrorMessage(error) }), 'error');
 

@@ -1,8 +1,20 @@
 import { useQuery } from '@tanstack/react-query';
-import { useMemo } from 'react';
+import { useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../utils/apiClient';
 import { Video } from '../types';
 import { buildAuthorAvatarPathMap, withCanonicalAuthorAvatar } from '../utils/authorAvatar';
+import { isRemoteVideo } from '../utils/libraryItem';
+import { defaultQueryConfig } from '../utils/queryConfig';
+
+/**
+ * A detail records the opening of the video during which its request
+ * completed. The field survives cache updates (progress, edits), so only a
+ * response that arrived during this opening marks the detail as fresh; a
+ * timestamp or flag would also be set by those updates. It is read when the
+ * response arrives, not when the request starts, because a request still in
+ * flight is reused when the user switches away and back.
+ */
+const FETCHED_FOR_OPENING = 'fetchedForOpening';
 
 interface UseVideoQueriesProps {
     videoId: string | undefined;
@@ -24,15 +36,37 @@ export function useVideoQueries({ videoId, videos, showComments }: UseVideoQueri
     // omits description/subtitles (heavy columns), so seeding it as
     // initialData would let the global staleTime suppress the fetch and leave
     // the player without them.
+    // A new key whenever the player mounts or switches to a video: the
+    // instance id is unique per mount, and the count per switch within it.
+    const instance = useId();
+    const [switches, setSwitches] = useState({ videoId, count: 0 });
+    let current = switches;
+    if (switches.videoId !== videoId) {
+        current = { videoId, count: switches.count + 1 };
+        setSwitches(current);
+    }
+    const opening = `${instance}:${current.count}`;
+    // Updated during the commit, before any response can be handled.
+    const openingRef = useRef(opening);
+    useLayoutEffect(() => {
+        openingRef.current = opening;
+    }, [opening]);
+
     const { data: rawVideo, isLoading: loading, error } = useQuery({
         queryKey: ['video', videoId],
         queryFn: async () => {
             const response = await api.get(`/videos/${videoId}`);
-            return response.data;
+            return { ...response.data, [FETCHED_FOR_OPENING]: openingRef.current };
         },
         placeholderData: () => {
             return videos.find(v => v.id === videoId);
         },
+        // A cached remote detail may predate its peer going offline or
+        // changing the asset, so it is always stale: re-read when the player
+        // mounts and when it switches to the video (the route keeps the player
+        // mounted across /video/:id changes, where refetchOnMount never runs).
+        staleTime: (query) =>
+            isRemoteVideo(query.state.data as Video | undefined) ? 0 : defaultQueryConfig.staleTime,
         enabled: !!videoId,
         retry: false
     });
@@ -54,6 +88,12 @@ export function useVideoQueries({ videoId, videos, showComments }: UseVideoQueri
     return {
         video,
         loading,
+        /**
+         * True once a detail response has arrived during this opening: not
+         * for the list row, a detail cached from an earlier opening, or a
+         * cache update such as a progress flush.
+         */
+        isDetailFresh: rawVideo?.[FETCHED_FOR_OPENING] === opening,
         error,
         comments,
         loadingComments

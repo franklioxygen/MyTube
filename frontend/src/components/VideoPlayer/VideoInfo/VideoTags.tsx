@@ -8,7 +8,8 @@ interface VideoTagsProps {
     videoId: string;
     tags: string[] | undefined;
     availableTags: string[];
-    onTagsUpdate: (tags: string[]) => Promise<void>;
+    /** Omitted when tags cannot be edited here; they are then shown read-only. */
+    onTagsUpdate?: (tags: string[]) => Promise<void>;
 }
 
 const VideoTags: React.FC<VideoTagsProps> = ({ videoId, tags, availableTags, onTagsUpdate }) => {
@@ -25,7 +26,8 @@ const VideoTags: React.FC<VideoTagsProps> = ({ videoId, tags, availableTags, onT
     // On touch/mobile the inline autocomplete dropdown is awkward: it's anchored to
     // a tiny input and the on-screen keyboard covers it. Show the current tags as
     // chips and edit them through the centered TagsModal dialog instead.
-    if (isMobile) {
+    if (isMobile || !onTagsUpdate) {
+        if (!onTagsUpdate && tagsArray.length === 0) return null;
         return (
             <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1, mt: 2, flexWrap: 'wrap' }}>
                 <LocalOffer color="action" fontSize="small" />
@@ -38,23 +40,27 @@ const VideoTags: React.FC<VideoTagsProps> = ({ videoId, tags, availableTags, onT
                         {t('tags') || 'Tags'}
                     </Typography>
                 )}
-                <Chip
-                    icon={<Add fontSize="small" />}
-                    label={t('addTags') || 'Add Tags'}
-                    size="small"
-                    variant="outlined"
-                    color="primary"
-                    onClick={() => setModalOpen(true)}
-                    sx={{ cursor: 'pointer' }}
-                />
-                <TagsModal
-                    open={modalOpen}
-                    onClose={() => setModalOpen(false)}
-                    identityKey={videoId}
-                    videoTags={tagsArray}
-                    availableTags={availableTagsArray}
-                    onSave={onTagsUpdate}
-                />
+                {onTagsUpdate && (
+                    <>
+                        <Chip
+                            icon={<Add fontSize="small" />}
+                            label={t('addTags') || 'Add Tags'}
+                            size="small"
+                            variant="outlined"
+                            color="primary"
+                            onClick={() => setModalOpen(true)}
+                            sx={{ cursor: 'pointer' }}
+                        />
+                        <TagsModal
+                            open={modalOpen}
+                            onClose={() => setModalOpen(false)}
+                            identityKey={videoId}
+                            videoTags={tagsArray}
+                            availableTags={availableTagsArray}
+                            onSave={onTagsUpdate}
+                        />
+                    </>
+                )}
             </Box>
         );
     }

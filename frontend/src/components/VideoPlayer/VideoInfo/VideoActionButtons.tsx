@@ -6,16 +6,17 @@ import { useSnackbar } from '../../../contexts/SnackbarContext';
 import { useVideo } from '../../../contexts/VideoContext';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useCloudStorageUrl } from '../../../hooks/useCloudStorageUrl';
-import { encodeLocalMediaPath, isHttpUrl } from '../../../utils/localMediaPath';
+import { encodeLocalMediaPath, isHttpUrl, toAbsoluteMediaUrl } from '../../../utils/localMediaPath';
 import { useShareVideo } from '../../../hooks/useShareVideo';
 import { Video } from '../../../types'; // Add imports
 import { getAvailablePlayers, getPlayerUrl } from '../../../utils/playerUtils'; // Import new utils
 import VideoKebabMenuButtons from './VideoKebabMenuButtons';
+import { isRemoteVideo, videoCan } from '../../../utils/libraryItem';
 
 interface VideoActionButtonsProps {
     video: Video;
-    onAddToCollection: () => void;
-    onDelete: () => void;
+    onAddToCollection?: () => void;
+    onDelete?: () => void;
     isDeleting: boolean;
     isTogglingVisibility?: boolean;
     onToggleVisibility?: () => void;
@@ -34,7 +35,8 @@ const VideoActionButtons: React.FC<VideoActionButtonsProps> = ({
     onToggleLock
 }) => {
     const { t } = useLanguage();
-    const { handleShare } = useShareVideo(video);
+    const { handleShare: shareVideo } = useShareVideo(video);
+    const handleShare = videoCan(video, 'canShare') ? shareVideo : undefined;
     const { showSnackbar } = useSnackbar();
     const { userRole } = useAuth();
     const isVisitor = userRole === 'visitor';
@@ -48,9 +50,9 @@ const VideoActionButtons: React.FC<VideoActionButtonsProps> = ({
     const isLocked = video.autoDeleteLocked === 1;
 
     const getVideoUrl = async (): Promise<string> => {
-        // If we have a cloud storage URL, use it directly
+        // If we have a resolved URL, use it, made absolute for the player
         if (videoUrl) {
-            return videoUrl;
+            return toAbsoluteMediaUrl(videoUrl);
         }
 
         // If cloud storage path but URL not loaded yet, try to get it directly
@@ -75,7 +77,8 @@ const VideoActionButtons: React.FC<VideoActionButtonsProps> = ({
             // when accessed remotely, so window.location.origin is the correct base URL
             return `${window.location.origin}${encodeLocalMediaPath(videoPath)}`;
         }
-        return video.sourceUrl || '';
+        // A remote item plays only through the gateway, never its source page.
+        return isRemoteVideo(video) ? '' : video.sourceUrl || '';
     };
 
     const handlePlayerMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
@@ -87,7 +90,7 @@ const VideoActionButtons: React.FC<VideoActionButtonsProps> = ({
     };
 
     const getSyncVideoUrl = (): string | null => {
-        if (videoUrl) return videoUrl;
+        if (videoUrl) return toAbsoluteMediaUrl(videoUrl);
 
         if (video.videoPath && !video.videoPath.startsWith('cloud:')) {
             if (isHttpUrl(video.videoPath)) return video.videoPath;
@@ -95,7 +98,7 @@ const VideoActionButtons: React.FC<VideoActionButtonsProps> = ({
             return `${window.location.origin}${encodeLocalMediaPath(videoPath)}`;
         }
 
-        if (video.sourceUrl) return video.sourceUrl;
+        if (video.sourceUrl && !isRemoteVideo(video)) return video.sourceUrl;
 
         return null;
     };
@@ -189,7 +192,7 @@ const VideoActionButtons: React.FC<VideoActionButtonsProps> = ({
         }
 
         // Increment view count since we can't track watch time in external players
-        await incrementView(video.id);
+        if (videoCan(video, 'canRecordView')) await incrementView(video.id);
 
         try {
             const playerUrl = getPlayerUrl(player, resolvedVideoUrl);
@@ -216,18 +219,21 @@ const VideoActionButtons: React.FC<VideoActionButtonsProps> = ({
         handlePlayerMenuClose();
     };
 
+    const canPlay = videoCan(video, 'canPlay');
     const actionButtons = (
         <Stack direction="row" spacing={1}>
-            <Tooltip title={t('playWith')} disableHoverListener={isTouch}>
-                <Button
-                    variant="outlined"
-                    color="inherit"
-                    onClick={handlePlayerMenuOpen}
-                    sx={{ minWidth: 'auto', p: 1, color: 'text.secondary', borderColor: 'text.secondary', '&:hover': { color: 'primary.main', borderColor: 'primary.main' } }}
-                >
-                    <Cast />
-                </Button>
-            </Tooltip>
+            {canPlay && (
+                <Tooltip title={t('playWith')} disableHoverListener={isTouch}>
+                    <Button
+                        variant="outlined"
+                        color="inherit"
+                        onClick={handlePlayerMenuOpen}
+                        sx={{ minWidth: 'auto', p: 1, color: 'text.secondary', borderColor: 'text.secondary', '&:hover': { color: 'primary.main', borderColor: 'primary.main' } }}
+                    >
+                        <Cast />
+                    </Button>
+                </Tooltip>
+            )}
             <Menu
                 anchorEl={playerMenuAnchor}
                 open={Boolean(playerMenuAnchor)}
@@ -249,16 +255,18 @@ const VideoActionButtons: React.FC<VideoActionButtonsProps> = ({
                 <MenuItem onClick={() => handlePlayerSelect('copy')}>{t('copyUrl')}</MenuItem>
             </Menu>
 
-            <Tooltip title={t('share')} disableHoverListener={isTouch}>
-                <Button
-                    variant="outlined"
-                    color="inherit"
-                    onClick={handleShare}
-                    sx={{ minWidth: 'auto', p: 1, color: 'text.secondary', borderColor: 'text.secondary', '&:hover': { color: 'primary.main', borderColor: 'primary.main' } }}
-                >
-                    <Share />
-                </Button>
-            </Tooltip>
+            {handleShare && (
+                <Tooltip title={t('share')} disableHoverListener={isTouch}>
+                    <Button
+                        variant="outlined"
+                        color="inherit"
+                        onClick={handleShare}
+                        sx={{ minWidth: 'auto', p: 1, color: 'text.secondary', borderColor: 'text.secondary', '&:hover': { color: 'primary.main', borderColor: 'primary.main' } }}
+                    >
+                        <Share />
+                    </Button>
+                </Tooltip>
+            )}
             {!isVisitor && (
                 <>
                     {onToggleVisibility && (
@@ -287,27 +295,31 @@ const VideoActionButtons: React.FC<VideoActionButtonsProps> = ({
                             </Button>
                         </Tooltip>
                     )}
-                    <Tooltip title={t('addToCollection')} disableHoverListener={isTouch}>
-                        <Button
-                            variant="outlined"
-                            color="inherit"
-                            onClick={() => onAddToCollection()}
-                            sx={{ minWidth: 'auto', p: 1, color: 'text.secondary', borderColor: 'text.secondary', '&:hover': { color: 'primary.main', borderColor: 'primary.main' } }}
-                        >
-                            <Add />
-                        </Button>
-                    </Tooltip>
-                    <Tooltip title={t('delete')} disableHoverListener={isTouch}>
-                        <Button
-                            variant="outlined"
-                            color="inherit"
-                            onClick={onDelete}
-                            loading={isDeleting}
-                            sx={{ minWidth: 'auto', p: 1, color: 'text.secondary', borderColor: 'text.secondary', '&:hover': { color: 'error.main', borderColor: 'error.main' } }}
-                        >
-                            <Delete />
-                        </Button>
-                    </Tooltip>
+                    {onAddToCollection && (
+                        <Tooltip title={t('addToCollection')} disableHoverListener={isTouch}>
+                            <Button
+                                variant="outlined"
+                                color="inherit"
+                                onClick={() => onAddToCollection()}
+                                sx={{ minWidth: 'auto', p: 1, color: 'text.secondary', borderColor: 'text.secondary', '&:hover': { color: 'primary.main', borderColor: 'primary.main' } }}
+                            >
+                                <Add />
+                            </Button>
+                        </Tooltip>
+                    )}
+                    {onDelete && (
+                        <Tooltip title={t('delete')} disableHoverListener={isTouch}>
+                            <Button
+                                variant="outlined"
+                                color="inherit"
+                                onClick={onDelete}
+                                loading={isDeleting}
+                                sx={{ minWidth: 'auto', p: 1, color: 'text.secondary', borderColor: 'text.secondary', '&:hover': { color: 'error.main', borderColor: 'error.main' } }}
+                            >
+                                <Delete />
+                            </Button>
+                        </Tooltip>
+                    )}
                 </>
             )}
         </Stack>
@@ -317,7 +329,7 @@ const VideoActionButtons: React.FC<VideoActionButtonsProps> = ({
         return (
             <>
                 <VideoKebabMenuButtons
-                    onPlayWith={(anchor) => setPlayerMenuAnchor(anchor)}
+                    onPlayWith={canPlay ? (anchor) => setPlayerMenuAnchor(anchor) : undefined}
                     onShare={handleShare}
                     onAddToCollection={onAddToCollection}
                     onDelete={onDelete}

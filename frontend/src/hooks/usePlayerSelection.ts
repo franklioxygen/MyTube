@@ -4,6 +4,7 @@ import { useSnackbar } from '../contexts/SnackbarContext';
 import { useVideoActions } from '../contexts/VideoContext';
 import { Video } from '../types';
 import { getAvailablePlayers, getPlayerUrl } from '../utils/playerUtils';
+import { videoCan } from '../utils/libraryItem';
 
 interface UsePlayerSelectionProps {
     video: Video;
@@ -76,7 +77,7 @@ export const usePlayerSelection = ({ video, getVideoUrl }: UsePlayerSelectionPro
         }
 
         // Increment view count since we can't track watch time in external players
-        await incrementView(video.id);
+        if (videoCan(video, 'canRecordView')) await incrementView(video.id);
 
         try {
             let playerUrl = '';

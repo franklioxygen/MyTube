@@ -51,6 +51,12 @@ describe('imageOptimization', () => {
         expect(toOriginalThumbnailPath('cloud:thumb.jpg')).toBeUndefined();
     });
 
+    it('loads a remote item cover from the federation gateway, with no small variant', () => {
+        const gateway = '/api/federation/media/fed_1/thumbnail';
+        expect(toSmallThumbnailPath(gateway)).toBeUndefined();
+        expect(buildThumbnailCandidates('', gateway)).toEqual([gateway]);
+    });
+
     describe('buildThumbnailCandidates', () => {
         it('falls back from the small mirror to the original image on the page origin', () => {
             expect(buildThumbnailCandidates('', '/images/folder/thumb.jpg')).toEqual([

@@ -303,6 +303,28 @@ describe('Home Page', () => {
         expect(mockUseVideoReturn.deleteVideos).toHaveBeenCalledWith(['1', '3']);
     });
 
+    it('deletes only filtered videos from this instance', async () => {
+        const mockVideos = [
+            { id: '1', tags: ['tag1'] },
+            {
+                id: 'fed_1',
+                tags: ['tag1'],
+                origin: { kind: 'remote', instanceId: 'peer', instanceName: 'NAS' },
+                capabilities: { canPlay: true, canDelete: false },
+            },
+        ];
+        mockUseVideoReturn.videos = mockVideos as any;
+        mockUseVideoReturn.selectedTags = ['tag1'];
+        mockUseVideoFiltering.mockReturnValue(mockVideos);
+
+        renderHome();
+        fireEvent.click(screen.getByTestId('delete-filtered-btn'));
+        fireEvent.click(await screen.findByTestId('confirm-delete'));
+
+        // The remote match is managed on its own instance.
+        expect(mockUseVideoReturn.deleteVideos).toHaveBeenCalledWith(['1']);
+    });
+
     it('closes the delete filtered videos modal', async () => {
         const mockVideos = [{ id: '1', tags: ['tag1'] }];
         mockUseVideoReturn.videos = mockVideos as any;

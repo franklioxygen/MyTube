@@ -26,6 +26,7 @@ import { Collection, Video } from '../types';
 import { formatSize } from '../utils/formatUtils';
 import { runMutationAsync } from '../utils/mutationUtils';
 import { useScanStatus } from '../hooks/useScanStatus';
+import { isRemoteVideo } from '../utils/libraryItem';
 
 const ManagePage: React.FC = () => {
     const [searchTerm, setSearchTerm] = useState<string>('');
@@ -34,7 +35,10 @@ const ManagePage: React.FC = () => {
     const { showSnackbar } = useSnackbar();
     const { userRole } = useAuth();
     const isVisitor = userRole === 'visitor';
-    const { videos, deleteVideo, refreshThumbnail, redownloadThumbnail, uploadThumbnail, updateVideo, fetchVideos } = useVideo();
+    const { videos: libraryVideos, deleteVideo, refreshThumbnail, redownloadThumbnail, uploadThumbnail, updateVideo, fetchVideos } = useVideo();
+    // Management acts on this instance's files; items synced from another
+    // instance are managed there.
+    const videos = useMemo(() => libraryVideos.filter((video) => !isRemoteVideo(video)), [libraryVideos]);
     const { collections, deleteCollection, cleanupEmptyCollections, updateCollection } = useCollection();
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const [refreshingId, setRefreshingId] = useState<string | null>(null);

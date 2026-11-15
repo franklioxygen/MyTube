@@ -5,14 +5,16 @@ import { useLanguage } from '../../../contexts/LanguageContext';
 interface VideoRatingProps {
     rating: number | undefined;
     viewCount: number | undefined;
-    onRatingChange: (newRating: number) => Promise<void>;
+    /** Omitted when rating is not possible here; the rating is then shown read-only. */
+    onRatingChange?: (newRating: number) => Promise<void>;
+    showViewCount?: boolean;
 }
 
-const VideoRating: React.FC<VideoRatingProps> = ({ rating, viewCount, onRatingChange }) => {
+const VideoRating: React.FC<VideoRatingProps> = ({ rating, viewCount, onRatingChange, showViewCount = true }) => {
     const { t } = useLanguage();
 
     const handleRatingChangeInternal = (_: React.SyntheticEvent, newValue: number | null) => {
-        if (newValue) {
+        if (newValue && onRatingChange) {
             onRatingChange(newValue);
         }
     };
@@ -22,13 +24,18 @@ const VideoRating: React.FC<VideoRatingProps> = ({ rating, viewCount, onRatingCh
             <Rating
                 value={rating || 0}
                 onChange={handleRatingChangeInternal}
+                readOnly={!onRatingChange}
             />
-            <Typography variant="body2" color="text.secondary" sx={{ ml: 1 }}>
-                {rating ? `` : t('rateThisVideo')}
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ ml: 2 }}>
-                {viewCount || 0} {t('views')}
-            </Typography>
+            {onRatingChange && (
+                <Typography variant="body2" color="text.secondary" sx={{ ml: 1 }}>
+                    {rating ? `` : t('rateThisVideo')}
+                </Typography>
+            )}
+            {showViewCount && (
+                <Typography variant="body2" color="text.secondary" sx={{ ml: 2 }}>
+                    {viewCount || 0} {t('views')}
+                </Typography>
+            )}
         </Box>
     );
 };

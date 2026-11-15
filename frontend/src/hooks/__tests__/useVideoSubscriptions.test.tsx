@@ -247,6 +247,28 @@ describe("useVideoSubscriptions", () => {
     expect(result.current.isSubscribed).toBe(true);
   });
 
+  it("does not fail on a video without a source", async () => {
+    subscriptionsData = [{ id: "sub-fallback", author: "Author 1", platform: "YouTube" }];
+    channelUrlData = { success: false, channelUrl: null };
+
+    const { result } = renderHook(
+      () => useVideoSubscriptions({ video: { ...baseVideo, source: undefined } as any }),
+      { wrapper: createWrapper() }
+    );
+
+    // Let the subscriptions load and render with them.
+    await waitFor(() =>
+      expect(mockApiGet.mock.calls.some(([url]) => String(url).includes("subscriptions"))).toBe(true)
+    );
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    // Same author, but no platform to match: not subscribed, and no crash.
+    expect(result.current.isSubscribed).toBe(false);
+    expect(result.current.subscriptionId).toBeNull();
+  });
+
   it("opens external channel URL when handleAuthorClick has a validated URL", async () => {
     const { result } = renderHook(
       () => useVideoSubscriptions({ video: baseVideo as any }),

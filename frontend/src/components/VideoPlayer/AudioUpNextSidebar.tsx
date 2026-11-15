@@ -19,6 +19,7 @@ import { Video } from '../../types';
 import { formatDuration } from '../../utils/formatUtils';
 import { overlay, neutral, brand } from '../../theme/colors';
 import { handleThumbnailError } from '../../utils/thumbnailPlaceholder';
+import { videoCan } from '../../utils/libraryItem';
 
 interface AudioUpNextSidebarProps {
   relatedVideos: Video[];
@@ -113,7 +114,7 @@ const AudioUpNextSidebar: React.FC<AudioUpNextSidebarProps> = ({
                   {formatDuration(relatedVideo.duration || '')}
                 </Typography>
               </Stack>
-              {hoveredId === relatedVideo.id && !isTouch && !isVisitor && (
+              {hoveredId === relatedVideo.id && !isTouch && !isVisitor && videoCan(relatedVideo, 'canAddToCollection') && (
                 <Tooltip title={t('addToCollection')}>
                   <IconButton
                     size="small"

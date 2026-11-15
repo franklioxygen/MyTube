@@ -15,6 +15,7 @@ import { useVideoCardNavigation } from '../hooks/useVideoCardNavigation';
 import { useVideoHoverPreview } from '../hooks/useVideoHoverPreview';
 import { useVideoPrefetch } from '../hooks/useVideoPrefetch';
 import { Collection, Video } from '../types';
+import { isRemoteVideo } from '../utils/libraryItem';
 import { getVideoCardCollectionInfo } from '../utils/videoCardUtils';
 import { VideoCardActions } from './VideoCard/VideoCardActions';
 import { VideoCardContent } from './VideoCard/VideoCardContent';
@@ -42,7 +43,7 @@ interface VideoCardProps {
 const VideoCardBase: React.FC<VideoCardProps> = ({
     selectionMode = false,
     selected = false,
-    selectionDisabled = false,
+    selectionDisabled: selectionDisabledProp = false,
     onSelectionToggle,
     video,
     collections = [],
@@ -62,6 +63,10 @@ const VideoCardBase: React.FC<VideoCardProps> = ({
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
     const isTouch = useMediaQuery('(hover: none), (pointer: coarse)');
     const { availableTags, selectedTags, handleTagToggle } = useVideoTags();
+    // Items from another instance take no part in bulk actions, which all act
+    // on native files, and are not streamed from their peer just on hover.
+    const isRemote = isRemoteVideo(video);
+    const selectionDisabled = selectionDisabledProp || isRemote;
 
     // Get collection information
     const collectionInfo = getVideoCardCollectionInfo(
@@ -71,7 +76,7 @@ const VideoCardBase: React.FC<VideoCardProps> = ({
     );
 
     // Hooks for different concerns
-    const hoverPreview = useVideoHoverPreview({ videoPath: selectionMode ? undefined : video.videoPath });
+    const hoverPreview = useVideoHoverPreview({ videoPath: selectionMode || isRemote ? undefined : video.videoPath });
     const metadata = useVideoCardMetadata({ video });
     const playerSelection = usePlayerSelection({
         video,
@@ -94,8 +99,11 @@ const VideoCardBase: React.FC<VideoCardProps> = ({
         video
     });
 
+    // The kebab follows the hover preview, which a remote card does not have.
+    const [isCardHovered, setIsCardHovered] = React.useState(false);
     const handleMouseEnter = () => {
         if (selectionMode) return;
+        setIsCardHovered(true);
         hoverPreview.handleMouseEnter();
         // Also prefetch on hover as an additional optimization
         prefetchVideo();
@@ -106,7 +114,10 @@ const VideoCardBase: React.FC<VideoCardProps> = ({
             elevation={0}
             ref={cardRef}
             onMouseEnter={handleMouseEnter}
-            onMouseLeave={hoverPreview.handleMouseLeave}
+            onMouseLeave={() => {
+                setIsCardHovered(false);
+                hoverPreview.handleMouseLeave();
+            }}
             sx={{
                 height: '100%',
                 display: 'flex',
@@ -222,7 +233,7 @@ const VideoCardBase: React.FC<VideoCardProps> = ({
                 canDelete={actions.canDelete}
                 isMobile={isMobile}
                 isTouch={isTouch}
-                isHovered={hoverPreview.isHovered}
+                isHovered={hoverPreview.isHovered || (isRemote && isCardHovered)}
             />}
         </Card>
     );

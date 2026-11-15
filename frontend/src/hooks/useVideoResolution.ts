@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Video } from "../types";
 import { useCloudStorageUrl } from "./useCloudStorageUrl";
 import { isSafari } from "../utils/playerUtils";
+import { isRemoteVideo, videoCan } from "../utils/libraryItem";
 
 const formatHeightAsResolution = (height: unknown): string | null => {
   if (height === undefined || height === null || height === "") {
@@ -87,8 +88,11 @@ export const useVideoResolution = (video: Video) => {
   // Only create a probe video when resolution is unknown and probing will not
   // compete with the main player. Safari's WebM loader is linear, so a hidden
   // probe of a large WebM can interfere with the visible player's resume seek.
-  const needsDetection = !resolutionFromObject && !skipSafariWebMDetection;
-  const videoSrc = videoUrl || video.sourceUrl;
+  // A remote item is probed only through the gateway, and not while it
+  // cannot play; its source page is never fetched.
+  const remote = isRemoteVideo(video);
+  const needsDetection = !resolutionFromObject && !skipSafariWebMDetection && videoCan(video, "canPlay");
+  const videoSrc = remote ? videoUrl : videoUrl || video.sourceUrl;
   const detectedResolution =
     needsDetection && detectedResolutionState && detectedResolutionState.src === videoSrc
       ? detectedResolutionState.resolution

@@ -11,6 +11,7 @@ import { normalizeTagKey } from '../utils/tagUtils';
 import { useAuth } from './AuthContext';
 import { useLanguage } from './LanguageContext';
 import { useSnackbar } from './SnackbarContext';
+import { isRemoteVideo, libraryPollInterval } from '../utils/libraryItem';
 const MAX_SEARCH_RESULTS = 200; // Maximum number of search results to keep in memory
 
 // The external platforms `/search` can be asked for, one section of the search
@@ -117,12 +118,16 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const { userRole, isAuthenticated } = useAuth();
     const isVisitor = userRole === 'visitor';
 
+    // Set from each list response: whether the owner has connected peers.
+    const hasFederationPeersRef = useRef(false);
+
     // Videos Query - Optimized for faster initial load
     const { data: videosRaw = [], isLoading: videosLoading, error: videosError, refetch: refetchVideos } = useQuery({
         queryKey: ['videos'],
         queryFn: async () => {
             try {
                 const response = await api.get('/videos');
+                hasFederationPeersRef.current = response.headers?.['x-mytube-federation'] === 'peers';
                 return response.data as Video[];
             } catch (err) {
                 console.error('Videos fetch failed:', err);
@@ -142,16 +147,33 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         retryDelay: 1000,
         staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
         gcTime: 5 * 60 * 1000, // Garbage collect after 5 minutes (reduced from 30 to save memory)
+        // Items synced from other instances change without anything happening
+        // here, so while the library holds any, or the owner has peers whose
+        // first sync may still be running, revalidate every 30 seconds; the
+        // list ETag makes an unchanged answer a cheap 304.
+        refetchInterval: (query) =>
+            libraryPollInterval(Array.isArray(query.state.data) ? query.state.data : undefined, hasFederationPeersRef.current),
         // Prioritize initial load for better LCP
         refetchOnMount: false,
         refetchOnWindowFocus: false,
     });
 
-    // Filter invisible videos when in visitor mode
+    // The list is scoped to the caller (hidden and remote items are the
+    // owner's), so a role change in the same tab must not keep the old one.
+    const listRoleRef = useRef(userRole);
+    useEffect(() => {
+        if (listRoleRef.current === userRole) return;
+        listRoleRef.current = userRole;
+        void queryClient.invalidateQueries({ queryKey: ['videos'] });
+    }, [queryClient, userRole]);
+
+    // Filter invisible videos when in visitor mode. Items from other instances
+    // are the owner's alone, so a list cached before a switch to a visitor
+    // must not show them either.
     const videos = useMemo(() => {
         const normalizedVideos = withCanonicalAuthorAvatars(videosRaw);
         if (isVisitor) {
-            return normalizedVideos.filter(video => (video.visibility ?? 1) === 1);
+            return normalizedVideos.filter(video => (video.visibility ?? 1) === 1 && !isRemoteVideo(video));
         }
         return normalizedVideos;
     }, [videosRaw, isVisitor]);

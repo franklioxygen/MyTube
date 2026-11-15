@@ -37,6 +37,8 @@ import { useVideoRecommendations } from '../hooks/useVideoRecommendations';
 import { resolvePlaybackQueue } from '../utils/recommendations';
 import { useVideoSubscriptions } from '../hooks/useVideoSubscriptions';
 import { getBackendUrl } from '../utils/apiUrl';
+import { isRemoteVideo, videoCan } from '../utils/libraryItem';
+import type { LibraryCapabilities } from '../types';
 import { encodeLocalMediaPath, isHttpUrl } from '../utils/localMediaPath';
 import { isCompatibilityModeForced } from '../utils/compatibilityMode/deployment';
 import { isCompatibilityModeSupported } from '../utils/compatibilityMode/support';
@@ -136,7 +138,7 @@ const VideoPlayer: React.FC = () => {
     });
 
     // Use custom hooks
-    const { video, loading, error, comments, loadingComments } = useVideoQueries({
+    const { video, loading, isDetailFresh, error, comments, loadingComments } = useVideoQueries({
         videoId: id,
         videos,
         showComments
@@ -196,8 +198,17 @@ const VideoPlayer: React.FC = () => {
 
     const autoPlay = autoPlayNext || settingsAutoPlay;
 
+    // A remote item plays only once a detail requested during this opening
+    // confirms its peer can serve it now: the list row, a cached detail, or a
+    // cache update (a progress flush) may all be older.
+    const mediaPath = isRemoteVideo(video) && (!isDetailFresh || !videoCan(video, 'canPlay'))
+        ? undefined
+        : video?.videoPath;
     // Get cloud storage URLs
-    const videoUrl = useCloudStorageUrl(video?.videoPath, isAudio ? 'audio' : 'video', video?.signedUrl);
+    const videoUrl = useCloudStorageUrl(mediaPath, isAudio ? 'audio' : 'video', video?.signedUrl);
+    // A native video may fall back to its source page; a remote one plays only
+    // through the gateway.
+    const playerSrc = (isRemoteVideo(video) ? videoUrl : videoUrl || video?.sourceUrl) || null;
 
     // Get thumbnail URL for poster
     // Only load thumbnail from cloud if the video itself is in cloud storage
@@ -356,10 +367,19 @@ const VideoPlayer: React.FC = () => {
         return (queueIds?.indexOf(video.id) ?? -1) <= 0;
     }, [collections, playbackQueueVideoIds, previousVideoId, sourceCollectionId, video]);
 
-    useEffect(() => {
-        if (!statisticsIngestion.enabled || !video || upNextSlate.length === 0) return;
+    // Watch statistics cover native videos only for now: no item from another
+    // instance enters an event or the statistics state a navigation carries.
+    const remoteVideoIds = useMemo(
+        () => new Set([...videos, ...relatedVideos].filter(isRemoteVideo).map((item) => item.id)),
+        [relatedVideos, videos]
+    );
 
-        const slateKey = `${video.id}:${upNextSlate.map(item => `${item.videoId}:${item.lane}`).join(',')}`;
+    useEffect(() => {
+        if (!statisticsIngestion.enabled || !video || isRemoteVideo(video)) return;
+        const nativeSlate = upNextSlate.filter((item) => !remoteVideoIds.has(item.videoId));
+        if (nativeSlate.length === 0) return;
+
+        const slateKey = `${video.id}:${nativeSlate.map(item => `${item.videoId}:${item.lane}`).join(',')}`;
         if (upNextImpressionKeyRef.current === slateKey) return;
 
         upNextImpressionKeyRef.current = slateKey;
@@ -369,10 +389,10 @@ const VideoPlayer: React.FC = () => {
             videoId: video.id,
             payload: {
                 fromVideoId: video.id,
-                slate: upNextSlate
+                slate: nativeSlate
             }
         });
-    }, [statisticsIngestion, upNextSlate, video]);
+    }, [remoteVideoIds, statisticsIngestion, upNextSlate, video]);
 
     const handleToggleComments = () => {
         setShowComments(!showComments);
@@ -558,7 +578,7 @@ const VideoPlayer: React.FC = () => {
     // playback state forward.
     const goToUpNextVideo = (videoId: string, index: number, via: 'click' | 'keyboard' = 'click') => {
         const slateItem = upNextSlate[index] ?? { videoId, lane: 'related', position: index + 1 };
-        const clickEventId = statisticsIngestion.enabled && video
+        const clickEventId = statisticsIngestion.enabled && video && !isRemoteVideo(video) && !remoteVideoIds.has(videoId)
             ? statisticsIngestion.recordEvent({
                 eventType: 'up_next_clicked',
                 surface: 'web',
@@ -574,7 +594,7 @@ const VideoPlayer: React.FC = () => {
                 }
             })
             : null;
-        const state = buildPlaybackState(clickEventId ?? statisticsRelatedEventId, {
+        const state = buildPlaybackState(remoteVideoIds.has(videoId) ? null : clickEventId ?? statisticsRelatedEventId, {
             previousVideoIds: pushBackTrail(video.id, videoId)
         });
 
@@ -586,9 +606,13 @@ const VideoPlayer: React.FC = () => {
         navigate(`/video/${videoId}`);
     };
 
+    // "Next" and autoplay skip recommendations that cannot play right now (a
+    // remote item whose peer serves no media, or is offline).
+    const nextPlayableIndex = relatedVideos.findIndex((item) => videoCan(item, 'canPlay'));
+
     const handleNextVideo = () => {
-        if (relatedVideos.length === 0) return;
-        goToUpNextVideo(relatedVideos[0].id, 0, 'keyboard');
+        if (nextPlayableIndex < 0) return;
+        goToUpNextVideo(relatedVideos[nextPlayableIndex].id, nextPlayableIndex, 'keyboard');
     };
 
     // Going back pops the entry it used rather than pushing a new one, so
@@ -602,7 +626,7 @@ const VideoPlayer: React.FC = () => {
             ? backTrail.slice(0, -1)
             : backTrail;
         const state = buildPlaybackState(
-            statisticsRelatedEventId,
+            remoteVideoIds.has(previousVideoId) ? null : statisticsRelatedEventId,
             remainingTrail.length > 0 ? { previousVideoIds: remainingTrail } : {}
         );
 
@@ -615,9 +639,10 @@ const VideoPlayer: React.FC = () => {
     };
 
     const handleVideoEnded = () => {
-        if (autoPlayNext && relatedVideos.length > 0) {
-            const nextVideo = relatedVideos[0];
-            const autoplayEventId = statisticsIngestion.enabled && video
+        if (autoPlayNext && nextPlayableIndex >= 0) {
+            const nextVideo = relatedVideos[nextPlayableIndex];
+            const recordsAutoplay = statisticsIngestion.enabled && video && !isRemoteVideo(video) && !isRemoteVideo(nextVideo);
+            const autoplayEventId = recordsAutoplay
                 ? statisticsIngestion.recordEvent({
                     eventType: 'autoplay_advanced',
                     surface: 'web',
@@ -630,10 +655,10 @@ const VideoPlayer: React.FC = () => {
                 })
                 : null;
             const state = buildPlaybackState(
-                autoplayEventId ?? statisticsRelatedEventId,
+                isRemoteVideo(nextVideo) ? null : autoplayEventId ?? statisticsRelatedEventId,
                 {
                     previousVideoIds: pushBackTrail(video.id, nextVideo.id),
-                    ...(statisticsIngestion.enabled && video
+                    ...(recordsAutoplay
                         ? { autoplayFromVideoId: video.id }
                         : {})
                 }
@@ -669,8 +694,29 @@ const VideoPlayer: React.FC = () => {
             video.progressUpdatedAt ?? video.lastPlayedAt
         );
 
+    // An item from another instance does only what its capabilities allow;
+    // every other action is left out rather than sent to a native handler.
+    const can = (capability: keyof LibraryCapabilities) => videoCan(video, capability);
+    const statisticsVideoId = isRemoteVideo(video) ? null : video.id;
+    const subtitleHandlers = can('canManageSubtitles') ? {
+        onUploadSubtitle: async (file: File) => {
+            if (!id) return;
+            await uploadSubtitleMutation.mutateAsync({ file });
+        },
+        onDeleteSubtitle: async (index: number) => {
+            if (!video?.subtitles) return;
+            await deleteSubtitleMutation.mutateAsync({ index, currentSubtitles: video.subtitles });
+        },
+    } : {};
+
+    // The info panel hands media to external players and probes it, so a
+    // remote item is offered there only once this opening's detail confirms it.
+    const infoVideo = isRemoteVideo(video) && !isDetailFresh
+        ? { ...video, videoPath: undefined, capabilities: video.capabilities && { ...video.capabilities, canPlay: false } }
+        : video;
+
     // Danmaku only exists for Bilibili videos, so other sources get no control at all.
-    const danmakuVideoId = video.source === 'bilibili' ? video.id : undefined;
+    const danmakuVideoId = video.source === 'bilibili' && can('canUseDanmaku') ? video.id : undefined;
 
     return (
         <Container maxWidth={false} disableGutters sx={{ py: { xs: 2, md: 4 }, px: { xs: 0, md: 2 } }}>
@@ -695,7 +741,7 @@ const VideoPlayer: React.FC = () => {
                     <LiveTranslationProvider
                         videoId={video.id}
                         videoElement={videoElement}
-                        src={(videoUrl || video?.sourceUrl) || null}
+                        src={playerSrc}
                         originalAudioWithSubtitles={
                             settings?.liveTranslationOriginalAudioWithSubtitles === true
                         }
@@ -714,7 +760,7 @@ const VideoPlayer: React.FC = () => {
                     {showCompatibilityPlayer ? <CompatibilityPlayer
                         danmakuVideoId={danmakuVideoId}
                         danmakuCanRefresh={!!video.sourceUrl?.includes('bilibili.com/video/')}
-                        src={(videoUrl || video?.sourceUrl) || null}
+                        src={playerSrc}
                         poster={posterUrl || localPosterUrl || video?.thumbnailUrl}
                         autoPlay={autoPlay}
                         startTime={startTimeResult}
@@ -723,14 +769,14 @@ const VideoPlayer: React.FC = () => {
                         canFallBackToStandardPlayer={!compatibilityModeForced}
                         onExit={() => setCompatibilityMode(false)}
                         seekIntervals={seekIntervals}
-                        statisticsVideoId={video.id}
+                        statisticsVideoId={statisticsVideoId}
                         statisticsPlatform={
                             typeof video.source === 'string' ? video.source.toLowerCase() : null
                         }
                         statisticsRelatedEventId={statisticsRelatedEventId}
                         statisticsAutoplayFromVideoId={autoplayFromVideoId}
                     /> : isAudio ? <AudioModePlayer
-                        src={(videoUrl || video?.sourceUrl) || null}
+                        src={playerSrc}
                         mediaPath={video.videoPath}
                         poster={posterUrl || localPosterUrl || video?.thumbnailUrl}
                         autoPlay={autoPlay}
@@ -745,23 +791,13 @@ const VideoPlayer: React.FC = () => {
                         onEnded={handleVideoEnded}
                         isCinemaMode={false}
                         onToggleCinemaMode={() => setIsCinemaMode(!isCinemaMode)}
-                        statisticsVideoId={video.id}
+                        statisticsVideoId={statisticsVideoId}
                         statisticsPlatform={
                             typeof video.source === 'string' ? video.source.toLowerCase() : null
                         }
                         statisticsRelatedEventId={statisticsRelatedEventId}
                         statisticsAutoplayFromVideoId={autoplayFromVideoId}
-                        onUploadSubtitle={async (file: File) => {
-                            if (!id) return;
-                            await uploadSubtitleMutation.mutateAsync({ file });
-                        }}
-                        onDeleteSubtitle={async (index: number) => {
-                            if (!video?.subtitles) return;
-                            await deleteSubtitleMutation.mutateAsync({
-                                index,
-                                currentSubtitles: video.subtitles
-                            });
-                        }}
+                        {...subtitleHandlers}
                         onVideoElementReady={setVideoElement}
                         liveSubtitle={{
                             available: liveSubtitleTrack.isActive,
@@ -769,12 +805,12 @@ const VideoPlayer: React.FC = () => {
                             track: liveSubtitleTrack.track,
                         }}
                         seekIntervals={seekIntervals}
-                        onNextVideo={relatedVideos.length > 0 ? handleNextVideo : undefined}
+                        onNextVideo={nextPlayableIndex >= 0 ? handleNextVideo : undefined}
                         onPreviousVideo={previousVideoId ? handlePreviousVideo : undefined}
                     /> : <VideoControls
                         danmakuVideoId={danmakuVideoId}
                         danmakuCanRefresh={!!video.sourceUrl?.includes('bilibili.com/video/')}
-                        src={(videoUrl || video?.sourceUrl) || null}
+                        src={playerSrc}
                         mediaPath={video.videoPath}
                         poster={posterUrl || localPosterUrl || video?.thumbnailUrl}
                         autoPlay={autoPlay}
@@ -789,18 +825,11 @@ const VideoPlayer: React.FC = () => {
                         onEnded={handleVideoEnded}
                         isCinemaMode={isCinemaMode}
                         onToggleCinemaMode={() => setIsCinemaMode(!isCinemaMode)}
-                        statisticsVideoId={video.id}
+                        statisticsVideoId={statisticsVideoId}
                         statisticsPlatform={typeof video.source === 'string' ? video.source.toLowerCase() : null}
                         statisticsRelatedEventId={statisticsRelatedEventId}
                         statisticsAutoplayFromVideoId={autoplayFromVideoId}
-                        onUploadSubtitle={async (file: File) => {
-                            if (!id) return;
-                            await uploadSubtitleMutation.mutateAsync({ file });
-                        }}
-                        onDeleteSubtitle={async (index: number) => {
-                            if (!video?.subtitles) return;
-                            await deleteSubtitleMutation.mutateAsync({ index, currentSubtitles: video.subtitles });
-                        }}
+                        {...subtitleHandlers}
                         onVideoElementReady={setVideoElement}
                         liveSubtitle={{ available: liveSubtitleTrack.isActive, label: liveSubtitleTrack.label, track: liveSubtitleTrack.track }}
                         seekIntervals={seekIntervals}
@@ -809,7 +838,7 @@ const VideoPlayer: React.FC = () => {
                                 ? () => setCompatibilityMode(true)
                                 : undefined
                         }
-                        onNextVideo={relatedVideos.length > 0 ? handleNextVideo : undefined}
+                        onNextVideo={nextPlayableIndex >= 0 ? handleNextVideo : undefined}
                         onPreviousVideo={previousVideoId ? handlePreviousVideo : undefined}
                     />}
 
@@ -823,13 +852,13 @@ const VideoPlayer: React.FC = () => {
                         width: '100%'
                     }}>
                         <VideoInfo
-                            video={video}
-                            onTitleSave={handleSaveTitle}
-                            onRatingChange={handleRatingChange}
+                            video={infoVideo}
+                            onTitleSave={can('canEdit') ? handleSaveTitle : undefined}
+                            onRatingChange={can('canRate') ? handleRatingChange : undefined}
                             onAuthorClick={handleAuthorClick}
                             onAvatarClick={handleAvatarClick}
-                            onAddToCollection={handleAddToCollection}
-                            onDelete={handleDelete}
+                            onAddToCollection={can('canAddToCollection') ? handleAddToCollection : undefined}
+                            onDelete={can('canDelete') ? handleDelete : undefined}
                             isDeleting={deleteMutation.isPending}
                             isSavingTitle={titleMutation.isPending}
                             isTogglingVisibility={visibilityMutation.isPending}
@@ -838,16 +867,16 @@ const VideoPlayer: React.FC = () => {
                             videoCollections={videoCollections}
                             onCollectionClick={handleCollectionClick}
                             availableTags={availableTags}
-                            onTagsUpdate={handleUpdateTags}
+                            onTagsUpdate={can('canEdit') ? handleUpdateTags : undefined}
                             isSubscribed={isSubscribed}
                             onSubscribe={handleSubscribe}
                             onUnsubscribe={handleUnsubscribe}
-                            onToggleVisibility={handleToggleVisibility}
-                            onToggleLock={handleToggleLock}
+                            onToggleVisibility={can('canEdit') ? handleToggleVisibility : undefined}
+                            onToggleLock={can('canEdit') ? handleToggleLock : undefined}
                             onSeek={handleDescriptionSeek}
                         />
 
-                        {(video.source === 'youtube' || video.source === 'bilibili') && (
+                        {(video.source === 'youtube' || video.source === 'bilibili') && can('canReadComments') && (
                             <CommentsSection
                                 comments={comments}
                                 loading={loadingComments}

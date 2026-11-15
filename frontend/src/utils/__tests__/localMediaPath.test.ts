@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { encodeLocalMediaPath, isHttpUrl } from '../localMediaPath';
+import { encodeLocalMediaPath, isHttpUrl, toAbsoluteMediaUrl } from '../localMediaPath';
 
 describe('encodeLocalMediaPath', () => {
     it('keeps directory separators while encoding filename characters as path data', () => {
@@ -14,5 +14,13 @@ describe('encodeLocalMediaPath', () => {
         expect(isHttpUrl('HTTPS://cdn.example/video.mp4')).toBe(true);
         expect(isHttpUrl('hTtP://cdn.example/video.mp4')).toBe(true);
         expect(isHttpUrl('/videos/Episode #43.mp4')).toBe(false);
+    });
+});
+
+describe('toAbsoluteMediaUrl', () => {
+    it('anchors a root-relative media URL to this origin for external apps', () => {
+        expect(toAbsoluteMediaUrl('/api/federation/media/fed_1/media')).toBe(`${window.location.origin}/api/federation/media/fed_1/media`);
+        expect(toAbsoluteMediaUrl('videos/a%20b.mp4')).toBe(`${window.location.origin}/videos/a%20b.mp4`);
+        expect(toAbsoluteMediaUrl('https://cdn.example/v.mp4?sig=1')).toBe('https://cdn.example/v.mp4?sig=1');
     });
 });

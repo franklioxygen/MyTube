@@ -56,11 +56,11 @@ vi.mock('../../../contexts/VideoContext', () => {
 vi.mock('../../VideoPlayer/VideoInfo/VideoKebabMenuButtons', () => ({
     default: ({ onPlayWith, onShare, onAddToCollection, onDelete, onToggleVisibility, onToggleLock, isLocked, onAddTag }: any) => (
         <div data-testid="kebab-menu">
-            <button onClick={(e) => onPlayWith(e.currentTarget)}>Play With</button>
-            <button onClick={onShare}>Share</button>
-            <button onClick={onAddToCollection}>Add to Collection</button>
+            {onPlayWith && <button onClick={(e) => onPlayWith(e.currentTarget)}>Play With</button>}
+            {onShare && <button onClick={onShare}>Share</button>}
+            {onAddToCollection && <button onClick={onAddToCollection}>Add to Collection</button>}
             {onDelete && <button onClick={onDelete}>Delete</button>}
-            <button onClick={onToggleVisibility}>Toggle Visibility</button>
+            {onToggleVisibility && <button onClick={onToggleVisibility}>Toggle Visibility</button>}
             {onToggleLock && <button onClick={onToggleLock}>{isLocked ? 'Unlock Video' : 'Lock Video'}</button>}
             {onAddTag && <button onClick={onAddTag}>Add Tag</button>}
         </div>
@@ -120,6 +120,37 @@ describe('VideoCardActions', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         mockUpdateVideo.mockResolvedValue({ success: true });
+    });
+
+    it('offers a remote item only what this instance can do with it', () => {
+        const remote = {
+            id: 'fed_1',
+            title: 'Remote',
+            author: 'Author',
+            origin: { kind: 'remote', instanceId: 'peer', instanceName: 'NAS' },
+            capabilities: {
+                canPlay: true, canShare: false, canAddToCollection: false, canDelete: false, canEdit: false,
+            },
+        } as any;
+        render(<VideoCardActions {...defaultProps} video={remote} />);
+
+        expect(screen.getByText('Play With')).toBeInTheDocument();
+        for (const label of ['Share', 'Add to Collection', 'Delete', 'Toggle Visibility', 'Lock Video', 'Add Tag']) {
+            expect(screen.queryByText(label)).not.toBeInTheDocument();
+        }
+    });
+
+    it('offers no external player for a remote item that cannot play', () => {
+        const offline = {
+            id: 'fed_1',
+            title: 'Remote',
+            author: 'Author',
+            origin: { kind: 'remote', instanceId: 'peer', instanceName: 'NAS' },
+            availability: 'offline',
+            capabilities: { canPlay: false },
+        } as any;
+        render(<VideoCardActions {...defaultProps} video={offline} />);
+        expect(screen.queryByText('Play With')).not.toBeInTheDocument();
     });
 
     it('should render actions when hovered', () => {

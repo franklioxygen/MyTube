@@ -25,8 +25,9 @@ const createVideoErrorEvent = (
     currentTarget: {
       error,
       src,
+      getAttribute: (name: string) => (name === "src" ? src : null),
     },
-  }) as React.SyntheticEvent<HTMLVideoElement>;
+  }) as unknown as React.SyntheticEvent<HTMLVideoElement>;
 
 describe("useVideoLoading", () => {
   beforeEach(() => {
@@ -73,16 +74,22 @@ describe("useVideoLoading", () => {
     const { result } = renderHook(() => useVideoLoading());
 
     act(() => {
-      result.current.handleVideoError({
-        currentTarget: {
-          error: { code: 2, message: "network down" },
-          src: "movie.mp4",
-        },
-      } as any);
+      result.current.handleVideoError(createVideoErrorEvent({ code: 2, message: "network down" }));
     });
 
     expect(result.current.loadError).toBe("translated network error");
     expect(mockT).toHaveBeenCalledWith("videoLoadNetworkError");
+  });
+
+  it("does not report the error a cleared source raises", () => {
+    const { result } = renderHook(() => useVideoLoading());
+
+    act(() => {
+      result.current.handleVideoError(createVideoErrorEvent({ code: 4, message: "Empty src attribute" }, ""));
+    });
+
+    expect(result.current.loadError).toBeNull();
+    expect(result.current.isLoading).toBe(false);
   });
 
   it("clears pending timeouts when loading is restarted and stopped", () => {

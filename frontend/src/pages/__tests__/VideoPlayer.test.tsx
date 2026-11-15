@@ -621,6 +621,21 @@ describe('VideoPlayer', () => {
 
     // ------ handleVideoEnded / autoPlayNext ------
     describe('handleVideoEnded and autoPlayNext', () => {
+        it('skips a recommendation that cannot play when advancing', () => {
+            localStorageMock.setItem('autoPlayNext', 'true');
+            const unplayable = {
+                id: 'fed_1',
+                origin: { kind: 'remote', instanceId: 'peer', instanceName: 'NAS' },
+                capabilities: { canPlay: false },
+            };
+            mockVideoRecommendationsReturn = { relatedVideos: [unplayable, { id: 'v3' }] };
+            render(<VideoPlayer />);
+
+            act(() => { capturedVideoControlsProps.onEnded(); });
+            expect(mockNavigate).toHaveBeenCalledWith('/video/v3', expect.anything());
+            expect(mockNavigate).not.toHaveBeenCalledWith('/video/fed_1', expect.anything());
+        });
+
         it('navigates to next related video when autoPlayNext is on and related videos exist', () => {
             localStorageMock.setItem('autoPlayNext', 'true');
             mockVideoRecommendationsReturn = { relatedVideos: [{ id: 'v2' }, { id: 'v3' }] };
@@ -901,6 +916,55 @@ describe('VideoPlayer', () => {
                     statisticsRelatedEventId: 'click-1'
                 },
             });
+        });
+
+        it('keeps recommendations from another instance out of statistics', () => {
+            const remote = {
+                id: 'fed_1',
+                title: 'Remote',
+                origin: { kind: 'remote', instanceId: 'peer', instanceName: 'NAS' },
+                capabilities: { canPlay: true },
+            };
+            mockVideoRecommendationsReturn = { relatedVideos: [{ id: 'v5', title: 'Next' }, remote] };
+            mockStatisticsIngestionReturn = {
+                ...mockStatisticsIngestionReturn,
+                enabled: true,
+            };
+            mockStatisticsRecordEvent.mockReturnValueOnce('impression-1');
+            // Arrived through an earlier recorded click.
+            mockLocationState = { statisticsRelatedEventId: 'earlier-click' };
+
+            render(<VideoPlayer />);
+
+            // The impression lists only native recommendations.
+            expect(mockStatisticsRecordEvent).toHaveBeenCalledTimes(1);
+            expect(mockStatisticsRecordEvent.mock.calls[0][0].payload.slate.map((item: { videoId: string }) => item.videoId))
+                .toEqual(['v5']);
+
+            // Moving to the remote recommendation records nothing and carries
+            // no earlier statistics event along.
+            act(() => { capturedUpNextSidebarProps.onVideoClick('fed_1', 1); });
+            expect(mockStatisticsRecordEvent).toHaveBeenCalledTimes(1);
+            const [path, options] = mockNavigate.mock.calls.at(-1) ?? [];
+            expect(path).toBe('/video/fed_1');
+            expect(options?.state ?? {}).not.toHaveProperty('statisticsRelatedEventId');
+        });
+
+        it('offers a remote item for external playback only once its detail is fresh', () => {
+            const remoteVideo = {
+                ...mockVideo,
+                id: 'fed_9',
+                videoPath: '/api/federation/media/fed_9/media',
+                origin: { kind: 'remote', instanceId: 'peer', instanceName: 'NAS' },
+                capabilities: { canPlay: true },
+            };
+            mockVideoQueryReturn = { ...mockVideoQueryReturn, video: remoteVideo, isDetailFresh: false };
+            const { rerender } = render(<VideoPlayer />);
+            expect(capturedVideoInfoProps.video).toMatchObject({ videoPath: undefined, capabilities: { canPlay: false } });
+
+            mockVideoQueryReturn = { ...mockVideoQueryReturn, isDetailFresh: true };
+            rerender(<VideoPlayer />);
+            expect(capturedVideoInfoProps.video).toMatchObject({ videoPath: remoteVideo.videoPath, capabilities: { canPlay: true } });
         });
     });
 

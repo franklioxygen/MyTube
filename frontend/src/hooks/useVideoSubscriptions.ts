@@ -31,7 +31,8 @@ const matchesVideoAuthor = (
       : "";
   return (
     subscription.author === video.author &&
-    subscriptionPlatform === video.source.toLowerCase()
+    // A legacy or remote row may have no source.
+    subscriptionPlatform === (typeof video.source === "string" ? video.source.toLowerCase() : "")
   );
 };
 

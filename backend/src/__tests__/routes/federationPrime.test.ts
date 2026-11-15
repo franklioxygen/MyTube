@@ -14,6 +14,7 @@ const state = vi.hoisted(() => ({ loginRequired: true }));
 vi.mock("../../services/passwordService", () => ({ isLoginRequired: () => state.loginRequired }));
 
 import { db, sqlite } from "../../db";
+import { videos } from "../../db/schema";
 import { csrfProtection, csrfTokenProvider } from "../../middleware/csrfMiddleware";
 import { errorHandler } from "../../middleware/errorHandler";
 import { roleBasedAuthMiddleware } from "../../middleware/roleBasedAuthMiddleware";
@@ -29,6 +30,7 @@ import { invalidateInFlightSyncs, updatePeer } from "../../services/federation/p
 import { syncPeer } from "../../services/federation/peerSync";
 import { initializeStorage } from "../../services/storageService/initialization";
 import { DATA_DIR } from "../../config/paths";
+import { listRemoteVideos } from "../../services/federation/libraryView";
 
 /**
  * Layer 1: the prime side against a scripted fake peer on loopback (a LAN
@@ -275,6 +277,9 @@ const registerAndSync = async () => {
 
 const library = async (api: Awaited<ReturnType<typeof admin>>) =>
   (await api.get("/api/federation/library")).body as { total: number; items: Array<Record<string, any>> };
+
+const itemId = async (api: Awaited<ReturnType<typeof admin>>, title: string) =>
+  (await library(api)).items.find((item) => item.title === title)!.id as string;
 
 beforeAll(async () => {
   migrate(db, { migrationsFolder: "drizzle" });
@@ -616,9 +621,6 @@ describe("syncing", () => {
 });
 
 describe("reading and playing remote items", () => {
-  const itemId = async (api: Awaited<ReturnType<typeof admin>>, title: string) =>
-    (await library(api)).items.find((item) => item.title === title)!.id as string;
-
   it("reads fresh detail without exposing the peer's ids", async () => {
     const { api } = await registerAndSync();
     const id = await itemId(api, "Title a");
@@ -721,6 +723,137 @@ describe("reading and playing remote items", () => {
     } finally {
       await new Promise((resolve) => server.close(resolve));
     }
+  });
+});
+
+describe("remote items in the library", () => {
+  // Between remote "b" (Jan 3) and "c" (Jan 2).
+  const NATIVE = { id: "native-1", title: "Native clip", createdAt: "2026-01-02T12:00:00.000Z" };
+  beforeEach(() => {
+    db.delete(videos).run();
+    db.insert(videos).values(NATIVE).run();
+  });
+  afterAll(() => {
+    db.delete(videos).run();
+  });
+
+  const titles = (body: Array<{ title: string }>) => body.map((video) => video.title);
+
+  it("merges them into the owner's list, newest first, as gateway-backed videos", async () => {
+    const { api } = await registerAndSync();
+    const listed = await api.get("/api/videos");
+
+    expect(listed.status).toBe(200);
+    // Tells the client to keep revalidating while peers feed the library.
+    expect(listed.headers["x-mytube-federation"]).toBe("peers");
+    expect(titles(listed.body)).toEqual(["Title b", "Native clip", "Title c", "Title a"]);
+    const native = listed.body.find((video: { id: string }) => video.id === NATIVE.id);
+    expect(native.origin).toBeUndefined();
+
+    const remote = listed.body.find((video: { title: string }) => video.title === "Title a");
+    expect(remote.id).toMatch(/^fed_/);
+    expect(remote).toMatchObject({
+      videoPath: `/api/federation/media/${remote.id}/media`,
+      thumbnailPath: `/api/federation/media/${remote.id}/thumbnail`,
+      origin: { kind: "remote", instanceId: PEER_ID, instanceName: "Living room NAS" },
+      availability: "online",
+      capabilities: { canPlay: true, canEdit: false, canDelete: false, canSaveProgress: false, canAddToCollection: false },
+    });
+    // The peer's own ids and paths never reach the browser.
+    expect(JSON.stringify(listed.body)).not.toContain(peerUrl);
+    // Nothing in a row changes without the list ETag moving.
+    expect(remote).not.toHaveProperty("lastSyncedAt");
+  });
+
+  it("pages the merged list, not each side separately", async () => {
+    const { api } = await registerAndSync();
+    expect(titles((await api.get("/api/videos?limit=2&offset=1")).body)).toEqual(["Native clip", "Title c"]);
+    // A page reads only the remote rows it can need, newest first.
+    expect(listRemoteVideos(2).map((video) => video.title)).toEqual(["Title b", "Title c"]);
+    expect(listRemoteVideos()).toHaveLength(3);
+  });
+
+  it("keeps them from visitors and API keys", async () => {
+    const { api } = await registerAndSync();
+    user = { role: "visitor" };
+    const visitorList = await api.get("/api/videos");
+    expect(titles(visitorList.body)).toEqual(["Native clip"]);
+    expect(visitorList.headers["x-mytube-federation"]).toBeUndefined();
+    user = { role: "admin" };
+    apiKey = true;
+    expect(titles((await api.get("/api/videos")).body)).toEqual(["Native clip"]);
+  });
+
+  it("moves the list ETag when a sync commits, and only then", async () => {
+    const { api, id } = await registerAndSync();
+    const etag = (await api.get("/api/videos")).headers.etag as string;
+    expect((await api.get("/api/videos").set("If-None-Match", etag)).status).toBe(304);
+
+    // An unchanged sync keeps it.
+    await api.post(`/api/federation/peers/${id}/sync`);
+    expect((await api.get("/api/videos").set("If-None-Match", etag)).status).toBe(304);
+
+    peer.items = [...initialItems(), summary("d", "2026-01-04T00:00:00.000Z")];
+    peer.libraryRevision = "lib-2";
+    await api.post(`/api/federation/peers/${id}/sync`);
+    const changed = await api.get("/api/videos").set("If-None-Match", etag);
+    expect(changed.status).toBe(200);
+    expect(titles(changed.body)[0]).toBe("Title d");
+
+    expect(etag).toContain("-fed-");
+    // Without peers the list carries the plain native tag again.
+    await api.delete(`/api/federation/peers/${id}`);
+    expect((await api.get("/api/videos")).headers.etag).toMatch(/^W\/"videos-all-[0-9a-f]+-\d+"$/);
+  });
+
+  it("serves fresh detail with subtitles through the gateway", async () => {
+    const { api } = await registerAndSync();
+    const id = await itemId(api, "Title a");
+
+    const detail = await api.get(`/api/videos/${id}`);
+    expect(detail.status).toBe(200);
+    expect(detail.headers["cache-control"]).toBe("private, no-store");
+    expect(detail.body).toMatchObject({
+      id,
+      description: "About a",
+      availability: "online",
+      lastSyncedAt: expect.any(Number),
+      subtitles: [{ language: "en", filename: "track-en.vtt", path: `/api/federation/media/${id}/subtitle/track-en` }],
+    });
+
+    const subtitle = await api.get(detail.body.subtitles[0].path).buffer(true).parse((res, done) => {
+      const chunks: Buffer[] = [];
+      res.on("data", (chunk: Buffer) => chunks.push(chunk));
+      res.on("end", () => done(null, Buffer.concat(chunks)));
+    });
+    expect(subtitle.status).toBe(200);
+    expect((subtitle.body as Buffer).length).toBe(MEDIA.length);
+    expect((await api.get(`/api/federation/media/${id}/subtitle/..%2Fsecret`)).status).toBe(400);
+  });
+
+  it("shows the last summary, unplayable, while the peer cannot answer", async () => {
+    const { api } = await registerAndSync();
+    const id = await itemId(api, "Title a");
+    peer.detailStatus = 503;
+
+    const detail = await api.get(`/api/videos/${id}`);
+    expect(detail.status).toBe(200);
+    expect(detail.body).toMatchObject({ title: "Title a", availability: "offline", capabilities: { canPlay: false } });
+    expect(detail.body.description).toBeUndefined();
+    expect(detail.body.videoPath).toBeUndefined();
+  });
+
+  it("is not found for visitors, or once the item is gone", async () => {
+    const { api, id: peerId } = await registerAndSync();
+    const id = await itemId(api, "Title a");
+    user = { role: "visitor" };
+    expect((await api.get(`/api/videos/${id}`)).status).toBe(404);
+    user = { role: "admin" };
+
+    peer.items = initialItems().filter((item) => item.id !== "a");
+    peer.libraryRevision = "lib-2";
+    await api.post(`/api/federation/peers/${peerId}/sync`);
+    expect((await api.get(`/api/videos/${id}`)).status).toBe(404);
   });
 });
 

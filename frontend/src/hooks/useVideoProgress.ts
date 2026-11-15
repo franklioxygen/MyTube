@@ -5,6 +5,7 @@ import { Video } from "../types";
 import { api, sendVideoProgressWithKeepalive } from "../utils/apiClient";
 import { SPEED_OPTIONS } from "../utils/constants";
 import { parseDuration } from "../utils/formatUtils";
+import { videoCan } from "../utils/libraryItem";
 import {
   getBestVideoResumeProgress,
   readVideoResumeProgress,
@@ -77,6 +78,10 @@ function syncVideoPlaybackCache(
 export function useVideoProgress({ videoId, video, videoElement }: UseVideoProgressProps) {
   const { userRole } = useAuth();
   const isVisitor = userRole === "visitor";
+  // A remote item keeps its resume position on this device only: this
+  // instance does not store progress or views for it yet.
+  const canSaveProgress = videoCan(video, "canSaveProgress");
+  const canRecordView = videoCan(video, "canRecordView");
   const queryClient = useQueryClient();
   const lastProgressSave = useRef<number>(0);
   const currentTimeRef = useRef<number>(0);
@@ -170,6 +175,7 @@ export function useVideoProgress({ videoId, video, videoElement }: UseVideoProgr
     if (
       !videoId ||
       isVisitor ||
+      !canRecordView ||
       isDeletingRef.current ||
       viewCountedRef.current ||
       playedSecondsRef.current < getViewThreshold(durationRef.current)
@@ -192,7 +198,7 @@ export function useVideoProgress({ videoId, video, videoElement }: UseVideoProgr
       .catch((err) => {
         console.error("Error incrementing view count:", err);
       });
-  }, [isVisitor, queryClient, videoId]);
+  }, [canRecordView, isVisitor, queryClient, videoId]);
 
   // Add up what this visit actually played. Only small forward steps count, so
   // restoring saved progress, seeking and looping back add nothing. `seeking` is
@@ -270,6 +276,10 @@ export function useVideoProgress({ videoId, video, videoElement }: UseVideoProgr
       progressUpdatedAt,
     });
 
+    if (!canSaveProgress) {
+      return;
+    }
+
     if (options.keepalive) {
       sendVideoProgressWithKeepalive(videoId, progress);
       return;
@@ -282,7 +292,7 @@ export function useVideoProgress({ videoId, video, videoElement }: UseVideoProgr
       .catch((err) => {
         console.error("Error saving progress:", err);
       });
-  }, [cacheProgressLocally, isVisitor, queryClient, videoId]);
+  }, [cacheProgressLocally, canSaveProgress, isVisitor, queryClient, videoId]);
 
   const flushSampledProgress = useCallback((options: { keepalive?: boolean } = {}) => {
     const playbackTime = samplePlaybackTime();

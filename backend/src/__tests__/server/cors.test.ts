@@ -147,7 +147,7 @@ describe("server/cors", () => {
     expect(result.err).toBeNull();
     expect(result.options?.origin).toBe(true);
     expect(result.options?.credentials).toBe(true);
-    expect(result.options?.exposedHeaders).toEqual(["X-CSRF-Token"]);
+    expect(result.options?.exposedHeaders).toEqual(["X-CSRF-Token", "X-MyTube-Federation"]);
   });
 
   it("blocked origin preflight should not surface as 500", async () => {

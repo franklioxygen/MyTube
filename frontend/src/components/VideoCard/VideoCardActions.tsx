@@ -6,6 +6,7 @@ import { useSnackbar } from '../../contexts/SnackbarContext';
 import { useVideoActions, useVideoTags } from '../../contexts/VideoContext';
 import { useShareVideo } from '../../hooks/useShareVideo';
 import { Video } from '../../types';
+import { videoCan } from '../../utils/libraryItem';
 import { neutral, overlay } from '../../theme/colors';
 import CollectionModal from '../CollectionModal';
 import ConfirmationModal from '../ConfirmationModal';
@@ -119,17 +120,17 @@ export const VideoCardActions: React.FC<VideoCardActionsProps> = ({
                 }}
             >
                 <VideoKebabMenuButtons
-                    onPlayWith={(anchor) => setPlayerMenuAnchor(anchor)}
-                    onShare={handleShare}
-                    onAddToCollection={() => setShowCollectionModal(true)}
-                    onDelete={canDelete ? () => setShowDeleteModal(true) : undefined}
+                    onPlayWith={videoCan(video, 'canPlay') ? (anchor) => setPlayerMenuAnchor(anchor) : undefined}
+                    onShare={videoCan(video, 'canShare') ? handleShare : undefined}
+                    onAddToCollection={videoCan(video, 'canAddToCollection') ? () => setShowCollectionModal(true) : undefined}
+                    onDelete={canDelete && videoCan(video, 'canDelete') ? () => setShowDeleteModal(true) : undefined}
                     isDeleting={isDeleting}
                     isTogglingVisibility={isTogglingVisibility}
-                    onToggleVisibility={handleToggleVisibility}
+                    onToggleVisibility={videoCan(video, 'canEdit') ? handleToggleVisibility : undefined}
                     isTogglingLock={isTogglingLock}
-                    onToggleLock={handleToggleLock}
+                    onToggleLock={videoCan(video, 'canEdit') ? handleToggleLock : undefined}
                     isLocked={isLocked}
-                    onAddTag={() => setShowTagsModal(true)}
+                    onAddTag={videoCan(video, 'canEdit') ? () => setShowTagsModal(true) : undefined}
                     video={video}
                     sx={{
                         color: neutral.white,

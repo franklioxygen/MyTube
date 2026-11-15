@@ -31,6 +31,7 @@ import { useVideoSort } from '../hooks/useVideoSort';
 import { lazyWithRetry } from '../utils/lazyWithRetry';
 import { sortTagsByUsage } from '../utils/tagUtils';
 import { viewportHeight } from '../utils/viewportUnits';
+import { videoCan } from '../utils/libraryItem';
 
 const ALL_TAGS_SORT_STORAGE_SLOT = 'allTagsSortOption';
 
@@ -91,6 +92,12 @@ const AllTagsPage: React.FC = () => {
         authorTags: settings?.authorTags,
         collectionTags: settings?.collectionTags,
     });
+    // "Delete all filtered" removes this instance's files: items from another
+    // instance are not deleted from here.
+    const deletableFilteredVideos = useMemo(
+        () => filteredVideos.filter((video) => videoCan(video, 'canDelete')),
+        [filteredVideos]
+    );
 
     const {
         sortedVideos,
@@ -148,13 +155,13 @@ const AllTagsPage: React.FC = () => {
                         isOpen={isDeleteFilteredOpen}
                         onClose={() => setIsDeleteFilteredOpen(false)}
                         onConfirm={async () => {
-                            if (filteredVideos.length > 0) {
-                                await deleteVideos(filteredVideos.map((v) => v.id));
+                            if (deletableFilteredVideos.length > 0) {
+                                await deleteVideos(deletableFilteredVideos.map((v) => v.id));
                             }
                         }}
                         title={t('deleteAllFilteredVideos')}
                         message={t('confirmDeleteFilteredVideos', {
-                            count: filteredVideos.length,
+                            count: deletableFilteredVideos.length,
                         })}
                         confirmText={t('delete')}
                         cancelText={t('cancel')}
