@@ -4,6 +4,7 @@ import { api } from '../utils/apiClient';
 import { Video } from '../types';
 import { buildAuthorAvatarPathMap, withCanonicalAuthorAvatar } from '../utils/authorAvatar';
 import { isRemoteVideo } from '../utils/libraryItem';
+import { defaultQueryConfig } from '../utils/queryConfig';
 
 interface UseVideoQueriesProps {
     videoId: string | undefined;
@@ -35,8 +36,11 @@ export function useVideoQueries({ videoId, videos, showComments }: UseVideoQueri
             return videos.find(v => v.id === videoId);
         },
         // A cached remote detail may predate its peer going offline or
-        // changing the asset, so it is always re-read when the video opens.
-        refetchOnMount: (query) => (isRemoteVideo(query.state.data as Video | undefined) ? 'always' : true),
+        // changing the asset, so it is always stale: re-read when the player
+        // mounts and when it switches to the video (the route keeps the player
+        // mounted across /video/:id changes, where refetchOnMount never runs).
+        staleTime: (query) =>
+            isRemoteVideo(query.state.data as Video | undefined) ? 0 : defaultQueryConfig.staleTime,
         enabled: !!videoId,
         retry: false
     });
