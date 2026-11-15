@@ -158,6 +158,15 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         refetchOnWindowFocus: false,
     });
 
+    // The list is scoped to the caller (hidden and remote items are the
+    // owner's), so a role change in the same tab must not keep the old one.
+    const listRoleRef = useRef(userRole);
+    useEffect(() => {
+        if (listRoleRef.current === userRole) return;
+        listRoleRef.current = userRole;
+        void queryClient.invalidateQueries({ queryKey: ['videos'] });
+    }, [queryClient, userRole]);
+
     // Filter invisible videos when in visitor mode. Items from other instances
     // are the owner's alone, so a list cached before a switch to a visitor
     // must not show them either.

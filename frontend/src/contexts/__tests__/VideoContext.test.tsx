@@ -127,6 +127,19 @@ describe('VideoContext', () => {
     expect(result.current.videos[0].id).toBe('v1');
   });
 
+  it('refetches the library when the signed-in role changes', async () => {
+    const { wrapper } = createWrapper();
+    const { result, rerender } = renderHook(() => useVideo(), { wrapper });
+    await waitFor(() => expect(result.current.videos).toHaveLength(2));
+    const listRequests = () => mockApiGet.mock.calls.filter(([url]) => url === '/videos').length;
+    const before = listRequests();
+
+    // The list is scoped to the caller, so a cached one must not carry over.
+    mockUserRole = 'visitor';
+    rerender();
+    await waitFor(() => expect(listRequests()).toBe(before + 1));
+  });
+
   it('hides items from other instances from a visitor, even from a cached list', async () => {
     mockApiGet.mockImplementation((url: string) => {
       if (url === '/videos') {

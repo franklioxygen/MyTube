@@ -367,16 +367,16 @@ const VideoPlayer: React.FC = () => {
         return (queueIds?.indexOf(video.id) ?? -1) <= 0;
     }, [collections, playbackQueueVideoIds, previousVideoId, sourceCollectionId, video]);
 
-    // Watch statistics cover native videos only for now: neither the current
-    // video nor a recommendation from another instance enters an event.
-    const remoteRecommendationIds = useMemo(
-        () => new Set(relatedVideos.filter(isRemoteVideo).map((relatedVideo) => relatedVideo.id)),
-        [relatedVideos]
+    // Watch statistics cover native videos only for now: no item from another
+    // instance enters an event or the statistics state a navigation carries.
+    const remoteVideoIds = useMemo(
+        () => new Set([...videos, ...relatedVideos].filter(isRemoteVideo).map((item) => item.id)),
+        [relatedVideos, videos]
     );
 
     useEffect(() => {
         if (!statisticsIngestion.enabled || !video || isRemoteVideo(video)) return;
-        const nativeSlate = upNextSlate.filter((item) => !remoteRecommendationIds.has(item.videoId));
+        const nativeSlate = upNextSlate.filter((item) => !remoteVideoIds.has(item.videoId));
         if (nativeSlate.length === 0) return;
 
         const slateKey = `${video.id}:${nativeSlate.map(item => `${item.videoId}:${item.lane}`).join(',')}`;
@@ -392,7 +392,7 @@ const VideoPlayer: React.FC = () => {
                 slate: nativeSlate
             }
         });
-    }, [remoteRecommendationIds, statisticsIngestion, upNextSlate, video]);
+    }, [remoteVideoIds, statisticsIngestion, upNextSlate, video]);
 
     const handleToggleComments = () => {
         setShowComments(!showComments);
@@ -578,7 +578,7 @@ const VideoPlayer: React.FC = () => {
     // playback state forward.
     const goToUpNextVideo = (videoId: string, index: number, via: 'click' | 'keyboard' = 'click') => {
         const slateItem = upNextSlate[index] ?? { videoId, lane: 'related', position: index + 1 };
-        const clickEventId = statisticsIngestion.enabled && video && !isRemoteVideo(video) && !remoteRecommendationIds.has(videoId)
+        const clickEventId = statisticsIngestion.enabled && video && !isRemoteVideo(video) && !remoteVideoIds.has(videoId)
             ? statisticsIngestion.recordEvent({
                 eventType: 'up_next_clicked',
                 surface: 'web',
@@ -594,7 +594,7 @@ const VideoPlayer: React.FC = () => {
                 }
             })
             : null;
-        const state = buildPlaybackState(clickEventId ?? statisticsRelatedEventId, {
+        const state = buildPlaybackState(remoteVideoIds.has(videoId) ? null : clickEventId ?? statisticsRelatedEventId, {
             previousVideoIds: pushBackTrail(video.id, videoId)
         });
 
@@ -622,7 +622,7 @@ const VideoPlayer: React.FC = () => {
             ? backTrail.slice(0, -1)
             : backTrail;
         const state = buildPlaybackState(
-            statisticsRelatedEventId,
+            remoteVideoIds.has(previousVideoId) ? null : statisticsRelatedEventId,
             remainingTrail.length > 0 ? { previousVideoIds: remainingTrail } : {}
         );
 
@@ -651,7 +651,7 @@ const VideoPlayer: React.FC = () => {
                 })
                 : null;
             const state = buildPlaybackState(
-                autoplayEventId ?? statisticsRelatedEventId,
+                isRemoteVideo(nextVideo) ? null : autoplayEventId ?? statisticsRelatedEventId,
                 {
                     previousVideoIds: pushBackTrail(video.id, nextVideo.id),
                     ...(recordsAutoplay
@@ -704,6 +704,12 @@ const VideoPlayer: React.FC = () => {
             await deleteSubtitleMutation.mutateAsync({ index, currentSubtitles: video.subtitles });
         },
     } : {};
+
+    // The info panel hands media to external players and probes it, so a
+    // remote item is offered there only once this opening's detail confirms it.
+    const infoVideo = isRemoteVideo(video) && !isDetailFresh
+        ? { ...video, videoPath: undefined, capabilities: video.capabilities && { ...video.capabilities, canPlay: false } }
+        : video;
 
     // Danmaku only exists for Bilibili videos, so other sources get no control at all.
     const danmakuVideoId = video.source === 'bilibili' && can('canUseDanmaku') ? video.id : undefined;
@@ -842,7 +848,7 @@ const VideoPlayer: React.FC = () => {
                         width: '100%'
                     }}>
                         <VideoInfo
-                            video={video}
+                            video={infoVideo}
                             onTitleSave={can('canEdit') ? handleSaveTitle : undefined}
                             onRatingChange={can('canRate') ? handleRatingChange : undefined}
                             onAuthorClick={handleAuthorClick}
