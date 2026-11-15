@@ -78,7 +78,7 @@
     "vitest": "^4.1.12"
   },
   "overrides": {
-    "basic-ftp": "^6.2.1",
+    "basic-ftp": "^6.2.4",
     "esbuild": "0.28.1",
     "qs": "^6.17.1",
     "undici": "^7.30.1",
