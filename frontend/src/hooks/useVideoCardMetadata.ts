@@ -4,6 +4,7 @@ import { isNewVideo } from '../utils/videoCardUtils';
 import { useCloudStorageUrl } from './useCloudStorageUrl';
 import { useThumbnailCandidates } from './useThumbnailCandidates';
 import { encodeLocalMediaPath, isHttpUrl } from '../utils/localMediaPath';
+import { isRemoteVideo } from '../utils/libraryItem';
 
 interface UseVideoCardMetadataProps {
     video: Video;
@@ -48,7 +49,8 @@ export const useVideoCardMetadata = ({ video }: UseVideoCardMetadataProps) => {
             const videoPath = video.videoPath.startsWith('/') ? video.videoPath : `/${video.videoPath}`;
             return `${window.location.origin}${encodeLocalMediaPath(videoPath)}`;
         }
-        return video.sourceUrl || '';
+        // A remote item plays only through the gateway, never its source page.
+        return isRemoteVideo(video) ? '' : video.sourceUrl || '';
     };
 
     // Check if video is new (memoized)

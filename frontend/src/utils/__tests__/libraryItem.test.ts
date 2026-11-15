@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isRemoteVideo, remoteInstanceName, videoCan } from '../libraryItem';
+import { isRemoteVideo, LIBRARY_POLL_MS, libraryPollInterval, remoteInstanceName, videoCan } from '../libraryItem';
 
 const remote = (capabilities: Record<string, boolean>) => ({
     origin: { kind: 'remote' as const, instanceId: 'peer', instanceName: 'NAS' },
@@ -24,5 +24,14 @@ describe('library items', () => {
         // Anything not granted explicitly is refused.
         expect(videoCan(video, 'canShare')).toBe(false);
         expect(videoCan({ origin: video.origin }, 'canPlay')).toBe(false);
+    });
+
+    it('polls the library while remote items are shown or peers may still sync', () => {
+        const native = [{}];
+        expect(libraryPollInterval(native, false)).toBe(false);
+        expect(libraryPollInterval(undefined, false)).toBe(false);
+        // A peer was just connected: its first sync has not landed yet.
+        expect(libraryPollInterval(native, true)).toBe(LIBRARY_POLL_MS);
+        expect(libraryPollInterval([...native, remote({ canPlay: true })], false)).toBe(LIBRARY_POLL_MS);
     });
 });

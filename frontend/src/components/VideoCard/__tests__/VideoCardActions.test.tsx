@@ -56,7 +56,7 @@ vi.mock('../../../contexts/VideoContext', () => {
 vi.mock('../../VideoPlayer/VideoInfo/VideoKebabMenuButtons', () => ({
     default: ({ onPlayWith, onShare, onAddToCollection, onDelete, onToggleVisibility, onToggleLock, isLocked, onAddTag }: any) => (
         <div data-testid="kebab-menu">
-            <button onClick={(e) => onPlayWith(e.currentTarget)}>Play With</button>
+            {onPlayWith && <button onClick={(e) => onPlayWith(e.currentTarget)}>Play With</button>}
             {onShare && <button onClick={onShare}>Share</button>}
             {onAddToCollection && <button onClick={onAddToCollection}>Add to Collection</button>}
             {onDelete && <button onClick={onDelete}>Delete</button>}
@@ -138,6 +138,19 @@ describe('VideoCardActions', () => {
         for (const label of ['Share', 'Add to Collection', 'Delete', 'Toggle Visibility', 'Lock Video', 'Add Tag']) {
             expect(screen.queryByText(label)).not.toBeInTheDocument();
         }
+    });
+
+    it('offers no external player for a remote item that cannot play', () => {
+        const offline = {
+            id: 'fed_1',
+            title: 'Remote',
+            author: 'Author',
+            origin: { kind: 'remote', instanceId: 'peer', instanceName: 'NAS' },
+            availability: 'offline',
+            capabilities: { canPlay: false },
+        } as any;
+        render(<VideoCardActions {...defaultProps} video={offline} />);
+        expect(screen.queryByText('Play With')).not.toBeInTheDocument();
     });
 
     it('should render actions when hovered', () => {

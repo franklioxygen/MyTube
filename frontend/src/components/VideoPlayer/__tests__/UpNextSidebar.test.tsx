@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import UpNextSidebar from '../UpNextSidebar';
@@ -78,5 +78,23 @@ describe('UpNextSidebar', () => {
 
         await user.click(screen.getByText('Video 1'));
         expect(mockOnVideoClick).toHaveBeenCalledWith('1', 0);
+    });
+
+    it('offers add-to-collection only for items that support it', () => {
+        const remote = {
+            id: 'fed_1',
+            title: 'Remote video',
+            author: 'Author 3',
+            duration: 'PT10M',
+            origin: { kind: 'remote', instanceId: 'peer', instanceName: 'NAS' },
+            capabilities: { canPlay: true, canAddToCollection: false },
+        } as any;
+        render(<UpNextSidebar {...defaultProps} relatedVideos={[videos[0], remote]} />);
+        const hoverItem = (title: string) => fireEvent.mouseEnter(screen.getByText(title).closest('[class*="MuiCard-root"]')!);
+
+        hoverItem('Video 1');
+        expect(screen.getByLabelText('addToCollection')).toBeInTheDocument();
+        hoverItem('Remote video');
+        expect(screen.queryByLabelText('addToCollection')).not.toBeInTheDocument();
     });
 });

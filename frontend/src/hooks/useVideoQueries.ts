@@ -3,6 +3,7 @@ import { useMemo } from 'react';
 import { api } from '../utils/apiClient';
 import { Video } from '../types';
 import { buildAuthorAvatarPathMap, withCanonicalAuthorAvatar } from '../utils/authorAvatar';
+import { isRemoteVideo } from '../utils/libraryItem';
 
 interface UseVideoQueriesProps {
     videoId: string | undefined;
@@ -24,7 +25,7 @@ export function useVideoQueries({ videoId, videos, showComments }: UseVideoQueri
     // omits description/subtitles (heavy columns), so seeding it as
     // initialData would let the global staleTime suppress the fetch and leave
     // the player without them.
-    const { data: rawVideo, isLoading: loading, isPlaceholderData, error } = useQuery({
+    const { data: rawVideo, isLoading: loading, isFetchedAfterMount, error } = useQuery({
         queryKey: ['video', videoId],
         queryFn: async () => {
             const response = await api.get(`/videos/${videoId}`);
@@ -33,6 +34,9 @@ export function useVideoQueries({ videoId, videos, showComments }: UseVideoQueri
         placeholderData: () => {
             return videos.find(v => v.id === videoId);
         },
+        // A cached remote detail may predate its peer going offline or
+        // changing the asset, so it is always re-read when the video opens.
+        refetchOnMount: (query) => (isRemoteVideo(query.state.data as Video | undefined) ? 'always' : true),
         enabled: !!videoId,
         retry: false
     });
@@ -54,8 +58,8 @@ export function useVideoQueries({ videoId, videos, showComments }: UseVideoQueri
     return {
         video,
         loading,
-        /** True while `video` is still the list row, before the fresh detail. */
-        isPlaceholderData,
+        /** True once this visit has fetched the detail (not list or cached data). */
+        isFetchedAfterMount,
         error,
         comments,
         loadingComments

@@ -120,7 +120,7 @@ export const VideoCardActions: React.FC<VideoCardActionsProps> = ({
                 }}
             >
                 <VideoKebabMenuButtons
-                    onPlayWith={(anchor) => setPlayerMenuAnchor(anchor)}
+                    onPlayWith={videoCan(video, 'canPlay') ? (anchor) => setPlayerMenuAnchor(anchor) : undefined}
                     onShare={videoCan(video, 'canShare') ? handleShare : undefined}
                     onAddToCollection={videoCan(video, 'canAddToCollection') ? () => setShowCollectionModal(true) : undefined}
                     onDelete={canDelete && videoCan(video, 'canDelete') ? () => setShowDeleteModal(true) : undefined}

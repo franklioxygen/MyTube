@@ -11,7 +11,7 @@ import { useShareVideo } from '../../../hooks/useShareVideo';
 import { Video } from '../../../types'; // Add imports
 import { getAvailablePlayers, getPlayerUrl } from '../../../utils/playerUtils'; // Import new utils
 import VideoKebabMenuButtons from './VideoKebabMenuButtons';
-import { videoCan } from '../../../utils/libraryItem';
+import { isRemoteVideo, videoCan } from '../../../utils/libraryItem';
 
 interface VideoActionButtonsProps {
     video: Video;
@@ -77,7 +77,8 @@ const VideoActionButtons: React.FC<VideoActionButtonsProps> = ({
             // when accessed remotely, so window.location.origin is the correct base URL
             return `${window.location.origin}${encodeLocalMediaPath(videoPath)}`;
         }
-        return video.sourceUrl || '';
+        // A remote item plays only through the gateway, never its source page.
+        return isRemoteVideo(video) ? '' : video.sourceUrl || '';
     };
 
     const handlePlayerMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
@@ -97,7 +98,7 @@ const VideoActionButtons: React.FC<VideoActionButtonsProps> = ({
             return `${window.location.origin}${encodeLocalMediaPath(videoPath)}`;
         }
 
-        if (video.sourceUrl) return video.sourceUrl;
+        if (video.sourceUrl && !isRemoteVideo(video)) return video.sourceUrl;
 
         return null;
     };
@@ -191,7 +192,7 @@ const VideoActionButtons: React.FC<VideoActionButtonsProps> = ({
         }
 
         // Increment view count since we can't track watch time in external players
-        await incrementView(video.id);
+        if (videoCan(video, 'canRecordView')) await incrementView(video.id);
 
         try {
             const playerUrl = getPlayerUrl(player, resolvedVideoUrl);
@@ -218,18 +219,21 @@ const VideoActionButtons: React.FC<VideoActionButtonsProps> = ({
         handlePlayerMenuClose();
     };
 
+    const canPlay = videoCan(video, 'canPlay');
     const actionButtons = (
         <Stack direction="row" spacing={1}>
-            <Tooltip title={t('playWith')} disableHoverListener={isTouch}>
-                <Button
-                    variant="outlined"
-                    color="inherit"
-                    onClick={handlePlayerMenuOpen}
-                    sx={{ minWidth: 'auto', p: 1, color: 'text.secondary', borderColor: 'text.secondary', '&:hover': { color: 'primary.main', borderColor: 'primary.main' } }}
-                >
-                    <Cast />
-                </Button>
-            </Tooltip>
+            {canPlay && (
+                <Tooltip title={t('playWith')} disableHoverListener={isTouch}>
+                    <Button
+                        variant="outlined"
+                        color="inherit"
+                        onClick={handlePlayerMenuOpen}
+                        sx={{ minWidth: 'auto', p: 1, color: 'text.secondary', borderColor: 'text.secondary', '&:hover': { color: 'primary.main', borderColor: 'primary.main' } }}
+                    >
+                        <Cast />
+                    </Button>
+                </Tooltip>
+            )}
             <Menu
                 anchorEl={playerMenuAnchor}
                 open={Boolean(playerMenuAnchor)}
@@ -325,7 +329,7 @@ const VideoActionButtons: React.FC<VideoActionButtonsProps> = ({
         return (
             <>
                 <VideoKebabMenuButtons
-                    onPlayWith={(anchor) => setPlayerMenuAnchor(anchor)}
+                    onPlayWith={canPlay ? (anchor) => setPlayerMenuAnchor(anchor) : undefined}
                     onShare={handleShare}
                     onAddToCollection={onAddToCollection}
                     onDelete={onDelete}

@@ -85,7 +85,7 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
     return (
         <Box sx={{ mt: 2 }}>
             {/* Hidden video element to get resolution - only create if needed */}
-            {needsDetection && (videoUrl || video.sourceUrl) && (
+            {needsDetection && (videoUrl || (!isRemoteVideo(video) && video.sourceUrl)) && (
                 <video
                     ref={videoRef}
                     style={{

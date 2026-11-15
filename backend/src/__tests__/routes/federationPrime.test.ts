@@ -743,6 +743,8 @@ describe("remote items in the library", () => {
     const listed = await api.get("/api/videos");
 
     expect(listed.status).toBe(200);
+    // Tells the client to keep revalidating while peers feed the library.
+    expect(listed.headers["x-mytube-federation"]).toBe("peers");
     expect(titles(listed.body)).toEqual(["Title b", "Native clip", "Title c", "Title a"]);
     const native = listed.body.find((video: { id: string }) => video.id === NATIVE.id);
     expect(native.origin).toBeUndefined();
@@ -768,7 +770,9 @@ describe("remote items in the library", () => {
   it("keeps them from visitors and API keys", async () => {
     const { api } = await registerAndSync();
     user = { role: "visitor" };
-    expect(titles((await api.get("/api/videos")).body)).toEqual(["Native clip"]);
+    const visitorList = await api.get("/api/videos");
+    expect(titles(visitorList.body)).toEqual(["Native clip"]);
+    expect(visitorList.headers["x-mytube-federation"]).toBeUndefined();
     user = { role: "admin" };
     apiKey = true;
     expect(titles((await api.get("/api/videos")).body)).toEqual(["Native clip"]);

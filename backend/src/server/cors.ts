@@ -6,7 +6,7 @@ const DEFAULT_ALLOWED_CORS_ORIGINS = [
   "http://localhost:5556",
   "http://127.0.0.1:5556",
 ] as const;
-const DEFAULT_EXPOSED_CORS_HEADERS = ["X-CSRF-Token"] as const;
+const DEFAULT_EXPOSED_CORS_HEADERS = ["X-CSRF-Token", "X-MyTube-Federation"] as const;
 
 function firstForwardedValue(headerValue: string | undefined): string | null {
   if (!headerValue) {

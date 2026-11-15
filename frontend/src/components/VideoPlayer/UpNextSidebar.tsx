@@ -26,6 +26,7 @@ import { useThumbnailCandidates } from '../../hooks/useThumbnailCandidates';
 import { Video } from '../../types';
 import { formatDate, formatDuration } from '../../utils/formatUtils';
 import { handleThumbnailError } from '../../utils/thumbnailPlaceholder';
+import { videoCan } from '../../utils/libraryItem';
 
 interface UpNextSidebarProps {
     relatedVideos: Video[];
@@ -177,7 +178,7 @@ const UpNextSidebar: React.FC<UpNextSidebarProps> = ({
                                     </Typography>
                                 </Box>
 
-                                {hoveredVideoId === relatedVideo.id && !isMobile && !isTouch && !isVisitor && (
+                                {hoveredVideoId === relatedVideo.id && !isMobile && !isTouch && !isVisitor && videoCan(relatedVideo, 'canAddToCollection') && (
                                     <Tooltip title={t('addToCollection')} disableHoverListener={isTouch}>
                                         <IconButton
                                             size="small"

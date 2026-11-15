@@ -10,7 +10,7 @@ interface VideoKebabMenuProps {
     open?: boolean;
     onClose: () => void;
     onExited?: () => void;
-    onPlayWith: (anchor: HTMLElement) => void;
+    onPlayWith?: (anchor: HTMLElement) => void;
     onShare?: () => void;
     onAddToCollection?: () => void;
     onDelete?: () => void;
@@ -58,9 +58,10 @@ const VideoKebabMenu: React.FC<VideoKebabMenuProps> = ({
     const isTouch = useMediaQuery('(hover: none), (pointer: coarse)');
     const titleId = useId();
 
-    const actions: VideoMenuAction[] = [
-        { id: 'playWith', label: t('playWith'), icon: <Cast />, onClick: () => onPlayWith(kebabMenuAnchor) },
-    ];
+    const actions: VideoMenuAction[] = [];
+    if (onPlayWith) {
+        actions.push({ id: 'playWith', label: t('playWith'), icon: <Cast />, onClick: () => onPlayWith(kebabMenuAnchor) });
+    }
     if (onShare) {
         actions.push({ id: 'share', label: t('share'), icon: <Share />, onClick: onShare });
     }

@@ -138,7 +138,7 @@ const VideoPlayer: React.FC = () => {
     });
 
     // Use custom hooks
-    const { video, loading, isPlaceholderData, error, comments, loadingComments } = useVideoQueries({
+    const { video, loading, isFetchedAfterMount, error, comments, loadingComments } = useVideoQueries({
         videoId: id,
         videos,
         showComments
@@ -198,9 +198,9 @@ const VideoPlayer: React.FC = () => {
 
     const autoPlay = autoPlayNext || settingsAutoPlay;
 
-    // A remote item plays only once its fresh detail confirms its peer can
-    // serve it now: the list row may predate the peer going offline.
-    const mediaPath = isRemoteVideo(video) && (isPlaceholderData || !videoCan(video, 'canPlay'))
+    // A remote item plays only once a detail fetched for this visit confirms
+    // its peer can serve it now: the list row or a cached detail may be older.
+    const mediaPath = isRemoteVideo(video) && (!isFetchedAfterMount || !videoCan(video, 'canPlay'))
         ? undefined
         : video?.videoPath;
     // Get cloud storage URLs

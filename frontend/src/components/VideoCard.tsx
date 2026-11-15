@@ -99,8 +99,11 @@ const VideoCardBase: React.FC<VideoCardProps> = ({
         video
     });
 
+    // The kebab follows the hover preview, which a remote card does not have.
+    const [isCardHovered, setIsCardHovered] = React.useState(false);
     const handleMouseEnter = () => {
         if (selectionMode) return;
+        setIsCardHovered(true);
         hoverPreview.handleMouseEnter();
         // Also prefetch on hover as an additional optimization
         prefetchVideo();
@@ -111,7 +114,10 @@ const VideoCardBase: React.FC<VideoCardProps> = ({
             elevation={0}
             ref={cardRef}
             onMouseEnter={handleMouseEnter}
-            onMouseLeave={hoverPreview.handleMouseLeave}
+            onMouseLeave={() => {
+                setIsCardHovered(false);
+                hoverPreview.handleMouseLeave();
+            }}
             sx={{
                 height: '100%',
                 display: 'flex',
@@ -227,7 +233,7 @@ const VideoCardBase: React.FC<VideoCardProps> = ({
                 canDelete={actions.canDelete}
                 isMobile={isMobile}
                 isTouch={isTouch}
-                isHovered={hoverPreview.isHovered}
+                isHovered={hoverPreview.isHovered || (isRemote && isCardHovered)}
             />}
         </Card>
     );

@@ -108,6 +108,8 @@ export const getVideos = async (
     return;
   }
   res.set("ETag", etag);
+  // Lets the client keep revalidating while a new peer's first sync runs.
+  if (remoteTag) res.set("X-MyTube-Federation", "peers");
   // Cache but always revalidate, and never share across users (role-scoped).
   res.set("Cache-Control", "private, no-cache");
 
