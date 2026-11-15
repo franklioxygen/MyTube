@@ -37,7 +37,7 @@ Open **Settings → Integrations & Advanced → Multi-instance library → Conne
 | Field | What to enter |
 |---|---|
 | Name | How the instance is labelled in your library. |
-| Address | The address you open the other MyTube at in a browser. With the two-container Docker setup that is usually `http://<host>:5556`; with the single container it is `http://<host>:5551`. |
+| Address | An address of the other MyTube that this server can reach. Requests come from this server, not your browser, so `localhost` means this server itself (or its container, in Docker). On a local network, use the other machine's address: with the two-container Docker setup that is usually `http://<host>:5556`; with the single container it is `http://<host>:5551`. |
 | Access key | The key from step 1. |
 
 A local-network address can use `http`. An address on the internet must use `https`.
@@ -92,6 +92,6 @@ On the watching instance:
 
 ## Backups and restores
 
-- Back up `data/federation.key` along with your database. Without it, connected instances show *Access key unavailable* until you replace their keys.
+- Back up the key that protects saved access keys along with your database: the `MYTUBE_FEDERATION_KEY` value if you set it, otherwise `data/federation.key`. If it is lost or changes, connected instances show *Access key unavailable* until you replace their keys.
 - Restoring or importing a database suspends every key the instance had issued, and turns off every connection it had made. Resume or replace the keys, and turn the connections back on, once you have checked them.
 - If you copy a deployment and keep both copies running, choose **Reset identity** on the copy. It gets a new instance ID, and the keys it inherited are revoked.
