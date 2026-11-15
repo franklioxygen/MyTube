@@ -902,6 +902,33 @@ describe('VideoPlayer', () => {
                 },
             });
         });
+
+        it('keeps recommendations from another instance out of statistics', () => {
+            const remote = {
+                id: 'fed_1',
+                title: 'Remote',
+                origin: { kind: 'remote', instanceId: 'peer', instanceName: 'NAS' },
+                capabilities: { canPlay: true },
+            };
+            mockVideoRecommendationsReturn = { relatedVideos: [{ id: 'v5', title: 'Next' }, remote] };
+            mockStatisticsIngestionReturn = {
+                ...mockStatisticsIngestionReturn,
+                enabled: true,
+            };
+            mockStatisticsRecordEvent.mockReturnValueOnce('impression-1');
+
+            render(<VideoPlayer />);
+
+            // The impression lists only native recommendations.
+            expect(mockStatisticsRecordEvent).toHaveBeenCalledTimes(1);
+            expect(mockStatisticsRecordEvent.mock.calls[0][0].payload.slate.map((item: { videoId: string }) => item.videoId))
+                .toEqual(['v5']);
+
+            // Moving to the remote recommendation records nothing.
+            act(() => { capturedUpNextSidebarProps.onVideoClick('fed_1', 1); });
+            expect(mockStatisticsRecordEvent).toHaveBeenCalledTimes(1);
+            expect(mockNavigate).toHaveBeenCalledWith('/video/fed_1', expect.anything());
+        });
     });
 
     // ------ Props passed to VideoControls ------

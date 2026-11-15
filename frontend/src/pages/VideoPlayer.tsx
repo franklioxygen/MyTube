@@ -367,11 +367,19 @@ const VideoPlayer: React.FC = () => {
         return (queueIds?.indexOf(video.id) ?? -1) <= 0;
     }, [collections, playbackQueueVideoIds, previousVideoId, sourceCollectionId, video]);
 
-    useEffect(() => {
-        // Watch statistics cover native videos only for now.
-        if (!statisticsIngestion.enabled || !video || isRemoteVideo(video) || upNextSlate.length === 0) return;
+    // Watch statistics cover native videos only for now: neither the current
+    // video nor a recommendation from another instance enters an event.
+    const remoteRecommendationIds = useMemo(
+        () => new Set(relatedVideos.filter(isRemoteVideo).map((relatedVideo) => relatedVideo.id)),
+        [relatedVideos]
+    );
 
-        const slateKey = `${video.id}:${upNextSlate.map(item => `${item.videoId}:${item.lane}`).join(',')}`;
+    useEffect(() => {
+        if (!statisticsIngestion.enabled || !video || isRemoteVideo(video)) return;
+        const nativeSlate = upNextSlate.filter((item) => !remoteRecommendationIds.has(item.videoId));
+        if (nativeSlate.length === 0) return;
+
+        const slateKey = `${video.id}:${nativeSlate.map(item => `${item.videoId}:${item.lane}`).join(',')}`;
         if (upNextImpressionKeyRef.current === slateKey) return;
 
         upNextImpressionKeyRef.current = slateKey;
@@ -381,10 +389,10 @@ const VideoPlayer: React.FC = () => {
             videoId: video.id,
             payload: {
                 fromVideoId: video.id,
-                slate: upNextSlate
+                slate: nativeSlate
             }
         });
-    }, [statisticsIngestion, upNextSlate, video]);
+    }, [remoteRecommendationIds, statisticsIngestion, upNextSlate, video]);
 
     const handleToggleComments = () => {
         setShowComments(!showComments);
@@ -570,7 +578,7 @@ const VideoPlayer: React.FC = () => {
     // playback state forward.
     const goToUpNextVideo = (videoId: string, index: number, via: 'click' | 'keyboard' = 'click') => {
         const slateItem = upNextSlate[index] ?? { videoId, lane: 'related', position: index + 1 };
-        const clickEventId = statisticsIngestion.enabled && video && !isRemoteVideo(video)
+        const clickEventId = statisticsIngestion.enabled && video && !isRemoteVideo(video) && !remoteRecommendationIds.has(videoId)
             ? statisticsIngestion.recordEvent({
                 eventType: 'up_next_clicked',
                 surface: 'web',
@@ -629,7 +637,8 @@ const VideoPlayer: React.FC = () => {
     const handleVideoEnded = () => {
         if (autoPlayNext && relatedVideos.length > 0) {
             const nextVideo = relatedVideos[0];
-            const autoplayEventId = statisticsIngestion.enabled && video && !isRemoteVideo(video)
+            const recordsAutoplay = statisticsIngestion.enabled && video && !isRemoteVideo(video) && !isRemoteVideo(nextVideo);
+            const autoplayEventId = recordsAutoplay
                 ? statisticsIngestion.recordEvent({
                     eventType: 'autoplay_advanced',
                     surface: 'web',
@@ -645,7 +654,7 @@ const VideoPlayer: React.FC = () => {
                 autoplayEventId ?? statisticsRelatedEventId,
                 {
                     previousVideoIds: pushBackTrail(video.id, nextVideo.id),
-                    ...(statisticsIngestion.enabled && video
+                    ...(recordsAutoplay
                         ? { autoplayFromVideoId: video.id }
                         : {})
                 }
