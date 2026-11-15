@@ -278,8 +278,9 @@ const FederationTokens: React.FC = () => {
                     <FormControl component="fieldset">
                         <FormLabel component="legend">{t('federationTokenScopes')}</FormLabel>
                         <FormGroup>
+                            {/* Connecting requires library:read, so a media-only key could never be used. */}
                             <FormControlLabel
-                                control={<Checkbox checked={scopes.includes('library:read')} onChange={() => toggleScope('library:read')} />}
+                                control={<Checkbox checked disabled />}
                                 label={t('federationScopeLibrary')}
                             />
                             <FormControlLabel

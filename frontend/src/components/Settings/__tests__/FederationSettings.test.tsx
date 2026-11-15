@@ -11,9 +11,11 @@ const api = vi.hoisted(() => ({
     delete: vi.fn(),
 }));
 const showSnackbar = vi.hoisted(() => vi.fn());
+const languageState = vi.hoisted(() => ({ language: 'en' }));
 
 vi.mock('../../../contexts/LanguageContext', () => ({
     useLanguage: () => ({
+        language: languageState.language,
         t: (key: string, params?: Record<string, unknown>) => (params ? `${key}:${JSON.stringify(params)}` : key),
     }),
 }));
@@ -68,6 +70,7 @@ const renderSettings = () =>
 
 beforeEach(() => {
     vi.clearAllMocks();
+    languageState.language = 'en';
     tokens = [token()];
     peers = [peer()];
     api.get.mockImplementation(async (url: string) => {
@@ -85,6 +88,51 @@ const confirmDialog = async (confirmLabel: string) => {
     const dialog = await screen.findByRole('dialog');
     fireEvent.click(within(dialog).getByRole('button', { name: confirmLabel }));
 };
+
+describe('how it works', () => {
+    it('shows the steps, naming the real controls, only when asked', async () => {
+        renderSettings();
+        const toggle = screen.getByRole('button', { name: 'federationHelpToggle' });
+        expect(toggle).toHaveAttribute('aria-expanded', 'false');
+        expect(screen.queryByText('federationHelpStepsTitle')).not.toBeInTheDocument();
+
+        fireEvent.click(toggle);
+        expect(toggle).toHaveAttribute('aria-expanded', 'true');
+        expect(screen.getByText('federationHelpStepsTitle')).toBeInTheDocument();
+        expect(
+            screen.getByText('federationHelpStep1:{"action":"federationCreateToken","section":"federationTokensTitle"}')
+        ).toBeInTheDocument();
+        expect(
+            screen.getByText('federationHelpStep2:{"action":"federationAddPeer","section":"federationPeersTitle"}')
+        ).toBeInTheDocument();
+        expect(screen.getByText('federationHelpNoteOwner:{"setting":"enableLogin"}')).toBeInTheDocument();
+        expect(screen.getByText('federationHelpNoteBackup')).toBeInTheDocument();
+        expect(screen.getByRole('link', { name: 'federationHelpGuide' })).toHaveAttribute(
+            'href',
+            'https://github.com/franklioxygen/MyTube/blob/master/documents/en/multi-instance-library.md'
+        );
+
+        fireEvent.click(toggle);
+        await waitFor(() => expect(screen.queryByText('federationHelpStepsTitle')).not.toBeInTheDocument());
+    });
+
+    it('links the Chinese guide in Chinese and the English guide otherwise', () => {
+        languageState.language = 'zh';
+        const { unmount } = renderSettings();
+        fireEvent.click(screen.getByRole('button', { name: 'federationHelpToggle' }));
+        expect(screen.getByRole('link', { name: 'federationHelpGuide' }).getAttribute('href')).toMatch(
+            /\/documents\/zh\/multi-instance-library\.md$/
+        );
+        unmount();
+
+        languageState.language = 'ja';
+        renderSettings();
+        fireEvent.click(screen.getByRole('button', { name: 'federationHelpToggle' }));
+        expect(screen.getByRole('link', { name: 'federationHelpGuide' }).getAttribute('href')).toMatch(
+            /\/documents\/en\/multi-instance-library\.md$/
+        );
+    });
+});
 
 describe('federation access keys', () => {
     it('shows this instance and issues a key that is revealed once', async () => {
@@ -113,6 +161,25 @@ describe('federation access keys', () => {
         const closeButtons = screen.getAllByRole('button', { name: 'close' });
         fireEvent.click(closeButtons[closeButtons.length - 1]);
         await waitFor(() => expect(screen.queryByDisplayValue(CREDENTIAL)).not.toBeInTheDocument());
+    });
+
+    it('always grants browsing, which connecting requires, and lets the owner leave out playback', async () => {
+        api.post.mockResolvedValueOnce({ data: { token: token({ id: 'token-2' }), credential: CREDENTIAL } });
+        renderSettings();
+
+        fireEvent.click(await screen.findByRole('button', { name: 'federationCreateToken' }));
+        const dialog = await screen.findByRole('dialog');
+        const browse = within(dialog).getByRole('checkbox', { name: 'federationScopeLibrary' });
+        expect(browse).toBeChecked();
+        expect(browse).toBeDisabled();
+
+        fireEvent.click(within(dialog).getByRole('checkbox', { name: 'federationScopeMedia' }));
+        fireEvent.change(within(dialog).getByLabelText('federationTokenLabel'), { target: { value: 'Den' } });
+        fireEvent.click(within(dialog).getByRole('button', { name: 'federationCreateToken' }));
+
+        await waitFor(() =>
+            expect(api.post).toHaveBeenCalledWith('/federation/tokens', expect.objectContaining({ scopes: ['library:read'] }))
+        );
     });
 
     it('tells the owner to copy the key by hand when the clipboard fails', async () => {
