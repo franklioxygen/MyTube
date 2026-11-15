@@ -760,6 +760,8 @@ describe("remote items in the library", () => {
     });
     // The peer's own ids and paths never reach the browser.
     expect(JSON.stringify(listed.body)).not.toContain(peerUrl);
+    // Nothing in a row changes without the list ETag moving.
+    expect(remote).not.toHaveProperty("lastSyncedAt");
   });
 
   it("pages the merged list, not each side separately", async () => {
@@ -811,6 +813,7 @@ describe("remote items in the library", () => {
       id,
       description: "About a",
       availability: "online",
+      lastSyncedAt: expect.any(Number),
       subtitles: [{ language: "en", filename: "track-en.vtt", path: `/api/federation/media/${id}/subtitle/track-en` }],
     });
 

@@ -110,7 +110,10 @@ const availabilityOf = (peer: PeerRow): RemoteAvailability => (peer.status === "
 export function listRemoteVideos(): Video[] {
   return listServableRemoteRows().map(({ id, summary, peer }) => {
     const { id: _remoteId, ...rest } = summary;
-    return toRemoteVideo(id, rest, peer, availabilityOf(peer));
+    // No sync time in list rows: it moves on every unchanged sync, which the
+    // list ETag deliberately ignores so polling stays a 304. Details carry it.
+    const { lastSyncedAt: _syncedAt, ...video } = toRemoteVideo(id, rest, peer, availabilityOf(peer));
+    return video as Video;
   });
 }
 
