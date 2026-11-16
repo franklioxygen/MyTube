@@ -222,7 +222,7 @@ const startPeer = async () => {
     res.sendFile(mediaFile);
   });
   app.use("/api/federation/v1", v1);
-  peerServer = app.listen(0);
+  peerServer = app.listen(0, "127.0.0.1");
   await new Promise((resolve) => peerServer.once("listening", resolve));
   peerUrl = `http://127.0.0.1:${(peerServer.address() as AddressInfo).port}`;
 };
@@ -706,7 +706,7 @@ describe("reading and playing remote items", () => {
   it("ends an in-flight stream when the peer is disabled", async () => {
     const { api, id: peerId } = await registerAndSync();
     const id = await itemId(api, "Title b");
-    const server = primeApp().listen(0);
+    const server = primeApp().listen(0, "127.0.0.1");
     await new Promise((resolve) => server.once("listening", resolve));
     const { port } = server.address() as AddressInfo;
 

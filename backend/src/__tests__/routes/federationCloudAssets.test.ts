@@ -126,7 +126,7 @@ const startStorage = async () => {
   // Never answers.
   server.get("/d/silent.mp4", () => undefined);
 
-  storage = server.listen(0);
+  storage = server.listen(0, "127.0.0.1");
   await new Promise((resolve) => storage.once("listening", resolve));
   state.origin = `http://127.0.0.1:${(storage.address() as AddressInfo).port}`;
 };
@@ -343,7 +343,7 @@ describe("cloud assets", () => {
 
   it("aborts the storage request when the token is revoked mid-transfer", async () => {
     const { token, credential } = mint();
-    const server = app().listen(0);
+    const server = app().listen(0, "127.0.0.1");
     await new Promise((resolve) => server.once("listening", resolve));
     const { port } = server.address() as AddressInfo;
 

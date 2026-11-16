@@ -292,7 +292,7 @@ describe("video assets", () => {
 
   it("ends a transfer as soon as its token is revoked", async () => {
     const { token, credential } = mint();
-    const server = app().listen(0);
+    const server = app().listen(0, "127.0.0.1");
     await new Promise((resolve) => server.once("listening", resolve));
     const { port } = server.address() as AddressInfo;
 
