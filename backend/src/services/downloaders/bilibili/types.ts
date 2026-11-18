@@ -7,6 +7,8 @@ export interface BilibiliVideoInfo {
   thumbnailUrl: string | null;
   thumbnailSaved: boolean;
   description?: string;
+  /** Raw yt-dlp `tags`, normalized only when auto tags are enabled (#546). */
+  sourceTags?: unknown;
   authorAvatarUrl?: string | null;
   authorAvatarSaved?: boolean;
   authorAvatarFilename?: string;

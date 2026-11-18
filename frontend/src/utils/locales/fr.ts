@@ -447,6 +447,11 @@ export const fr = {
   renameTagDescription:
     "Renommer une étiquette vérifiera et mettra à jour toutes les vidéos qui utilisent actuellement cette étiquette.",
   enterNewTagName: "Entrez le nouveau nom pour l'étiquette '{tag}'",
+  autoTagsFromSource: "Récupérer les tags de la source vidéo lors du téléchargement",
+  autoTagsFromSourceDescription:
+    "Les tags fournis par la source (YouTube, Bilibili, etc.) s'affichent en clair sur la page vidéo comme suggestions. Ils n'apparaissent dans les filtres qu'une fois ajoutés d'un clic. S'applique aux vidéos téléchargées ou retéléchargées après l'activation.",
+  autoTagPromoteHint: "Suggestion de la source vidéo. Cliquez pour l'ajouter comme tag.",
+  autoTagSourceHint: "Suggestion de la source vidéo",
 
   // Database
   database: "Base de données",

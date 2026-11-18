@@ -168,6 +168,10 @@ export const videos = sqliteTable(
     width: integer("width"),
     height: integer("height"),
     tags: text("tags"), // JSON stringified array of strings
+    // Tags reported by the download source (yt-dlp info.tags), kept apart from
+    // `tags` so they never reach filters, RSS, or the catalog until a user
+    // promotes one (issue #546).
+    autoTags: text("auto_tags"),
     progress: integer("progress"), // Playback progress in seconds
     progressUpdatedAt: integer("progress_updated_at"), // Timestamp when progress was last saved
     fileSize: text("file_size"),

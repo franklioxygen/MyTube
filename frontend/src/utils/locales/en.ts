@@ -426,6 +426,11 @@ export const en = {
   renameTagDescription:
     "Renaming a tag will verify and update all videos that currently use this tag.",
   enterNewTagName: "Enter new name for tag '{tag}'",
+  autoTagsFromSource: "Get tags from the video source when downloading",
+  autoTagsFromSourceDescription:
+    "Tags reported by the source (e.g. YouTube, Bilibili) are shown faded on the video page as suggestions. They do not appear in tag filters until you click one to add it. Applies to videos downloaded or re-downloaded after this is turned on.",
+  autoTagPromoteHint: "Suggested by the video source. Click to add it as a tag.",
+  autoTagSourceHint: "Suggested by the video source",
   // Database
   database: "Database",
   migrateDataDescription:

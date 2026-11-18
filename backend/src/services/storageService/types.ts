@@ -42,6 +42,8 @@ export interface Video {
   subtitles?: Array<{ language: string; filename: string; path: string }>;
   createdAt: string;
   tags?: string[];
+  /** Source-provided tag suggestions (issue #546); not part of `tags`. Detail reads only. */
+  autoTags?: string[];
   viewCount?: number;
   progress?: number;
   progressUpdatedAt?: number;

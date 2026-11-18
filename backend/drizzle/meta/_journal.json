@@ -239,6 +239,13 @@
       "when": 1794604365792,
       "tag": "0033_federation_peers",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "6",
+      "when": 1795021209911,
+      "tag": "0034_video_auto_tags",
+      "breakpoints": true
     }
   ]
 }

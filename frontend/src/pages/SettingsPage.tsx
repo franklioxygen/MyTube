@@ -584,6 +584,8 @@ const SettingsPage: React.FC = () => {
                 onRenameTag={handleRenameTag}
                 onTagConflict={() => setMessage({ text: t('tagConflictCaseInsensitive'), type: 'error' })}
                 isRenaming={renameTagMutation.isPending}
+                autoTagsFromSource={settings.autoTagsFromSource === true}
+                onAutoTagsFromSourceChange={(enabled) => handleChange('autoTagsFromSource', enabled)}
             />
             <DatabaseSettings
                 onMigrate={() => setShowMigrateConfirmModal(true)}

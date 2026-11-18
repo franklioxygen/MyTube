@@ -57,6 +57,7 @@ export function saveVideoWithInsertFlag(
     const videoToSave = {
       ...persistedVideo,
       tags: videoData.tags ? JSON.stringify(videoData.tags) : undefined,
+      autoTags: videoData.autoTags ? JSON.stringify(videoData.autoTags) : undefined,
       subtitles: videoData.subtitles
         ? JSON.stringify(videoData.subtitles)
         : undefined,
@@ -122,6 +123,7 @@ export function saveVideoIfAbsent(
     const videoToSave = {
       ...videoData,
       tags: videoData.tags ? JSON.stringify(videoData.tags) : undefined,
+      autoTags: videoData.autoTags ? JSON.stringify(videoData.autoTags) : undefined,
       subtitles: videoData.subtitles
         ? JSON.stringify(videoData.subtitles)
         : undefined,
@@ -162,6 +164,9 @@ export function updateVideo(
       // Only include tags/subtitles if they are explicitly in the updates object
       ...(updates.tags !== undefined
         ? { tags: updates.tags ? JSON.stringify(updates.tags) : undefined }
+        : {}),
+      ...(updates.autoTags !== undefined
+        ? { autoTags: updates.autoTags ? JSON.stringify(updates.autoTags) : undefined }
         : {}),
       ...(updates.subtitles !== undefined
         ? {

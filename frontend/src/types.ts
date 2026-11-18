@@ -16,6 +16,8 @@ export interface Video {
   seriesTitle?: string;
   rating?: number;
   tags?: string[];
+  /** Source tag suggestions (issue #546). Only present on the detail response. */
+  autoTags?: string[];
   viewCount?: number;
   progress?: number;
   progressUpdatedAt?: number;
@@ -280,6 +282,7 @@ export interface Settings {
   mountDirectories?: string;
   defaultSort?: string;
   showTagsOnThumbnail?: boolean;
+  autoTagsFromSource?: boolean;
   preferredAudioLanguage?: string;
   audioFormat?: 'm4a' | 'mp3' | 'opus';
   defaultVideoCodec?: string;

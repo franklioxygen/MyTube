@@ -38,7 +38,9 @@ it.each([
   { appliedAt: 1794459650631, pathConstraint: "" },
 ])("keeps a database that already applied an earlier feature revision ($appliedAt) compatible", ({ appliedAt, pathConstraint }) => {
   sqlite.exec(`CREATE TABLE author_profiles (author TEXT PRIMARY KEY NOT NULL, custom_avatar_path TEXT ${pathConstraint}, updated_at INTEGER NOT NULL);
-    CREATE TABLE __drizzle_migrations (id INTEGER PRIMARY KEY, hash TEXT NOT NULL, created_at NUMERIC);`);
+    CREATE TABLE __drizzle_migrations (id INTEGER PRIMARY KEY, hash TEXT NOT NULL, created_at NUMERIC);
+    -- Later migrations alter videos, which every real database at this revision has.
+    CREATE TABLE videos (id TEXT PRIMARY KEY NOT NULL);`);
   sqlite.prepare("INSERT INTO author_profiles VALUES (?, ?, ?)").run("legacy".repeat(40), "/avatars/custom-aaaa.jpg", 123);
   sqlite.prepare("INSERT INTO __drizzle_migrations (hash, created_at) VALUES (?, ?)").run("previous-feature-revision", appliedAt);
   // Consolidating the unmerged SQL must not recreate an already-applied table.
