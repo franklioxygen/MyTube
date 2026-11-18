@@ -134,79 +134,87 @@ const VideoTags: React.FC<VideoTagsProps> = ({ videoId, tags, autoTags, availabl
     };
 
     return (
-        <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1, mt: 2, flexWrap: 'wrap' }}>
-            <LocalOffer color="action" fontSize="small" />
-            <Autocomplete
-                multiple
-                open={open}
-                onOpen={() => setOpen(true)}
-                onClose={() => setOpen(false)}
-                disableCloseOnSelect
-                freeSolo
-                filterOptions={(options, params) => {
-                    const { inputValue } = params;
-                    // Default filter
-                    const filtered = options.filter(option =>
-                        option.toLowerCase().includes(inputValue.toLowerCase())
-                    );
+        <Box sx={{ mb: 2, mt: 2 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <LocalOffer color="action" fontSize="small" />
+                <Autocomplete
+                    multiple
+                    open={open}
+                    onOpen={() => setOpen(true)}
+                    onClose={() => setOpen(false)}
+                    disableCloseOnSelect
+                    freeSolo
+                    filterOptions={(options, params) => {
+                        const { inputValue } = params;
+                        // Default filter
+                        const filtered = options.filter(option =>
+                            option.toLowerCase().includes(inputValue.toLowerCase())
+                        );
 
-                    // Suggest the creation of a new value if it doesn't match exactly
-                    const isExisting = options.some((option) => inputValue === option);
-                    if (inputValue !== '' && !isExisting) {
-                        // Insert at the beginning to prioritize the user's exact input 
-                        // over a case-insensitive match from the list
-                        filtered.unshift(inputValue);
-                    }
-
-                    return filtered;
-                }}
-                options={allOptions}
-                value={tagsArray}
-                isOptionEqualToValue={(option, value) => option === value}
-                onChange={(_, newValue) => handleTagsChange(newValue)}
-                slotProps={{
-                    chip: { variant: 'outlined', size: 'small' },
-                    listbox: {
-                        sx: {
-                            display: 'flex',
-                            flexWrap: 'wrap',
-                            gap: 0.5,
-                            p: 1
+                        // Suggest the creation of a new value if it doesn't match exactly
+                        const isExisting = options.some((option) => inputValue === option);
+                        if (inputValue !== '' && !isExisting) {
+                            // Insert at the beginning to prioritize the user's exact input 
+                            // over a case-insensitive match from the list
+                            filtered.unshift(inputValue);
                         }
-                    }
-                }}
-                renderOption={(props, option, { selected }) => {
-                    const { key, ...otherProps } = props;
-                    return (
-                        <li key={key} {...otherProps} style={{ width: 'auto', padding: 0 }}>
-                            <Chip
-                                label={option}
-                                size="small"
-                                variant={selected ? "filled" : "outlined"}
-                                color={selected ? "primary" : "default"}
-                                sx={{ pointerEvents: 'none' }}
-                            />
-                        </li>
-                    );
-                }}
-                renderInput={(params) => (
-                    <TextField
-                        {...params}
-                        variant="standard"
-                        placeholder={tagsArray.length === 0 ? (t('tags') || 'Tags') : ''}
-                        sx={{ minWidth: 300, width: 'auto', display: 'inline-flex' }}
-                        slotProps={{
-                            input: {
-                                ...params.InputProps,
-                                disableUnderline: true,
-                                endAdornment: null
+
+                        return filtered;
+                    }}
+                    options={allOptions}
+                    value={tagsArray}
+                    isOptionEqualToValue={(option, value) => option === value}
+                    onChange={(_, newValue) => handleTagsChange(newValue)}
+                    slotProps={{
+                        chip: { variant: 'outlined', size: 'small' },
+                        listbox: {
+                            sx: {
+                                display: 'flex',
+                                flexWrap: 'wrap',
+                                gap: 0.5,
+                                p: 1
                             }
-                        }}
-                    />
-                )}
-                sx={{ width: 'auto', display: 'inline-flex' }}
-            />
-            {autoTagChips}
+                        }
+                    }}
+                    renderOption={(props, option, { selected }) => {
+                        const { key, ...otherProps } = props;
+                        return (
+                            <li key={key} {...otherProps} style={{ width: 'auto', padding: 0 }}>
+                                <Chip
+                                    label={option}
+                                    size="small"
+                                    variant={selected ? "filled" : "outlined"}
+                                    color={selected ? "primary" : "default"}
+                                    sx={{ pointerEvents: 'none' }}
+                                />
+                            </li>
+                        );
+                    }}
+                    renderInput={(params) => (
+                        <TextField
+                            {...params}
+                            variant="standard"
+                            placeholder={tagsArray.length === 0 ? (t('tags') || 'Tags') : ''}
+                            sx={{ minWidth: 300, width: 'auto', display: 'inline-flex' }}
+                            slotProps={{
+                                input: {
+                                    ...params.InputProps,
+                                    disableUnderline: true,
+                                    endAdornment: null
+                                }
+                            }}
+                        />
+                    )}
+                    sx={{ width: 'auto', display: 'inline-flex' }}
+                />
+            </Box>
+            {/* Own row, aligned under the picker: inline they sat after the
+                picker's text input and left a gap. */}
+            {autoTagChips.length > 0 && (
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1, pl: 3.5 }}>
+                    {autoTagChips}
+                </Box>
+            )}
         </Box>
     );
 };
