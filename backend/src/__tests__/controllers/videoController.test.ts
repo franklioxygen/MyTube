@@ -664,6 +664,35 @@ describe("VideoController", () => {
       expect(status).toHaveBeenCalledWith(200);
     });
 
+    it("updates tags and source tag suggestions in one write when promoting", async () => {
+      req.params = { id: "1" };
+      req.body = { tags: ["music"], autoTags: ["live"] };
+      (storageService.updateVideo as any).mockReturnValue({ id: "1", tags: ["music"], autoTags: ["live"] });
+
+      await updateVideoDetails(req as Request, res as Response);
+
+      expect(storageService.updateVideo).toHaveBeenCalledWith("1", {
+        tags: ["music"],
+        autoTags: ["live"],
+      });
+      expect(status).toHaveBeenCalledWith(200);
+    });
+
+    it.each([
+      ["not an array", "live"],
+      ["a non-string entry", ["live", 3]],
+      ["a blank entry", ["  "]],
+      ["an over-long entry", ["x".repeat(65)]],
+      ["too many entries", Array.from({ length: 21 }, (_, i) => `t${i}`)],
+    ])("rejects autoTags with %s without updating storage", async (_label, autoTags) => {
+      req.params = { id: "1" };
+      req.body = { autoTags };
+      await expect(updateVideoDetails(req as Request, res as Response)).rejects.toMatchObject({
+        name: "ValidationError",
+      });
+      expect(storageService.updateVideo).not.toHaveBeenCalled();
+    });
+
     it("invalidates recommendation signals when visibility changes", () => {
       req.params = { id: "1" };
       req.body = { visibility: 0 };

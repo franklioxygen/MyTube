@@ -423,6 +423,11 @@ export const zh = {
   tagConflictCaseInsensitive: "已存在同名标签（标签不区分大小写）。",
   renameTagDescription: "重命名标签将验证并更新当前使用此标签的所有视频。",
   enterNewTagName: "请输入标签 '{tag}' 的新名称",
+  autoTagsFromSource: "下载时从视频来源获取标签",
+  autoTagsFromSourceDescription:
+    "来源（如 YouTube、Bilibili）提供的标签会以浅色显示在视频页上作为建议，不会出现在标签筛选中，点击后才会添加为正式标签。仅对开启后下载或重新下载的视频生效。",
+  autoTagPromoteHint: "来自视频来源的建议标签，点击添加为标签。",
+  autoTagSourceHint: "来自视频来源的建议标签",
 
   // Database
   database: "数据库",

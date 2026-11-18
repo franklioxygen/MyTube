@@ -449,6 +449,11 @@ export const de = {
   renameTagDescription:
     "Das Umbenennen eines Tags überprüft und aktualisiert alle Videos, die diesen Tag derzeit verwenden.",
   enterNewTagName: "Neuen Namen für Tag '{tag}' eingeben",
+  autoTagsFromSource: "Beim Herunterladen Tags von der Videoquelle übernehmen",
+  autoTagsFromSourceDescription:
+    "Tags der Quelle (z. B. YouTube, Bilibili) werden auf der Videoseite blass als Vorschläge angezeigt. Erst wenn du einen anklickst, wird er als Tag hinzugefügt und erscheint in den Tag-Filtern. Gilt für Videos, die nach dem Einschalten heruntergeladen oder erneut heruntergeladen werden.",
+  autoTagPromoteHint: "Vorschlag der Videoquelle. Klicken, um ihn als Tag hinzuzufügen.",
+  autoTagSourceHint: "Vorschlag der Videoquelle",
 
   // Database
   database: "Datenbank",

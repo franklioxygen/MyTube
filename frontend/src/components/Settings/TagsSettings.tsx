@@ -7,6 +7,8 @@ import {
     DialogContent,
     DialogContentText,
     DialogTitle,
+    FormControlLabel,
+    Switch,
     TextField,
     Typography
 } from '@mui/material';
@@ -20,9 +22,19 @@ interface TagsSettingsProps {
     onRenameTag?: (oldTag: string, newTag: string) => void;
     onTagConflict?: () => void;
     isRenaming?: boolean;
+    autoTagsFromSource?: boolean;
+    onAutoTagsFromSourceChange?: (enabled: boolean) => void;
 }
 
-const TagsSettings: React.FC<TagsSettingsProps> = ({ tags, onTagsChange, onRenameTag, onTagConflict, isRenaming = false }) => {
+const TagsSettings: React.FC<TagsSettingsProps> = ({
+    tags,
+    onTagsChange,
+    onRenameTag,
+    onTagConflict,
+    isRenaming = false,
+    autoTagsFromSource = false,
+    onAutoTagsFromSourceChange,
+}) => {
     const { t } = useLanguage();
     const [newTag, setNewTag] = useState('');
     const [renameDialogOpen, setRenameDialogOpen] = useState(false);
@@ -75,6 +87,22 @@ const TagsSettings: React.FC<TagsSettingsProps> = ({ tags, onTagsChange, onRenam
     return (
         <Box>
             <Typography variant="h6" sx={{ mb: 2 }}>{t('tagsManagement') || 'Tags Management'}</Typography>
+            {onAutoTagsFromSourceChange && (
+                <Box sx={{ mb: 2 }} id="autoTagsFromSource-setting">
+                    <FormControlLabel
+                        control={
+                            <Switch
+                                checked={autoTagsFromSource}
+                                onChange={(event) => onAutoTagsFromSourceChange(event.target.checked)}
+                            />
+                        }
+                        label={t('autoTagsFromSource')}
+                    />
+                    <Typography variant="body2" color="text.secondary">
+                        {t('autoTagsFromSourceDescription')}
+                    </Typography>
+                </Box>
+            )}
             <Box sx={{ display: 'flex', gap: 1, mb: 2, flexWrap: 'wrap' }}>
                 {tagsArray.length > 0 ? tagsArray.map((tag) => (
                     <Chip

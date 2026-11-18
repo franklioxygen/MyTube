@@ -867,6 +867,14 @@ export function migrateColumnsAndTables(): void {
       logger.info("Migration successful: source_video_id added.");
     }
 
+    if (!columns.includes("auto_tags")) {
+      logger.info(
+        "Migrating database: Adding auto_tags column to videos table..."
+      );
+      sqlite.prepare("ALTER TABLE videos ADD COLUMN auto_tags TEXT").run();
+      logger.info("Migration successful: auto_tags added.");
+    }
+
     try {
       sqlite
         .prepare(

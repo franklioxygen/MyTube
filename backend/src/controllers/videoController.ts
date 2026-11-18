@@ -14,6 +14,11 @@ import { invalidateRecommendationSignalsCache } from "../services/recommendation
 import * as storageService from "../services/storageService";
 import { isSubtitleArray } from "../services/storageService/types";
 import { addTagsToGlobalSettings } from "../services/tagService";
+import {
+  isValidAutoTagList,
+  MAX_AUTO_TAG_LENGTH,
+  MAX_AUTO_TAGS,
+} from "../utils/sourceTags";
 import { logger } from "../utils/logger";
 import {
   getLimitParam,
@@ -402,6 +407,15 @@ export const updateVideoDetails = async (
       throw new ValidationError("tags must be an array of strings", "tags");
     }
     allowedUpdates.tags = updates.tags;
+  }
+  if (updates.autoTags !== undefined) {
+    if (!isValidAutoTagList(updates.autoTags)) {
+      throw new ValidationError(
+        `autoTags must be an array of at most ${MAX_AUTO_TAGS} non-empty strings of up to ${MAX_AUTO_TAG_LENGTH} characters`,
+        "autoTags"
+      );
+    }
+    allowedUpdates.autoTags = updates.autoTags;
   }
   if (updates.visibility !== undefined)
     allowedUpdates.visibility = updates.visibility;

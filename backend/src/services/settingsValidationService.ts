@@ -104,6 +104,9 @@ export function validateSettings(newSettings: Partial<Settings>): void {
     throw new ValidationError("API key enabled flag must be a boolean.", "apiKeyEnabled");
   }
 
+  if (newSettings.autoTagsFromSource !== undefined && typeof newSettings.autoTagsFromSource !== "boolean") {
+    throw new ValidationError("Auto tags from source flag must be a boolean.", "autoTagsFromSource");
+  }
   if (newSettings.downloadBilibiliDanmaku !== undefined && typeof newSettings.downloadBilibiliDanmaku !== "boolean") {
     throw new ValidationError("Bilibili danmaku download flag must be a boolean.", "downloadBilibiliDanmaku");
   }

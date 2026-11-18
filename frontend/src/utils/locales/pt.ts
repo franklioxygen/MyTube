@@ -446,6 +446,11 @@ export const pt = {
   renameTagDescription:
     "Renomear uma tag verificará e atualizará todos os vídeos que usam atualmente esta tag.",
   enterNewTagName: "Digite o novo nome para a tag '{tag}'",
+  autoTagsFromSource: "Obter tags da fonte do vídeo ao baixar",
+  autoTagsFromSourceDescription:
+    "As tags da fonte (YouTube, Bilibili etc.) aparecem esmaecidas na página do vídeo como sugestões. Elas só entram nos filtros de tags depois que você clica para adicioná-las. Vale para vídeos baixados ou baixados novamente depois de ativar.",
+  autoTagPromoteHint: "Sugerida pela fonte do vídeo. Clique para adicioná-la como tag.",
+  autoTagSourceHint: "Sugerida pela fonte do vídeo",
 
   // Database
   database: "Banco de Dados",

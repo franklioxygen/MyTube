@@ -89,6 +89,28 @@ export function useVideoMutations({
     },
   });
 
+  // Source tag suggestions (issue #546): promoting one moves it into `tags`
+  // in the same request; dismissing one only rewrites `autoTags`.
+  const autoTagsMutation = useMutation({
+    mutationFn: async (update: { tags?: string[]; autoTags: string[] }) => {
+      const response = await api.put(`/videos/${videoId}`, update);
+      return response.data;
+    },
+    onSuccess: (data, update) => {
+      if (data.success) {
+        queryClient.setQueryData(["video", videoId], (old: Video | undefined) =>
+          old ? { ...old, ...update } : old
+        );
+        if (update.tags) {
+          void queryClient.invalidateQueries({ queryKey: ["settings"] });
+        }
+      }
+    },
+    onError: () => {
+      showSnackbar(t("error"), "error");
+    },
+  });
+
   // Visibility mutation
   const visibilityMutation = useMutation({
     mutationFn: async (visibility: number) => {
@@ -255,6 +277,7 @@ export function useVideoMutations({
     ratingMutation,
     titleMutation,
     tagsMutation,
+    autoTagsMutation,
     visibilityMutation,
     lockMutation,
     deleteMutation,

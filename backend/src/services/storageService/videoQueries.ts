@@ -25,11 +25,28 @@ function parseVideoMetadata(id: string, field: "tags" | "subtitles", value: stri
   }
 }
 
+/**
+ * Source tags are suggestions only, so an unreadable value must not block the
+ * library read the way invalid `tags` does: it is dropped instead.
+ */
+function parseAutoTags(value: string | null | undefined): string[] | undefined {
+  if (!value) return undefined;
+  try {
+    const parsed: unknown = JSON.parse(value);
+    return Array.isArray(parsed)
+      ? parsed.filter((tag): tag is string => typeof tag === "string")
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 /** Shared metadata validation for list, detail, and export reads. */
 export function mapVideoRow(row: typeof videos.$inferSelect): import("./types").Video {
   return {
     ...row,
     tags: parseVideoMetadata(row.id, "tags", row.tags),
+    autoTags: parseAutoTags(row.autoTags),
     subtitles: row.subtitles ? parseVideoMetadata(row.id, "subtitles", row.subtitles) : undefined,
   } as import("./types").Video;
 }
@@ -129,8 +146,8 @@ export function getVideosStrict(
 }
 
 // Every videos column except the heavy free-text ones. `description` (KBs of
-// YouTube description per row) and `subtitles` (JSON blobs) are only consumed
-// by the player, which fetches the full row via getVideoById — omitting them
+// YouTube description per row), `subtitles` (JSON blobs), and `autoTags`
+// (source tag suggestions, issue #546) are only consumed by the player, which fetches the full row via getVideoById — omitting them
 // here keeps the list payload and its per-row JSON.parse cost proportional to
 // what list views actually render.
 // Built lazily (like publicOnlyVisitorFilter above) so the schema reference is

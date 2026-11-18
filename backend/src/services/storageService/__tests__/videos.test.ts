@@ -250,8 +250,29 @@ describe("storageService videos", () => {
       expect(runMock).toHaveBeenCalled();
       const valuesArg = vi.mocked(db.insert).mock.results[0].value.values.mock.calls[0][0];
       expect(valuesArg.tags).toBe('["tag1"]');
+      expect(valuesArg.autoTags).toBeUndefined();
       expect(valuesArg.subtitles).toContain("sub.vtt");
       expect(valuesArg).not.toHaveProperty("incompleteDownloadNote");
+    });
+
+    it("should save source tag suggestions as a JSON string", () => {
+      vi.mocked(db.select).mockReturnValue({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({ all: vi.fn(() => []) }),
+        }),
+      } as any);
+      vi.mocked(db.insert).mockReturnValue({
+        values: vi.fn().mockReturnValue({
+          onConflictDoUpdate: vi.fn().mockReturnValue({ run: vi.fn() }),
+        }),
+      } as any);
+
+      saveVideo({ id: "1", title: "T", autoTags: ["live", "音乐"] } as any, {
+        suppressStatistics: true,
+      });
+
+      const valuesArg = vi.mocked(db.insert).mock.results[0].value.values.mock.calls[0][0];
+      expect(valuesArg.autoTags).toBe('["live","音乐"]');
     });
 
     it("should throw DatabaseError when saveVideo fails", () => {
@@ -291,6 +312,39 @@ describe("storageService videos", () => {
           subtitles: [{ filename: "sub1.vtt" }],
         })
       );
+    });
+
+    it("should serialize autoTags on update and parse them back", () => {
+      const setMock = vi.fn().mockReturnValue({
+        where: vi.fn().mockReturnValue({
+          returning: vi.fn().mockReturnValue({
+            get: vi.fn().mockReturnValue({ id: "1", tags: "[]", autoTags: '["live"]' }),
+          }),
+        }),
+      });
+      vi.mocked(db.update).mockReturnValue({ set: setMock } as any);
+
+      const result = updateVideo("1", { autoTags: ["live"] });
+
+      expect(setMock.mock.calls[0][0]).toEqual({ autoTags: '["live"]' });
+      expect(result?.autoTags).toEqual(["live"]);
+    });
+
+    it("drops unreadable autoTags instead of failing the read", () => {
+      vi.mocked(db.update).mockReturnValue({
+        set: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            returning: vi.fn().mockReturnValue({
+              get: vi.fn().mockReturnValue({ id: "1", tags: '["x"]', autoTags: "{not json" }),
+            }),
+          }),
+        }),
+      } as any);
+
+      const result = updateVideo("1", { title: "T" });
+
+      expect(result?.tags).toEqual(["x"]);
+      expect(result?.autoTags).toBeUndefined();
     });
 
     it("should sync thumbnailUrl when only thumbnailPath is updated", () => {
