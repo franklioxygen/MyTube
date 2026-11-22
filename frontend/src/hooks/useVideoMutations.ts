@@ -116,12 +116,14 @@ export function useVideoMutations({
         if (update.tags) {
           const tags = update.tags;
           // Home and the tag filters read the shared list, which holds tags
-          // (not suggestions).
+          // (not suggestions). Patch it now, then refetch: invalidating also
+          // cancels a list read that predates the PUT and would undo the patch.
           queryClient.setQueryData(["videos"], (old: Video[] | undefined) =>
             old?.map((video) =>
               video.id === targetId ? { ...video, tags } : video
             )
           );
+          void queryClient.invalidateQueries({ queryKey: ["videos"] });
           void queryClient.invalidateQueries({ queryKey: ["settings"] });
         }
       }

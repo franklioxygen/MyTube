@@ -101,5 +101,7 @@ describe('useVideoMutations', () => {
             { id: 'a', tags: ['live'] },
             { id: 'b', tags: ['other'] },
         ]);
+        // ...and is refetched, so an older list read cannot undo it.
+        expect(queryClient.getQueryState(['videos'])?.isInvalidated).toBe(true);
     });
 });
