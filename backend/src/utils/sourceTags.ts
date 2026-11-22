@@ -48,7 +48,10 @@ export function normalizeSourceTags(
     const key = tag.toLowerCase();
     if (seen.has(key)) continue;
     seen.add(key);
-    result.push(canonical.get(key) ?? tag);
+    // Lowercasing can lengthen a string ("İ" → "i̇"), so a catalog match is
+    // not guaranteed to fit the limit the write path enforces.
+    const spelled = canonical.get(key);
+    result.push(spelled && spelled.length <= MAX_AUTO_TAG_LENGTH ? spelled : tag);
     if (result.length >= MAX_AUTO_TAGS) break;
   }
   return result;

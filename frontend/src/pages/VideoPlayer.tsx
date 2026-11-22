@@ -477,7 +477,7 @@ const VideoPlayer: React.FC = () => {
 
     const handleUpdateAutoTags = async (update: { tags?: string[]; autoTags: string[] }) => {
         if (!id) return;
-        await autoTagsMutation.mutateAsync(update);
+        await autoTagsMutation.mutateAsync({ videoId: id, ...update });
     };
 
     const handleToggleVisibility = async () => {

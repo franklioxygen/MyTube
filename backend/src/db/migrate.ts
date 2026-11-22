@@ -393,6 +393,12 @@ export async function runMigrations(options: RunMigrationsOptions = {}) {
     configureDatabase(sqlite);
     logger.info("Database configuration applied (NTFS/FUSE compatible mode).");
 
+    // Before the legacy JSON import, which inserts full video rows.
+    const { ensureVideoAutoTagsColumn } = await import(
+      "../services/storageService/migrations/schemaMigrations"
+    );
+    ensureVideoAutoTagsColumn();
+
     // Check for legacy data files and run data migration if found. Skipped for
     // database import/restore: re-inserting on-disk JSON there would overwrite
     // the just-uploaded backup with stale data.

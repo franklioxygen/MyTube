@@ -6,8 +6,12 @@ import type { Video } from '../../types';
 import { useVideoMutations } from '../useVideoMutations';
 
 const mockPost = vi.fn();
+const mockPut = vi.fn();
 vi.mock('../../utils/apiClient', () => ({
-    api: { post: (...args: unknown[]) => mockPost(...args) },
+    api: {
+        post: (...args: unknown[]) => mockPost(...args),
+        put: (...args: unknown[]) => mockPut(...args),
+    },
 }));
 vi.mock('../../contexts/LanguageContext', () => ({
     useLanguage: () => ({ t: (key: string) => key }),
@@ -23,6 +27,7 @@ describe('useVideoMutations', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         mockPost.mockResolvedValue({ data: { success: true } });
+        mockPut.mockResolvedValue({ data: { success: true } });
     });
 
     it('syncs the shared videos list cache when a rating changes', async () => {
@@ -54,5 +59,38 @@ describe('useVideoMutations', () => {
         const list = queryClient.getQueryData<Video[]>(['videos']);
         expect(list?.find((video) => video.id === 'v2')?.rating).toBe(5);
         expect(queryClient.getQueryData<Video>(['video', 'v1'])?.rating).toBe(5);
+    });
+
+    it('writes a suggestion update to the video it targeted, even after navigating', async () => {
+        const queryClient = new QueryClient({
+            defaultOptions: { queries: { retry: false } },
+        });
+        queryClient.setQueryData(['video', 'a'], { id: 'a', tags: [], autoTags: ['live'] } as unknown as Video);
+        queryClient.setQueryData(['video', 'b'], { id: 'b', tags: ['other'], autoTags: [] } as unknown as Video);
+        let resolvePut: (value: unknown) => void = () => undefined;
+        mockPut.mockReturnValueOnce(new Promise((resolve) => { resolvePut = resolve; }));
+
+        const wrapper = ({ children }: { children: React.ReactNode }) => (
+            <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+        );
+        const { result, rerender } = renderHook(
+            ({ videoId }) => useVideoMutations({ videoId }),
+            { wrapper, initialProps: { videoId: 'a' } }
+        );
+
+        let pending: Promise<unknown> = Promise.resolve();
+        act(() => {
+            pending = result.current.autoTagsMutation.mutateAsync({ videoId: 'a', tags: ['live'], autoTags: [] });
+        });
+        // The user opens video b before the response arrives.
+        rerender({ videoId: 'b' });
+        await act(async () => {
+            resolvePut({ data: { success: true } });
+            await pending;
+        });
+
+        expect(mockPut).toHaveBeenCalledWith('/videos/a', { tags: ['live'], autoTags: [] });
+        expect(queryClient.getQueryData(['video', 'a'])).toEqual({ id: 'a', tags: ['live'], autoTags: [] });
+        expect(queryClient.getQueryData(['video', 'b'])).toEqual({ id: 'b', tags: ['other'], autoTags: [] });
     });
 });

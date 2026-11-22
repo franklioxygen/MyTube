@@ -40,6 +40,17 @@ describe("normalizeSourceTags", () => {
     expect(result).toHaveLength(MAX_AUTO_TAGS);
     expect(result[0]).toBe("tag0");
   });
+
+  it("keeps the source spelling when the catalog spelling is too long", () => {
+    // "İ" lowercases to two code units, so this 65-unit catalog entry shares
+    // a key with the 33-unit source tag.
+    const source = "İ".repeat(32) + "x";
+    const catalogEntry = "i\u0307".repeat(32) + "x";
+    expect(catalogEntry.toLowerCase()).toBe(source.toLowerCase());
+    const result = normalizeSourceTags([source], { catalog: [catalogEntry] });
+    expect(result).toEqual([source]);
+    expect(isValidAutoTagList(result)).toBe(true);
+  });
 });
 
 describe("isValidAutoTagList", () => {

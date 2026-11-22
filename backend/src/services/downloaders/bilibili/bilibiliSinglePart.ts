@@ -562,7 +562,11 @@ export async function downloadSinglePart(
             ? {
                 autoTags: normalizeSourceTags(sourceTags, {
                   catalog: settings.tags,
-                  manualTags: existingVideo.tags,
+                  // Re-read: the user may have promoted a suggestion
+                  // while this download ran.
+                  manualTags:
+                    storageService.getVideoById(existingVideo.id)?.tags ??
+                    existingVideo.tags,
                 }),
               }
             : {}),

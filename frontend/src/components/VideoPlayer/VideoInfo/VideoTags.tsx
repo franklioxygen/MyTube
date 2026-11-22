@@ -31,19 +31,43 @@ const VideoTags: React.FC<VideoTagsProps> = ({ videoId, tags, autoTags, availabl
     const ownTagKeys = new Set(tagsArray.map((tag) => tag.toLowerCase()));
     const visibleAutoTags = autoTagsArray.filter((tag) => !ownTagKeys.has(tag.toLowerCase()));
 
+    // Every update sends whole tags/autoTags arrays built from these props, so
+    // an action started before the previous one lands would undo it. The
+    // suggestions wait for any tag update; the picker waits for a suggestion.
+    const [tagSaves, setTagSaves] = useState(0);
+    const [autoTagSaving, setAutoTagSaving] = useState(false);
+    const suggestionsLocked = autoTagSaving || tagSaves > 0;
+
+    const saveTags = async (next: string[]) => {
+        if (!onTagsUpdate) return;
+        setTagSaves((count) => count + 1);
+        try {
+            await onTagsUpdate(next);
+        } finally {
+            setTagSaves((count) => count - 1);
+        }
+    };
+
+    const saveAutoTags = (update: { tags?: string[]; autoTags: string[] }) => {
+        if (!onAutoTagsUpdate || suggestionsLocked) return;
+        setAutoTagSaving(true);
+        // A failure is reported by the mutation; the chip stays to retry.
+        onAutoTagsUpdate(update)
+            .catch(() => undefined)
+            .finally(() => setAutoTagSaving(false));
+    };
+
     const promoteAutoTag = (tag: string) => {
-        if (!onAutoTagsUpdate) return;
         const lower = tag.toLowerCase();
         const canonical = availableTagsArray.find((option) => option.toLowerCase() === lower) ?? tag;
-        void onAutoTagsUpdate({
+        saveAutoTags({
             tags: ownTagKeys.has(lower) ? tagsArray : [...tagsArray, canonical],
             autoTags: autoTagsArray.filter((value) => value !== tag),
         });
     };
 
     const dismissAutoTag = (tag: string) => {
-        if (!onAutoTagsUpdate) return;
-        void onAutoTagsUpdate({ autoTags: autoTagsArray.filter((value) => value !== tag) });
+        saveAutoTags({ autoTags: autoTagsArray.filter((value) => value !== tag) });
     };
 
     const autoTagChips = visibleAutoTags.map((tag) => (
@@ -56,6 +80,7 @@ const VideoTags: React.FC<VideoTagsProps> = ({ videoId, tags, autoTags, availabl
                 size="small"
                 variant="outlined"
                 data-testid="auto-tag-chip"
+                disabled={Boolean(onAutoTagsUpdate) && suggestionsLocked}
                 onClick={onAutoTagsUpdate ? () => promoteAutoTag(tag) : undefined}
                 onDelete={onAutoTagsUpdate ? () => dismissAutoTag(tag) : undefined}
                 sx={{ opacity: 0.6, borderStyle: 'dashed', '&:hover': { opacity: 1 } }}
@@ -89,6 +114,7 @@ const VideoTags: React.FC<VideoTagsProps> = ({ videoId, tags, autoTags, availabl
                             size="small"
                             variant="outlined"
                             color="primary"
+                            disabled={autoTagSaving}
                             onClick={() => setModalOpen(true)}
                             sx={{ cursor: 'pointer' }}
                         />
@@ -98,7 +124,7 @@ const VideoTags: React.FC<VideoTagsProps> = ({ videoId, tags, autoTags, availabl
                             identityKey={videoId}
                             videoTags={tagsArray}
                             availableTags={availableTagsArray}
-                            onSave={onTagsUpdate}
+                            onSave={saveTags}
                         />
                     </>
                 )}
@@ -130,7 +156,8 @@ const VideoTags: React.FC<VideoTagsProps> = ({ videoId, tags, autoTags, availabl
             seen.add(lower);
             normalized.push(canonicalByLower.get(lower) ?? trimmed);
         }
-        void onTagsUpdate(normalized);
+        // Failures are reported by the mutation.
+        saveTags(normalized).catch(() => undefined);
     };
 
     return (
@@ -143,6 +170,7 @@ const VideoTags: React.FC<VideoTagsProps> = ({ videoId, tags, autoTags, availabl
                     onOpen={() => setOpen(true)}
                     onClose={() => setOpen(false)}
                     disableCloseOnSelect
+                    disabled={autoTagSaving}
                     freeSolo
                     filterOptions={(options, params) => {
                         const { inputValue } = params;

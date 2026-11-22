@@ -90,15 +90,24 @@ export function useVideoMutations({
   });
 
   // Source tag suggestions (issue #546): promoting one moves it into `tags`
-  // in the same request; dismissing one only rewrites `autoTags`.
+  // in the same request; dismissing one only rewrites `autoTags`. The target
+  // id travels with the request: the player stays mounted across videos, so
+  // a late response must not land in the next video's cache entry.
   const autoTagsMutation = useMutation({
-    mutationFn: async (update: { tags?: string[]; autoTags: string[] }) => {
-      const response = await api.put(`/videos/${videoId}`, update);
+    mutationFn: async ({
+      videoId: targetId,
+      ...update
+    }: {
+      videoId: string;
+      tags?: string[];
+      autoTags: string[];
+    }) => {
+      const response = await api.put(`/videos/${targetId}`, update);
       return response.data;
     },
-    onSuccess: (data, update) => {
+    onSuccess: (data, { videoId: targetId, ...update }) => {
       if (data.success) {
-        queryClient.setQueryData(["video", videoId], (old: Video | undefined) =>
+        queryClient.setQueryData(["video", targetId], (old: Video | undefined) =>
           old ? { ...old, ...update } : old
         );
         if (update.tags) {

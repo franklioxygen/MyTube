@@ -912,7 +912,11 @@ export async function downloadVideo(
         ? {
             autoTags: normalizeSourceTags(rawSourceInfo?.tags, {
               catalog: settings.tags,
-              manualTags: existingVideo.tags,
+              // Re-read: the user may have promoted a suggestion
+              // while this download ran.
+              manualTags:
+                storageService.getVideoById(existingVideo.id)?.tags ??
+                existingVideo.tags,
             }),
           }
         : {}),

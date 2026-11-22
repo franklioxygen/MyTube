@@ -554,6 +554,19 @@ export function ensureGestureCredentialTable(): void {
 }
 
 /**
+ * Self-heal for migration 0034's videos.auto_tags (issue #546). Every full-row
+ * videos read selects it, so a batch drizzle aborted would break the library;
+ * import/restore also call this, since they never rerun the startup checks.
+ */
+export function ensureVideoAutoTagsColumn(): void {
+  const columns = columnNames(sqlite.prepare("PRAGMA table_info(videos)").all());
+  if (columns.length === 0 || columns.includes("auto_tags")) return;
+  logger.info("Migrating database: Adding auto_tags column to videos table...");
+  sqlite.prepare("ALTER TABLE videos ADD COLUMN auto_tags TEXT").run();
+  logger.info("Migration successful: auto_tags added.");
+}
+
+/**
  * Self-heal for migrations 0032 and 0033's federation tables. Like the gesture
  * table, a new table is not recovered by the column checks when drizzle aborts
  * its batch, so every federation request would fail with "no such table".
@@ -867,13 +880,7 @@ export function migrateColumnsAndTables(): void {
       logger.info("Migration successful: source_video_id added.");
     }
 
-    if (!columns.includes("auto_tags")) {
-      logger.info(
-        "Migrating database: Adding auto_tags column to videos table..."
-      );
-      sqlite.prepare("ALTER TABLE videos ADD COLUMN auto_tags TEXT").run();
-      logger.info("Migration successful: auto_tags added.");
-    }
+    ensureVideoAutoTagsColumn();
 
     try {
       sqlite
