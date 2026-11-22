@@ -105,12 +105,23 @@ export function useVideoMutations({
       const response = await api.put(`/videos/${targetId}`, update);
       return response.data;
     },
-    onSuccess: (data, { videoId: targetId, ...update }) => {
+    onSuccess: async (data, { videoId: targetId, ...update }) => {
       if (data.success) {
+        // A detail read already in flight may predate the PUT; it must not
+        // overwrite the update below.
+        await queryClient.cancelQueries({ queryKey: ["video", targetId] });
         queryClient.setQueryData(["video", targetId], (old: Video | undefined) =>
           old ? { ...old, ...update } : old
         );
         if (update.tags) {
+          const tags = update.tags;
+          // Home and the tag filters read the shared list, which holds tags
+          // (not suggestions).
+          queryClient.setQueryData(["videos"], (old: Video[] | undefined) =>
+            old?.map((video) =>
+              video.id === targetId ? { ...video, tags } : video
+            )
+          );
           void queryClient.invalidateQueries({ queryKey: ["settings"] });
         }
       }

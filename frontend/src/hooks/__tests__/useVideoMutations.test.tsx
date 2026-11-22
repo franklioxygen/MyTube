@@ -67,6 +67,10 @@ describe('useVideoMutations', () => {
         });
         queryClient.setQueryData(['video', 'a'], { id: 'a', tags: [], autoTags: ['live'] } as unknown as Video);
         queryClient.setQueryData(['video', 'b'], { id: 'b', tags: ['other'], autoTags: [] } as unknown as Video);
+        queryClient.setQueryData(['videos'], [
+            { id: 'a', tags: [] },
+            { id: 'b', tags: ['other'] },
+        ] as unknown as Video[]);
         let resolvePut: (value: unknown) => void = () => undefined;
         mockPut.mockReturnValueOnce(new Promise((resolve) => { resolvePut = resolve; }));
 
@@ -92,5 +96,10 @@ describe('useVideoMutations', () => {
         expect(mockPut).toHaveBeenCalledWith('/videos/a', { tags: ['live'], autoTags: [] });
         expect(queryClient.getQueryData(['video', 'a'])).toEqual({ id: 'a', tags: ['live'], autoTags: [] });
         expect(queryClient.getQueryData(['video', 'b'])).toEqual({ id: 'b', tags: ['other'], autoTags: [] });
+        // The shared list behind home and the tag filters sees the promotion.
+        expect(queryClient.getQueryData(['videos'])).toEqual([
+            { id: 'a', tags: ['live'] },
+            { id: 'b', tags: ['other'] },
+        ]);
     });
 });
