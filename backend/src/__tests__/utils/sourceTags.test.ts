@@ -74,6 +74,19 @@ describe("normalizeSourceTags with aliases", () => {
     ).toEqual(["live"]);
   });
 
+  it("keeps the exact catalog spelling of an alias target", () => {
+    expect(normalizeTagAliases({ lofi: "  lo   fi ", tune: "#Music" })).toEqual({
+      lofi: "lo   fi",
+      tune: "#Music",
+    });
+    expect(
+      normalizeSourceTags(["lofi", "tune"], {
+        aliases: { lofi: "lo   fi", tune: "#Music" },
+        catalog: ["lo   fi", "#Music"],
+      })
+    ).toEqual(["lo   fi", "#Music"]);
+  });
+
   it("ignores alias targets that could not be stored", () => {
     expect(
       normalizeSourceTags(["song"], { aliases: { song: "x".repeat(65) } })
@@ -106,9 +119,9 @@ describe("normalizeTagAliases", () => {
 
   it("rejects self-maps, duplicate aliases and chains", () => {
     expect(() => normalizeTagAliases({ music: "Music" })).toThrow(/itself/);
-    // Targets are compared the way lookup cleans them.
-    expect(() => normalizeTagAliases({ song: "# #song" })).toThrow(/itself/);
-    expect(() => normalizeTagAliases({ song: "# #music", music: "音乐" })).toThrow(/itself an alias/);
+    // A source tag spelled like the target would be looked up by its key.
+    expect(() => normalizeTagAliases({ song: " #Song " })).toThrow(/itself/);
+    expect(() => normalizeTagAliases({ song: "#Music", music: "音乐" })).toThrow(/itself an alias/);
     expect(() => normalizeTagAliases({ Song: "music", song: "audio" })).toThrow(/twice/);
     expect(() => normalizeTagAliases({ song: "music", music: "音乐" })).toThrow(/itself an alias/);
   });

@@ -100,15 +100,17 @@ const TagsSettings: React.FC<TagsSettingsProps> = ({
 
     const handleAddAlias = () => {
         if (!onTagAliasesChange) return;
-        const alias = cleanAliasPart(aliasDraft).toLowerCase();
-        const target = cleanAliasPart(aliasTargetDraft);
+        const aliasKey = (value: string) => cleanAliasPart(value).toLowerCase();
+        const alias = aliasKey(aliasDraft);
+        // A tag name keeps the catalog's spelling (e.g. "#Music").
+        const target = aliasTargetDraft.trim();
         if (!alias || !target) return;
         const otherAliases = Object.entries(tagAliases).filter(([key]) => key !== alias);
         const isChain =
-            otherAliases.some(([key]) => key === target.toLowerCase()) ||
-            otherAliases.some(([, value]) => value.toLowerCase() === alias);
+            otherAliases.some(([key]) => key === aliasKey(target)) ||
+            otherAliases.some(([, value]) => aliasKey(value) === alias);
         if (
-            alias === target.toLowerCase() ||
+            alias === aliasKey(target) ||
             isChain ||
             alias.length > MAX_TAG_ALIAS_LENGTH ||
             target.length > MAX_TAG_ALIAS_LENGTH

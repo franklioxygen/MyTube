@@ -85,6 +85,16 @@ describe("renameTag and tag aliases", () => {
     expect(JSON.stringify(state.settings.tagAliases)).toBe('{"__proto__":"music"}');
   });
 
+  it("folds suggestions into the exact renamed spelling", () => {
+    state.settings = { tags: ["music"] };
+    addVideo("v", null, ["Music", "live"]);
+
+    renameTag("music", "#Music");
+
+    expect(state.settings.tagAliases).toEqual({ music: "#Music" });
+    expect(autoTagsOf("v")).toEqual(["#Music", "live"]);
+  });
+
   it("adds no alias for a case-only rename", () => {
     state.settings = { tags: ["music"] };
 

@@ -39,7 +39,8 @@ export function normalizeSourceTags(
 
   const aliasMap = new Map<string, string>();
   for (const [alias, target] of Object.entries(aliases)) {
-    const canonical = cleanTag(target);
+    // A target is a tag name, kept as written so it matches the catalog.
+    const canonical = typeof target === "string" ? target.trim() : "";
     if (canonical && canonical.length <= MAX_AUTO_TAG_LENGTH) {
       aliasMap.set(tagAliasKey(alias), canonical);
     }
@@ -89,7 +90,8 @@ export function isValidAutoTagList(value: unknown): value is string[] {
 
 /**
  * Validate a client-submitted tag alias map and return it in stored form:
- * keys cleaned like source tags and lowercased, values cleaned. Throws with a
+ * keys cleaned like source tags and lowercased, tag names only trimmed (they
+ * must keep the catalog's spelling, e.g. "#Music"). Throws with a
  * user-facing message when the map is malformed, too large, maps a tag to
  * itself, or chains (a canonical name that is itself an alias).
  */
@@ -106,14 +108,14 @@ export function normalizeTagAliases(value: unknown): Record<string, string> {
   const result: Record<string, string> = Object.create(null);
   for (const [rawAlias, rawTarget] of entries) {
     const alias = tagAliasKey(rawAlias);
-    const target = cleanTag(rawTarget);
+    const target = typeof rawTarget === "string" ? rawTarget.trim() : "";
     if (!alias || !target) {
       throw new Error("Tag aliases and their tags cannot be empty.");
     }
     if (alias.length > MAX_AUTO_TAG_LENGTH || target.length > MAX_AUTO_TAG_LENGTH) {
       throw new Error(`Tag aliases and their tags are limited to ${MAX_AUTO_TAG_LENGTH} characters.`);
     }
-    // Compare in lookup form: normalizeSourceTags cleans the target again.
+    // A source tag spelled like the target is looked up by this key.
     if (alias === tagAliasKey(target)) {
       throw new Error(`Tag alias "${alias}" cannot point to itself.`);
     }
