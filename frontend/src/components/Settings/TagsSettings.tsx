@@ -1,4 +1,5 @@
 import {
+    Autocomplete,
     Box,
     Button,
     Chip,
@@ -24,7 +25,15 @@ interface TagsSettingsProps {
     isRenaming?: boolean;
     autoTagsFromSource?: boolean;
     onAutoTagsFromSourceChange?: (enabled: boolean) => void;
+    tagAliases?: Record<string, string>;
+    onTagAliasesChange?: (aliases: Record<string, string>) => void;
+    onTagAliasInvalid?: () => void;
 }
+
+// Mirrors the backend's alias rules (utils/sourceTags.ts).
+const MAX_TAG_ALIAS_LENGTH = 64;
+const cleanAliasPart = (value: string) =>
+    value.trim().replace(/^#+/, '').replace(/\s+/g, ' ').trim();
 
 const TagsSettings: React.FC<TagsSettingsProps> = ({
     tags,
@@ -34,12 +43,17 @@ const TagsSettings: React.FC<TagsSettingsProps> = ({
     isRenaming = false,
     autoTagsFromSource = false,
     onAutoTagsFromSourceChange,
+    tagAliases = {},
+    onTagAliasesChange,
+    onTagAliasInvalid,
 }) => {
     const { t } = useLanguage();
     const [newTag, setNewTag] = useState('');
     const [renameDialogOpen, setRenameDialogOpen] = useState(false);
     const [tagToRename, setTagToRename] = useState<string | null>(null);
     const [newTagName, setNewTagName] = useState('');
+    const [aliasDraft, setAliasDraft] = useState('');
+    const [aliasTargetDraft, setAliasTargetDraft] = useState('');
 
     // Ensure tags is always an array
     const tagsArray = Array.isArray(tags) ? tags : [];
@@ -83,6 +97,40 @@ const TagsSettings: React.FC<TagsSettingsProps> = ({
             setRenameDialogOpen(false);
         }
     };
+
+    const handleAddAlias = () => {
+        if (!onTagAliasesChange) return;
+        const aliasKey = (value: string) => cleanAliasPart(value).toLowerCase();
+        const alias = aliasKey(aliasDraft);
+        // A tag name keeps the catalog's spelling (e.g. "#Music").
+        const target = aliasTargetDraft.trim();
+        if (!alias || !target) return;
+        const otherAliases = Object.entries(tagAliases).filter(([key]) => key !== alias);
+        const isChain =
+            otherAliases.some(([key]) => key === aliasKey(target)) ||
+            otherAliases.some(([, value]) => aliasKey(value) === alias);
+        if (
+            alias === target.toLowerCase() ||
+            isChain ||
+            alias.length > MAX_TAG_ALIAS_LENGTH ||
+            target.length > MAX_TAG_ALIAS_LENGTH
+        ) {
+            onTagAliasInvalid?.();
+            return;
+        }
+        onTagAliasesChange({ ...tagAliases, [alias]: target });
+        setAliasDraft('');
+        setAliasTargetDraft('');
+    };
+
+    const handleDeleteAlias = (alias: string) => {
+        if (!onTagAliasesChange) return;
+        const next = { ...tagAliases };
+        delete next[alias];
+        onTagAliasesChange(next);
+    };
+
+    const aliasEntries = Object.entries(tagAliases);
 
     return (
         <Box>
@@ -135,6 +183,61 @@ const TagsSettings: React.FC<TagsSettingsProps> = ({
                     {t('add') || 'Add'}
                 </Button>
             </Box>
+
+            {onTagAliasesChange && (
+                <Box sx={{ mt: 3 }} id="tagAliases-setting">
+                    <Typography variant="subtitle1">{t('tagAliases')}</Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                        {t('tagAliasesDescription')}
+                    </Typography>
+                    <Box sx={{ display: 'flex', gap: 1, mb: 2, flexWrap: 'wrap' }}>
+                        {aliasEntries.length > 0 ? aliasEntries.map(([alias, target]) => (
+                            <Chip
+                                key={alias}
+                                label={`${alias} → ${target}`}
+                                variant="outlined"
+                                onDelete={() => handleDeleteAlias(alias)}
+                            />
+                        )) : (
+                            <Typography variant="body2" color="text.secondary">
+                                {t('noTagAliases')}
+                            </Typography>
+                        )}
+                    </Box>
+                    <Box
+                        sx={{
+                            display: 'flex',
+                            flexDirection: { xs: 'column', sm: 'row' },
+                            gap: 1,
+                            maxWidth: SETTINGS_CONTROL_MAX_WIDTH,
+                        }}
+                    >
+                        <TextField
+                            label={t('tagAlias')}
+                            value={aliasDraft}
+                            onChange={(e) => setAliasDraft(e.target.value)}
+                            size="small"
+                            fullWidth
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter') handleAddAlias();
+                            }}
+                        />
+                        <Autocomplete
+                            freeSolo
+                            fullWidth
+                            options={tagsArray}
+                            inputValue={aliasTargetDraft}
+                            onInputChange={(_, value) => setAliasTargetDraft(value)}
+                            renderInput={(params) => (
+                                <TextField {...params} label={t('tagAliasTarget')} size="small" />
+                            )}
+                        />
+                        <Button variant="contained" onClick={handleAddAlias} sx={{ flexShrink: 0 }}>
+                            {t('add') || 'Add'}
+                        </Button>
+                    </Box>
+                </Box>
+            )}
 
             {/* Rename Dialog */}
             <Dialog open={renameDialogOpen} onClose={() => !isRenaming && setRenameDialogOpen(false)}>

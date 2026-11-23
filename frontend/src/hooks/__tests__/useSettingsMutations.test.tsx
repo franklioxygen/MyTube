@@ -858,6 +858,87 @@ describe('useSettingsMutations', () => {
         });
         expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['settings'] });
         expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['videos'] });
+        expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['video'] });
+    });
+
+    it('saves tag aliases, keeps the stored form and refreshes video details', async () => {
+        vi.mocked(api.patch).mockResolvedValue({
+            data: { settings: { tagAliases: { song: 'Music' } } },
+        } as any);
+        const queryClient = createTestQueryClient();
+        queryClient.setQueryData(['settings'], { tags: ['Music'] });
+        const { result } = renderSettingsHook({ queryClient });
+        const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
+        const cancelSpy = vi.spyOn(queryClient, 'cancelQueries');
+
+        await act(async () => {
+            await result.current.updateTagAliasesMutation.mutateAsync({
+                before: {},
+                after: { song: 'Music' },
+            });
+        });
+
+        expect(api.patch).toHaveBeenCalledWith('/settings', { tagAliases: { song: 'Music' } });
+        expect(queryClient.getQueryData(['settings'])).toEqual({
+            tags: ['Music'],
+            tagAliases: { song: 'Music' },
+        });
+        expect(result.current.getConfirmedTagAliases()).toEqual({ song: 'Music' });
+        expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['video'] });
+        expect(cancelSpy).toHaveBeenCalledWith({ queryKey: ['settings'] });
+    });
+
+    it('applies an alias edit onto the confirmed map, keeping an alias a rename added', async () => {
+        const queryClient = createTestQueryClient();
+        // Confirmed after a rename the page has not synced yet.
+        queryClient.setQueryData(['settings'], {
+            tagAliases: { song: 'audio', tune: 'audio', music: 'audio' },
+        });
+        const { result } = renderSettingsHook({ queryClient });
+
+        await act(async () => {
+            await result.current.updateTagAliasesMutation.mutateAsync({
+                before: { song: 'music', tune: 'music' },
+                after: { song: 'music', beat: 'drums' },
+            });
+        });
+
+        // tune was removed and beat added; song is unchanged by this edit,
+        // so the rename's retarget to audio and its music alias stay.
+        expect(api.patch).toHaveBeenCalledWith('/settings', {
+            tagAliases: { song: 'audio', music: 'audio', beat: 'drums' },
+        });
+    });
+
+    it('adds and deletes aliases named like Object members', async () => {
+        const queryClient = createTestQueryClient();
+        queryClient.setQueryData(['settings'], { tagAliases: { constructor: 'build' } });
+        const { result } = renderSettingsHook({ queryClient });
+
+        await act(async () => {
+            await result.current.updateTagAliasesMutation.mutateAsync({
+                before: { constructor: 'build' },
+                after: JSON.parse('{"__proto__":"meta"}'),
+            });
+        });
+
+        const sent = vi.mocked(api.patch).mock.calls.at(-1)?.[1] as { tagAliases: object };
+        expect(JSON.stringify(sent.tagAliases)).toBe('{"__proto__":"meta"}');
+    });
+
+    it('never sends tag aliases from a general settings save', async () => {
+        const queryClient = createTestQueryClient();
+        queryClient.setQueryData(['settings'], makeSettings({ language: 'en', tagAliases: {} }));
+        const { result } = renderSettingsHook({ queryClient });
+
+        await act(async () => {
+            await result.current.saveMutation.mutateAsync(
+                makeSettings({ language: 'fr', tagAliases: { song: 'music' } })
+            );
+        });
+
+        expect(api.patch).toHaveBeenCalledWith('/settings', { language: 'fr' });
+        expect(queryClient.getQueryData<Settings>(['settings'])?.tagAliases).toEqual({});
     });
 
     it('reports the shared fallback message when rename errors do not contain a usable API message', async () => {

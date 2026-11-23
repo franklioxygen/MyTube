@@ -1,9 +1,15 @@
 import { mergeTagCatalog } from "../utils/tagCatalog";
-import { eq, sql } from "drizzle-orm";
+import { eq, isNotNull, sql } from "drizzle-orm";
 import { db } from "../db";
 import { videos } from "../db/schema";
 import { DatabaseError } from "../errors/DownloadErrors";
 import { logger } from "../utils/logger";
+import {
+  MAX_AUTO_TAG_LENGTH,
+  MAX_TAG_ALIASES,
+  normalizeSourceTags,
+  tagAliasKey,
+} from "../utils/sourceTags";
 import { getSettings, saveSettings } from "./storageService/settings";
 import { bumpVideosListRevision } from "./storageService/videoListRevision";
 
@@ -52,6 +58,115 @@ function getVideosWithAnyTag(
 }
 
 /**
+ * The tag aliases after renaming `oldTag` to `newTag`: the old name becomes an
+ * alias of the new one, so source tags spelled the old way fold into it
+ * (issue #546). Aliases of the old name follow the rename, and the new name
+ * stops being an alias, so the map never chains. Returns null when nothing
+ * changes, e.g. for a case-only rename.
+ */
+function aliasesAfterRename(
+  current: unknown,
+  oldTag: string,
+  newTag: string
+): Record<string, string> | null {
+  const oldKey = tagAliasKey(oldTag);
+  const newKey = tagAliasKey(newTag);
+  // A case-only rename needs no alias: the catalog spelling already applies.
+  // "music" -> "#Music" does, since source tags are cleaned to "music".
+  if (!oldKey || !newKey || oldTag.toLowerCase() === newTag.toLowerCase()) return null;
+  if (oldKey.length > MAX_AUTO_TAG_LENGTH || newTag.length > MAX_AUTO_TAG_LENGTH) {
+    return null;
+  }
+
+  // No prototype, so an alias like "__proto__" stays an ordinary key.
+  const aliases: Record<string, string> = Object.create(null);
+  if (current && typeof current === "object" && !Array.isArray(current)) {
+    for (const [alias, target] of Object.entries(current)) {
+      if (typeof target !== "string") continue;
+      const nextTarget = tagAliasKey(target) === oldKey ? newTag : target;
+      // Drop no-op aliases, and the new name's own alias to some other tag.
+      if (alias === nextTarget.toLowerCase()) continue;
+      if (alias === newKey && alias !== oldKey) continue;
+      aliases[alias] = nextTarget;
+    }
+  }
+  // "#Music" -> "Music": source tags already look the new name up, so an
+  // alias would only point to itself.
+  if (oldKey === newTag.toLowerCase()) return aliases;
+  if (
+    !Object.prototype.hasOwnProperty.call(aliases, oldKey) &&
+    Object.keys(aliases).length >= MAX_TAG_ALIASES
+  ) {
+    logger.warn(`Tag alias limit reached; not adding "${oldKey}" -> "${newTag}".`);
+  } else {
+    aliases[oldKey] = newTag;
+  }
+  return aliases;
+}
+
+const parseTagArray = (value: string | null): unknown[] => {
+  if (!value) return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
+/**
+ * Re-apply the current tag aliases to stored suggestions (videos.auto_tags)
+ * that contain any of `aliasKeys`, so a new alias also covers videos that
+ * were already downloaded. Failures are logged, not thrown: the alias itself
+ * is already saved and applies to future downloads.
+ *
+ * @returns Number of videos whose suggestions changed
+ */
+export function rewriteAutoTagsForAliases(aliasKeys: readonly string[]): number {
+  if (aliasKeys.length === 0) return 0;
+  try {
+    const keys = new Set(aliasKeys);
+    const settings = getSettings();
+    // Matched in JS: SQLite's lower() folds ASCII only, unlike the
+    // toLowerCase() that produced the alias keys.
+    const rows = db
+      .select({ id: videos.id, tags: videos.tags, autoTags: videos.autoTags })
+      .from(videos)
+      .where(isNotNull(videos.autoTags))
+      .all();
+
+    let updatedVideosCount = 0;
+    db.transaction(() => {
+      for (const row of rows) {
+        const current = parseTagArray(row.autoTags);
+        if (!current.some((tag) => keys.has(tagAliasKey(tag)))) continue;
+        const next = normalizeSourceTags(current, {
+          catalog: settings.tags,
+          aliases: settings.tagAliases,
+          manualTags: parseTagArray(row.tags),
+        });
+        db.update(videos)
+          .set({ autoTags: JSON.stringify(next) })
+          .where(eq(videos.id, row.id))
+          .run();
+        updatedVideosCount++;
+      }
+    });
+    if (updatedVideosCount > 0) {
+      bumpVideosListRevision();
+      logger.info(`Applied tag aliases to suggestions on ${updatedVideosCount} videos.`);
+    }
+    return updatedVideosCount;
+  } catch (error) {
+    logger.error(
+      "Error applying tag aliases to stored suggestions",
+      error instanceof Error ? error : new Error(String(error))
+    );
+    return 0;
+  }
+}
+
+/**
  * Rename a tag globally across all videos and settings
  * @param oldTag The existing tag name
  * @param newTag The new tag name
@@ -68,6 +183,8 @@ export function renameTag(oldTag: string, newTag: string): RenameTagResult {
     const currentSettings = getSettings();
     const tags = currentSettings.tags ? (currentSettings.tags as string[]) : [];
     
+    const settingsUpdate: Record<string, unknown> = {};
+
     // Check if oldTag exists in settings
     const tagIndex = tags.indexOf(oldTag);
     if (tagIndex !== -1) {
@@ -76,15 +193,25 @@ export function renameTag(oldTag: string, newTag: string): RenameTagResult {
       newTags[tagIndex] = newTag;
       
       // We should also dedup if newTag already exists (though UI might prevent this, safe to handle)
-      const uniqueTags = [...new Set(newTags)];
-      
-      saveSettings({ ...currentSettings, tags: uniqueTags });
+      settingsUpdate.tags = [...new Set(newTags)];
       result.settingsUpdated = true;
     }
 
-    // 2. Update videos. Only load rows whose tags JSON array actually contains
-    // oldTag (filtered in SQL via json_each), then rewrite each match.
+    // 2. Videos to update. Only load rows whose tags JSON array actually
+    // contains oldTag (filtered in SQL via json_each).
     const matchingVideos = getVideosWithTag(oldTag);
+
+    // Register an alias only for a real rename: a stale request for a tag
+    // that no longer exists must not change how source tags are folded.
+    const renamedSomething = tagIndex !== -1 || matchingVideos.length > 0;
+    const tagAliases = renamedSomething
+      ? aliasesAfterRename(currentSettings.tagAliases, oldTag, newTag)
+      : null;
+    if (tagAliases) settingsUpdate.tagAliases = tagAliases;
+
+    if (Object.keys(settingsUpdate).length > 0) {
+      saveSettings({ ...currentSettings, ...settingsUpdate });
+    }
 
     db.transaction(() => {
         for (const video of matchingVideos) {
@@ -113,6 +240,9 @@ export function renameTag(oldTag: string, newTag: string): RenameTagResult {
     if (result.updatedVideosCount > 0) {
       bumpVideosListRevision();
     }
+    // Re-normalize stored suggestions under the old name, alias or not: a
+    // case-only rename changes the catalog spelling they should use.
+    if (renamedSomething) rewriteAutoTagsForAliases([tagAliasKey(oldTag)]);
 
     logger.info(`Renamed tag "${oldTag}" to "${newTag}". Updated ${result.updatedVideosCount} videos.`);
     return result;

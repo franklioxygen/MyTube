@@ -168,7 +168,11 @@ export function useSettingsMutations({
 
   // Save settings mutation
   const saveMutation = useMutation({
-    mutationFn: async (newSettings: Settings): Promise<SaveSettingsMutationResult> => {
+    mutationFn: async (draft: Settings): Promise<SaveSettingsMutationResult> => {
+      // Aliases persist only through updateTagAliasesMutation, which the
+      // settings page serializes; a general save (Save, Scan Files) sending
+      // a draft map could overwrite a newer alias save.
+      const { tagAliases: _draftAliases, ...newSettings } = draft;
       let currentSettings = queryClient.getQueryData<Settings>(["settings"]);
       if (!currentSettings) {
         const latestSettings = await api.get("/settings");
@@ -204,8 +208,11 @@ export function useSettingsMutations({
       // key-free payload.
       const { liveTranslationApiKey: _changedApiKey, ...changedSettings } =
         result.patchPayload;
-      const { liveTranslationApiKey: _submittedApiKey, ...safeNewSettings } =
-        newSettings;
+      const {
+        liveTranslationApiKey: _submittedApiKey,
+        tagAliases: _submittedAliases,
+        ...safeNewSettings
+      } = newSettings;
       // Update settings cache immediately so Header and other consumers react without waiting for refetch
       queryClient.setQueryData(["settings"], (old: Settings | undefined) =>
         old ? { ...old, ...changedSettings } : ({ ...safeNewSettings } as Settings)
@@ -623,13 +630,17 @@ export function useSettingsMutations({
       await api.post("/settings/tags/rename", { oldTag, newTag });
       return { oldTag, newTag };
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       setMessage({
         text: t("tagRenamedSuccess") || "Tag renamed successfully",
         type: "success",
       });
-      void queryClient.invalidateQueries({ queryKey: ["settings"] });
       void queryClient.invalidateQueries({ queryKey: ["videos"] });
+      // The rename also folds stored source tag suggestions (video detail).
+      void queryClient.invalidateQueries({ queryKey: ["video"] });
+      // Awaited: the rename registers an alias, and an alias save queued
+      // after it rebases on this refetched map.
+      await queryClient.invalidateQueries({ queryKey: ["settings"] });
     },
     onError: async (error: unknown) => {
       const apiMsg = await getApiErrorMessage(error, t);
@@ -671,10 +682,72 @@ export function useSettingsMutations({
     },
   });
 
+  // Tag aliases (issue #546) save immediately, like the tag catalog above.
+  // Undefined until settings have loaded, so callers can fall back to their own list.
+  const getConfirmedTags = (): string[] | undefined => {
+    const tags = queryClient.getQueryData<Settings>(["settings"])?.tags;
+    return Array.isArray(tags) ? tags : undefined;
+  };
+
+  const getConfirmedTagAliases = (): Record<string, string> =>
+    queryClient.getQueryData<Settings>(["settings"])?.tagAliases ?? {};
+
+  const updateTagAliasesMutation = useMutation({
+    // `before` and `after` are the page's maps around one edit. Only that
+    // edit is applied, onto the latest confirmed map, so an alias that a
+    // rename registered meanwhile is kept.
+    mutationFn: async ({
+      before,
+      after,
+    }: {
+      before: Record<string, string>;
+      after: Record<string, string>;
+    }) => {
+      // Prototype-free with own-property checks, so aliases named like
+      // Object members ("__proto__", "constructor") add and delete normally.
+      const has = (map: Record<string, string>, key: string) =>
+        Object.prototype.hasOwnProperty.call(map, key);
+      const tagAliases: Record<string, string> = Object.assign(
+        Object.create(null),
+        getConfirmedTagAliases()
+      );
+      for (const key of Object.keys(before)) {
+        if (!has(after, key)) delete tagAliases[key];
+      }
+      for (const [key, value] of Object.entries(after)) {
+        if (!has(before, key) || before[key] !== value) tagAliases[key] = value;
+      }
+      const response = await api.patch("/settings", { tagAliases });
+      // The server returns the map in stored form (lowercased aliases).
+      return (response.data?.settings?.tagAliases ?? tagAliases) as Record<string, string>;
+    },
+    onSuccess: async (tagAliases) => {
+      // A settings read already in flight predates this save and would put
+      // the older map back; the next alias edit would then rebase on it.
+      await queryClient.cancelQueries({ queryKey: ["settings"] });
+      setMessage({ text: t("settingsSaved"), type: "success" });
+      queryClient.setQueryData(["settings"], (old: Settings | undefined) =>
+        old ? { ...old, tagAliases } : old
+      );
+      // The server rewrote matching stored suggestions, which video detail
+      // queries carry (the list does not).
+      void queryClient.invalidateQueries({ queryKey: ["video"] });
+    },
+    onError: async (error: unknown) => {
+      const apiMsg = await getApiErrorMessage(error, t);
+      setMessage({
+        text: typeof apiMsg === "string" && apiMsg ? apiMsg : t("settingsFailed"),
+        type: "error",
+      });
+      void queryClient.invalidateQueries({ queryKey: ["settings"] });
+    },
+  });
+
   // Computed isSaving state
   const isSaving =
     saveMutation.isPending ||
     updateTagsMutation.isPending ||
+    updateTagAliasesMutation.isPending ||
     migrateMutation.isPending ||
     cleanupMutation.isPending ||
     cleanupAuthorCollectionsMutation.isPending ||
@@ -699,6 +772,9 @@ export function useSettingsMutations({
     restoreFromLastBackupMutation,
     renameTagMutation,
     updateTagsMutation,
+    updateTagAliasesMutation,
+    getConfirmedTagAliases,
+    getConfirmedTags,
     lastBackupInfo,
     isSaving,
   };

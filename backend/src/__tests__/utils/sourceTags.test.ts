@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   isValidAutoTagList,
   MAX_AUTO_TAGS,
+  MAX_TAG_ALIASES,
   normalizeSourceTags,
+  normalizeTagAliases,
 } from "../../utils/sourceTags";
 
 describe("normalizeSourceTags", () => {
@@ -50,6 +52,87 @@ describe("normalizeSourceTags", () => {
     const result = normalizeSourceTags([source], { catalog: [catalogEntry] });
     expect(result).toEqual([source]);
     expect(isValidAutoTagList(result)).toBe(true);
+  });
+});
+
+describe("normalizeSourceTags with aliases", () => {
+  it("folds aliases into their canonical tag, spelled like the catalog", () => {
+    expect(
+      normalizeSourceTags(["#Song", "musique", "live"], {
+        aliases: { song: "music", musique: "Music" },
+        catalog: ["Music"],
+      })
+    ).toEqual(["Music", "live"]);
+  });
+
+  it("drops an aliased tag the video already has", () => {
+    expect(
+      normalizeSourceTags(["song", "live"], {
+        aliases: { song: "音乐" },
+        manualTags: ["音乐"],
+      })
+    ).toEqual(["live"]);
+  });
+
+  it("keeps the exact catalog spelling of an alias target", () => {
+    expect(normalizeTagAliases({ lofi: "  lo   fi ", tune: "#Music" })).toEqual({
+      lofi: "lo   fi",
+      tune: "#Music",
+    });
+    expect(
+      normalizeSourceTags(["lofi", "tune"], {
+        aliases: { lofi: "lo   fi", tune: "#Music" },
+        catalog: ["lo   fi", "#Music"],
+      })
+    ).toEqual(["lo   fi", "#Music"]);
+  });
+
+  it("ignores alias targets that could not be stored", () => {
+    expect(
+      normalizeSourceTags(["song"], { aliases: { song: "x".repeat(65) } })
+    ).toEqual(["song"]);
+  });
+});
+
+describe("normalizeTagAliases", () => {
+  it("cleans and lowercases aliases and cleans their tags", () => {
+    expect(normalizeTagAliases({ " #Song ": "  Music ", Musique: "Music" })).toEqual({
+      song: "Music",
+      musique: "Music",
+    });
+  });
+
+  it("rejects malformed maps", () => {
+    expect(() => normalizeTagAliases(null)).toThrow();
+    expect(() => normalizeTagAliases(["song"])).toThrow();
+    expect(() => normalizeTagAliases({ song: 1 })).toThrow();
+    expect(() => normalizeTagAliases({ song: " " })).toThrow();
+    expect(() => normalizeTagAliases({ ["x".repeat(65)]: "music" })).toThrow();
+  });
+
+  it("keeps an alias named __proto__ as an ordinary key", () => {
+    const aliases = normalizeTagAliases(JSON.parse('{"__proto__":"Music"}'));
+    expect(Object.keys(aliases)).toEqual(["__proto__"]);
+    expect(JSON.stringify(aliases)).toBe('{"__proto__":"Music"}');
+    expect(normalizeSourceTags(["__proto__"], { aliases })).toEqual(["Music"]);
+  });
+
+  it("rejects self-maps, duplicate aliases and chains", () => {
+    expect(() => normalizeTagAliases({ music: "Music" })).toThrow(/itself/);
+    expect(() => normalizeTagAliases({ song: " Song " })).toThrow(/itself/);
+    // A source tag spelled like "#Music" is looked up as "music".
+    expect(() => normalizeTagAliases({ song: "#Music", music: "音乐" })).toThrow(/itself an alias/);
+    // Only the spelling differs, so this maps "music" to the catalog's "#Music".
+    expect(normalizeTagAliases({ music: "#Music" })).toEqual({ music: "#Music" });
+    expect(() => normalizeTagAliases({ Song: "music", song: "audio" })).toThrow(/twice/);
+    expect(() => normalizeTagAliases({ song: "music", music: "音乐" })).toThrow(/itself an alias/);
+  });
+
+  it("caps the number of aliases", () => {
+    const tooMany = Object.fromEntries(
+      Array.from({ length: MAX_TAG_ALIASES + 1 }, (_, i) => [`a${i}`, "music"])
+    );
+    expect(() => normalizeTagAliases(tooMany)).toThrow(/500/);
   });
 });
 

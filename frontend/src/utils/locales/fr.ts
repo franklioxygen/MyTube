@@ -450,6 +450,14 @@ export const fr = {
   autoTagsFromSource: "Récupérer les tags de la source vidéo lors du téléchargement",
   autoTagsFromSourceDescription:
     "Les tags fournis par la source (YouTube, Bilibili, etc.) s'affichent en clair sur la page vidéo comme suggestions. Ils n'apparaissent dans les filtres qu'une fois ajoutés d'un clic. S'applique aux vidéos téléchargées ou retéléchargées après l'activation.",
+  tagAliases: "Alias de tags",
+  tagAliasesDescription:
+    "Quand un tag de la source correspond à un alias, c'est le tag associé qui est suggéré. Renommer un tag ajoute automatiquement son ancien nom ici.",
+  tagAlias: "Alias",
+  tagAliasTarget: "Tag",
+  noTagAliases: "Aucun alias pour l'instant",
+  tagAliasInvalid:
+    "Impossible d'ajouter cet alias : un alias ne peut pas pointer vers son propre nom, et un nom ne peut pas être à la fois alias et cible.",
   autoTagPromoteHint: "Suggestion de la source vidéo. Cliquez pour l'ajouter comme tag.",
   autoTagSourceHint: "Suggestion de la source vidéo",
 

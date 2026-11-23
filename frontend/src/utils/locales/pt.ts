@@ -449,6 +449,14 @@ export const pt = {
   autoTagsFromSource: "Obter tags da fonte do vídeo ao baixar",
   autoTagsFromSourceDescription:
     "As tags da fonte (YouTube, Bilibili etc.) aparecem esmaecidas na página do vídeo como sugestões. Elas só entram nos filtros de tags depois que você clica para adicioná-las. Vale para vídeos baixados ou baixados novamente depois de ativar.",
+  tagAliases: "Apelidos de tags",
+  tagAliasesDescription:
+    "Quando uma tag da fonte coincide com um apelido, a tag associada é sugerida no lugar. Ao renomear uma tag, o nome antigo é adicionado aqui automaticamente.",
+  tagAlias: "Apelido",
+  tagAliasTarget: "Tag",
+  noTagAliases: "Nenhum apelido ainda",
+  tagAliasInvalid:
+    "Não é possível adicionar este apelido: um apelido não pode apontar para o próprio nome, e um nome não pode ser apelido e destino ao mesmo tempo.",
   autoTagPromoteHint: "Sugerida pela fonte do vídeo. Clique para adicioná-la como tag.",
   autoTagSourceHint: "Sugerida pela fonte do vídeo",
 

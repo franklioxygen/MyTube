@@ -31,7 +31,10 @@ import {
   buildSafeSettingsPayload,
   PersistedSettingsResponse,
 } from "./settingsController/settingsResponse";
-import { processTagChanges } from "./settingsController/tagMutations";
+import {
+  processTagAliasChanges,
+  processTagChanges,
+} from "./settingsController/tagMutations";
 import { enforceTrustLevelForSettingsChanges } from "./settingsController/trustGating";
 import {
   authorOrganizationModeToLegacySetting,
@@ -444,6 +447,7 @@ const persistSettingsUpdate = async (
   }
 
   processTagChanges(existingSettings, settingsToPersist);
+  await processTagAliasChanges(existingSettings, settingsToPersist);
   await moveSubtitlesIfSettingChanged(existingSettings, settingsToPersist);
   await moveThumbnailsIfSettingChanged(existingSettings, settingsToPersist);
   applyCloudflaredSettingChanges(

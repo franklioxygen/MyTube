@@ -64,6 +64,7 @@ import {
     arePlayerSeekIntervalsOrdered,
     isValidPlayerSeekSeconds,
 } from '../utils/playerSeekIntervals';
+import { rebaseTagEdit } from '../utils/tagEditRebase';
 
 function isAutoDeleteSettingValid(settings: Settings): boolean {
     if (!settings.autoDeleteEnabled) {
@@ -310,6 +311,11 @@ const SettingsPage: React.FC = () => {
     const lastSettingsData = useRef(settingsData);
     // Tail of the in-flight tag-save chain; keeps immediate tag PATCHes ordered.
     const tagSaveChain = useRef<Promise<unknown>>(Promise.resolve());
+    // Alias saves still queued or in flight. While any remain, the local
+    // aliases are newer than what the server has confirmed.
+    const pendingAliasSaves = useRef(0);
+    // Renames requested on this page, in order, for rebasing tag edits.
+    const requestedRenames = useRef<Array<readonly [string, string]>>([]);
     useEffect(() => {
         if (!settingsData || lastSettingsData.current === settingsData) return;
         lastSettingsData.current = settingsData;
@@ -324,11 +330,14 @@ const SettingsPage: React.FC = () => {
         // After hydration the form is user-owned, so we must not clobber unsaved
         // edits. But the server is authoritative for response-only/derived fields
         // (which aren't editable drafts) and for the immediately-persisted tag
-        // list, so sync just those from each refetch and leave everything else as
-        // the user left it.
+        // list and aliases (a rename adds one), so sync just those from each
+        // refetch and leave everything else as the user left it.
         setSettings(prev => ({
             ...prev,
             tags: settingsData.tags || [],
+            ...(pendingAliasSaves.current === 0
+                ? { tagAliases: settingsData.tagAliases ?? {} }
+                : {}),
             isPasswordSet: settingsData.isPasswordSet,
             isVisitorPasswordSet: settingsData.isVisitorPasswordSet,
             deploymentSecurity: settingsData.deploymentSecurity,
@@ -352,6 +361,9 @@ const SettingsPage: React.FC = () => {
         restoreFromLastBackupMutation,
         renameTagMutation,
         updateTagsMutation,
+        updateTagAliasesMutation,
+        getConfirmedTagAliases,
+        getConfirmedTags,
         lastBackupInfo,
         isSaving
     } = mutations;
@@ -402,6 +414,8 @@ const SettingsPage: React.FC = () => {
     };
 
     const handleTagsChange = (newTags: string[]) => {
+        const before = Array.isArray(settings.tags) ? settings.tags : [];
+        const renames = [...requestedRenames.current];
         // Reflect the change locally for snappy UI, then persist immediately so
         // tags added/removed in Tags Management survive a reload without needing
         // the global Save button.
@@ -409,15 +423,48 @@ const SettingsPage: React.FC = () => {
         // Serialize saves: chaining each PATCH after the previous one prevents a
         // slow earlier request from settling after a newer one and persisting a
         // stale tag list (which the settings sync would then copy back into state).
+        // The edit is applied to the confirmed list at send time, because a
+        // rename earlier in the chain may have changed it.
         tagSaveChain.current = tagSaveChain.current
             .catch(() => undefined)
-            .then(() => updateTagsMutation.mutateAsync(newTags))
+            .then(() =>
+                updateTagsMutation.mutateAsync(
+                    rebaseTagEdit(getConfirmedTags() ?? before, before, newTags, renames)
+                )
+            )
             .catch(() => undefined);
+    };
+
+    const handleTagAliasesChange = (tagAliases: Record<string, string>) => {
+        const before = settings.tagAliases ?? {};
+        setSettings(prev => ({ ...prev, tagAliases }));
+        pendingAliasSaves.current += 1;
+        // Same chain as tag saves and renames, so none overwrites another.
+        tagSaveChain.current = tagSaveChain.current
+            .catch(() => undefined)
+            .then(() => updateTagAliasesMutation.mutateAsync({ before, after: tagAliases }))
+            .catch(() => undefined)
+            .finally(() => {
+                pendingAliasSaves.current -= 1;
+                // Once no alias save is left, show what the server confirmed:
+                // it may hold an alias a rename added, or have rejected this
+                // edit (a refetch then returns the same object, so the sync
+                // effect would not run).
+                if (pendingAliasSaves.current === 0) {
+                    setSettings(prev => ({ ...prev, tagAliases: getConfirmedTagAliases() }));
+                }
+            });
     };
 
     const handleRenameTag = (oldTag: string, newTag: string) => {
         if (!oldTag || !newTag || oldTag === newTag) return;
-        renameTagMutation.mutate({ oldTag, newTag });
+        requestedRenames.current.push([oldTag, newTag]);
+        // On the tag save chain: a rename registers an alias, so an alias
+        // save queued earlier must not land after it with an older map.
+        tagSaveChain.current = tagSaveChain.current
+            .catch(() => undefined)
+            .then(() => renameTagMutation.mutateAsync({ oldTag, newTag }))
+            .catch(() => undefined);
     };
 
     const handleExportDatabase = () => {
@@ -586,6 +633,9 @@ const SettingsPage: React.FC = () => {
                 isRenaming={renameTagMutation.isPending}
                 autoTagsFromSource={settings.autoTagsFromSource === true}
                 onAutoTagsFromSourceChange={(enabled) => handleChange('autoTagsFromSource', enabled)}
+                tagAliases={settings.tagAliases ?? {}}
+                onTagAliasesChange={handleTagAliasesChange}
+                onTagAliasInvalid={() => setMessage({ text: t('tagAliasInvalid'), type: 'error' })}
             />
             <DatabaseSettings
                 onMigrate={() => setShowMigrateConfirmModal(true)}

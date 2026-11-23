@@ -449,6 +449,14 @@ export const es = {
   autoTagsFromSource: "Obtener etiquetas de la fuente del vídeo al descargar",
   autoTagsFromSourceDescription:
     "Las etiquetas de la fuente (YouTube, Bilibili, etc.) se muestran atenuadas en la página del vídeo como sugerencias. No aparecen en los filtros hasta que haces clic en una para añadirla. Se aplica a los vídeos descargados o vueltos a descargar después de activarlo.",
+  tagAliases: "Alias de etiquetas",
+  tagAliasesDescription:
+    "Si una etiqueta de la fuente coincide con un alias, se sugiere su etiqueta en su lugar. Al renombrar una etiqueta, su nombre anterior se añade aquí automáticamente.",
+  tagAlias: "Alias",
+  tagAliasTarget: "Etiqueta",
+  noTagAliases: "Aún no hay alias",
+  tagAliasInvalid:
+    "No se puede añadir este alias: un alias no puede apuntar a su propio nombre, y un nombre no puede ser a la vez alias y destino.",
   autoTagPromoteHint: "Sugerida por la fuente del vídeo. Haz clic para añadirla como etiqueta.",
   autoTagSourceHint: "Sugerida por la fuente del vídeo",
 

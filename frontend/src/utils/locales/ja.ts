@@ -447,6 +447,12 @@ export const ja = {
   autoTagsFromSource: "ダウンロード時に動画の配信元からタグを取得",
   autoTagsFromSourceDescription:
     "配信元（YouTube、Bilibili など）のタグを動画ページに薄い表示で候補として表示します。クリックして追加するまでタグの絞り込みには表示されません。有効化後にダウンロードまたは再ダウンロードした動画にのみ適用されます。",
+  tagAliases: "タグの別名",
+  tagAliasesDescription: "配信元のタグが別名と一致すると、代わりに対応するタグを候補として表示します。タグ名を変更すると、元の名前がここに自動で追加されます。",
+  tagAlias: "別名",
+  tagAliasTarget: "タグ",
+  noTagAliases: "別名はまだありません",
+  tagAliasInvalid: "この別名は追加できません。別名は自分自身を指せず、同じ名前を別名と対象タグの両方には使えません。",
   autoTagPromoteHint: "配信元からの候補タグです。クリックするとタグとして追加します。",
   autoTagSourceHint: "配信元からの候補タグ",
 

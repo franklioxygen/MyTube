@@ -70,4 +70,60 @@ describe('TagsSettings', () => {
 
         expect(mockOnTagsChange).not.toHaveBeenCalled();
     });
+
+    describe('tag aliases', () => {
+        const renderAliases = (tagAliases: Record<string, string> = { song: 'Music' }) => {
+            const onTagAliasesChange = vi.fn();
+            const onTagAliasInvalid = vi.fn();
+            render(
+                <TagsSettings
+                    tags={['Music', 'Live']}
+                    onTagsChange={mockOnTagsChange}
+                    tagAliases={tagAliases}
+                    onTagAliasesChange={onTagAliasesChange}
+                    onTagAliasInvalid={onTagAliasInvalid}
+                />
+            );
+            const addAlias = within(document.getElementById('tagAliases-setting') as HTMLElement)
+                .getByRole('button', { name: 'add' });
+            return { onTagAliasesChange, onTagAliasInvalid, addAlias };
+        };
+
+        it('lists aliases and removes one', async () => {
+            const user = userEvent.setup();
+            const { onTagAliasesChange } = renderAliases({ song: 'Music', tune: 'Music' });
+
+            const chip = screen.getByText('song → Music').closest('.MuiChip-root') as HTMLElement;
+            await user.click(within(chip).getByTestId('CancelIcon'));
+
+            expect(onTagAliasesChange).toHaveBeenCalledWith({ tune: 'Music' });
+        });
+
+        it('adds an alias with a cleaned, lowercased name', async () => {
+            const user = userEvent.setup();
+            const { onTagAliasesChange, addAlias } = renderAliases();
+
+            await user.type(screen.getByLabelText('tagAlias'), ' #Live Show ');
+            await user.type(screen.getByLabelText('tagAliasTarget'), 'Live');
+            await user.click(addAlias);
+
+            expect(onTagAliasesChange).toHaveBeenCalledWith({ song: 'Music', 'live show': 'Live' });
+        });
+
+        it.each([
+            ['its own name', 'Music', 'music'],
+            ['a target that is an alias', 'audio', 'song'],
+            ['a name that is already a target', 'music', 'Live'],
+        ])('rejects an alias pointing to %s', async (_, alias, target) => {
+            const user = userEvent.setup();
+            const { onTagAliasesChange, onTagAliasInvalid, addAlias } = renderAliases();
+
+            await user.type(screen.getByLabelText('tagAlias'), alias);
+            await user.type(screen.getByLabelText('tagAliasTarget'), target);
+            await user.click(addAlias);
+
+            expect(onTagAliasesChange).not.toHaveBeenCalled();
+            expect(onTagAliasInvalid).toHaveBeenCalledTimes(1);
+        });
+    });
 });

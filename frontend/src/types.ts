@@ -283,6 +283,7 @@ export interface Settings {
   defaultSort?: string;
   showTagsOnThumbnail?: boolean;
   autoTagsFromSource?: boolean;
+  tagAliases?: Record<string, string>;
   preferredAudioLanguage?: string;
   audioFormat?: 'm4a' | 'mp3' | 'opus';
   defaultVideoCodec?: string;

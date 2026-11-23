@@ -11,7 +11,7 @@ import crypto from "crypto";
 //
 // IMPORTANT: every *runtime* write path to the `videos` table must call
 // bumpVideosListRevision(). Current bump sites: videoMutations (save/upsert/
-// update), videoDeletion, tagService (rename/delete tags), metadataService
+// update), videoDeletion, tagService (rename/delete tags, tag alias rewrites), metadataService
 // (duration backfill), filenameTemplate/renameJobService, authorAvatarService,
 // bulkVideoOrganizationService, downloadedMediaIdentity, and database
 // merge/import/restore (databaseBackupService). Startup-only migrations don't need a bump — they run

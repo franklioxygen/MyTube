@@ -476,7 +476,9 @@ export async function downloadSinglePart(
     // Source tags are stored as suggestions only when the user opted in (#546).
     const autoTagsEnabled = settings.autoTagsFromSource === true;
     if (autoTagsEnabled) {
-      const autoTags = normalizeSourceTags(sourceTags, { catalog: settings.tags });
+      // Read at write time: aliases or the catalog may change mid-download.
+      const { tags: catalog, tagAliases: aliases } = storageService.getSettings();
+      const autoTags = normalizeSourceTags(sourceTags, { catalog, aliases });
       if (autoTags.length > 0) videoData.autoTags = autoTags;
     }
 
@@ -561,9 +563,10 @@ export async function downloadSinglePart(
           ...(autoTagsEnabled
             ? {
                 autoTags: normalizeSourceTags(sourceTags, {
-                  catalog: settings.tags,
-                  // Re-read: the user may have promoted a suggestion
-                  // while this download ran.
+                  // Re-read at write time: aliases, the catalog or the video's tags
+                  // may have changed while this download ran.
+                  catalog: storageService.getSettings().tags,
+                  aliases: storageService.getSettings().tagAliases,
                   manualTags:
                     storageService.getVideoById(existingVideo.id)?.tags ??
                     existingVideo.tags,

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, useNavigate } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { overlay } from '../../theme/colors';
@@ -30,6 +30,7 @@ const mockCleanupBackupDatabasesMutate = vi.fn();
 const mockRestoreFromLastBackupMutate = vi.fn();
 const mockRenameTagMutate = vi.fn();
 const mockUpdateTagsMutate = vi.fn();
+const mockUpdateTagAliasesMutate = vi.fn();
 
 const mockSetShowDeleteLegacyModal = vi.fn();
 const mockSetShowCleanupAuthorCollectionsModal = vi.fn();
@@ -149,7 +150,10 @@ vi.mock('../../hooks/useSettingsMutations', () => ({
     mergeDatabaseMutation: { isPending: false, mutate: (...args: any[]) => mockMergeDatabaseMutate(...args) },
     cleanupBackupDatabasesMutation: { isPending: false, mutate: (...args: any[]) => mockCleanupBackupDatabasesMutate(...args) },
     restoreFromLastBackupMutation: { isPending: false, mutate: (...args: any[]) => mockRestoreFromLastBackupMutate(...args) },
-    renameTagMutation: { isPending: false, mutate: (...args: any[]) => mockRenameTagMutate(...args) },
+    renameTagMutation: {
+      isPending: false,
+      mutateAsync: (...args: any[]) => mockRenameTagMutate(...args) ?? Promise.resolve(),
+    },
     updateTagsMutation: {
       isPending: false,
       mutate: (...args: any[]) => mockUpdateTagsMutate(...args),
@@ -158,6 +162,12 @@ vi.mock('../../hooks/useSettingsMutations', () => ({
         return Promise.resolve();
       },
     },
+    updateTagAliasesMutation: {
+      isPending: false,
+      mutateAsync: (...args: any[]) => mockUpdateTagAliasesMutate(...args) ?? Promise.resolve(),
+    },
+    getConfirmedTagAliases: () => mockSettingsData.tagAliases ?? {},
+    getConfirmedTags: () => mockSettingsData.tags,
     lastBackupInfo: null,
     isSaving: false,
   }),
@@ -301,9 +311,13 @@ vi.mock('../../components/Settings/YtDlpVersionSettings', () => ({
 }));
 
 vi.mock('../../components/Settings/TagsSettings', () => ({
-  default: ({ onTagsChange, onRenameTag, onTagConflict }: any) => (
+  default: ({ tags, onTagsChange, onRenameTag, onTagConflict, onTagAliasesChange, tagAliases }: any) => (
     <div data-testid="tags-settings">
+      <button onClick={() => onTagsChange([...tags, 'y'])}>tags-add-y</button>
+      <button onClick={() => onTagsChange(tags.filter((tag: string) => tag !== 'old'))}>tags-delete-old</button>
+      <span data-testid="tag-aliases">{JSON.stringify(tagAliases)}</span>
       <button onClick={() => onTagsChange(['a', 'b'])}>tags-change</button>
+      <button onClick={() => onTagAliasesChange({ song: 'music' })}>tag-aliases-change</button>
       <button onClick={() => onRenameTag('old', 'new')}>tags-rename-valid</button>
       <button onClick={() => onRenameTag('same', 'same')}>tags-rename-same</button>
       <button onClick={onTagConflict}>tags-conflict</button>
@@ -1189,7 +1203,7 @@ describe('SettingsPage', () => {
     expect(mockMergeDatabaseMutate).toHaveBeenCalled();
     expect(mockCleanupBackupDatabasesMutate).toHaveBeenCalled();
     expect(mockRestoreFromLastBackupMutate).toHaveBeenCalled();
-    expect(mockRenameTagMutate).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(mockRenameTagMutate).toHaveBeenCalledTimes(1));
     expect(mockSetShowCleanupTempFilesModal).toHaveBeenCalledWith(true);
   });
 
@@ -1203,6 +1217,141 @@ describe('SettingsPage', () => {
     await waitFor(() => {
       expect(mockUpdateTagsMutate).toHaveBeenCalledWith(['a', 'b']);
     });
+  });
+
+  it('persists tag alias changes immediately via updateTagAliasesMutation', async () => {
+    renderPage('/settings');
+
+    fireEvent.click(screen.getByText('tag-aliases-change'));
+
+    await waitFor(() => {
+      expect(mockUpdateTagAliasesMutate).toHaveBeenCalledWith({ before: {}, after: { song: 'music' } });
+    });
+  });
+
+  it('syncs tag aliases from a settings refetch, since a rename adds one', () => {
+    mockSettingsData = { tags: ['Live'], tagAliases: {} };
+    const { rerender } = renderPage('/settings');
+    expect(screen.getByTestId('tag-aliases')).toHaveTextContent('{}');
+
+    mockSettingsData = { tags: ['现场'], tagAliases: { live: '现场' } };
+    rerender(
+      <MemoryRouter initialEntries={['/settings']}>
+        <SettingsPage />
+      </MemoryRouter>
+    );
+
+    expect(screen.getByTestId('tag-aliases')).toHaveTextContent('{"live":"现场"}');
+  });
+
+  it('restores the confirmed aliases when an alias save fails', async () => {
+    mockUpdateTagAliasesMutate.mockImplementationOnce(() => Promise.reject(new Error('rejected')));
+    mockSettingsData = { tags: [], tagAliases: { tune: 'music' } };
+    renderPage('/settings');
+
+    fireEvent.click(screen.getByText('tag-aliases-change'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('tag-aliases')).toHaveTextContent('{"tune":"music"}');
+    });
+    expect(mockUpdateTagAliasesMutate).toHaveBeenCalledWith({
+      before: { tune: 'music' },
+      after: { song: 'music' },
+    });
+  });
+
+  it('applies a tag edit queued behind a rename to the renamed list', async () => {
+    let finishRename: () => void = () => undefined;
+    mockRenameTagMutate.mockImplementationOnce(
+      () => new Promise<void>((resolve) => { finishRename = resolve; })
+    );
+    mockSettingsData = { tags: ['old', 'x'], tagAliases: {} };
+    renderPage('/settings');
+
+    fireEvent.click(screen.getByText('tags-rename-valid'));
+    fireEvent.click(screen.getByText('tags-add-y'));
+    await waitFor(() => expect(mockRenameTagMutate).toHaveBeenCalled());
+    expect(mockUpdateTagsMutate).not.toHaveBeenCalled();
+
+    // The rename's refetch confirms the new name before the queued edit runs.
+    mockSettingsData = { tags: ['new', 'x'], tagAliases: { old: 'new' } };
+    await act(async () => {
+      finishRename();
+    });
+
+    await waitFor(() => expect(mockUpdateTagsMutate).toHaveBeenCalledWith(['new', 'x', 'y']));
+  });
+
+  it('carries a deletion of the old name over to a queued rename', async () => {
+    let finishRename: () => void = () => undefined;
+    mockRenameTagMutate.mockImplementationOnce(
+      () => new Promise<void>((resolve) => { finishRename = resolve; })
+    );
+    mockSettingsData = { tags: ['old', 'x'], tagAliases: {} };
+    renderPage('/settings');
+
+    fireEvent.click(screen.getByText('tags-rename-valid'));
+    fireEvent.click(screen.getByText('tags-delete-old'));
+    await waitFor(() => expect(mockRenameTagMutate).toHaveBeenCalled());
+
+    mockSettingsData = { tags: ['new', 'x'], tagAliases: { old: 'new' } };
+    await act(async () => {
+      finishRename();
+    });
+
+    await waitFor(() => expect(mockUpdateTagsMutate).toHaveBeenCalledWith(['x']));
+  });
+
+  it('runs a rename only after an alias save queued before it', async () => {
+    let finishSave: () => void = () => undefined;
+    mockUpdateTagAliasesMutate.mockImplementationOnce(
+      () => new Promise<void>((resolve) => { finishSave = resolve; })
+    );
+    renderPage('/settings');
+
+    fireEvent.click(screen.getByText('tag-aliases-change'));
+    fireEvent.click(screen.getByText('tags-rename-valid'));
+    await waitFor(() => expect(mockUpdateTagAliasesMutate).toHaveBeenCalled());
+    expect(mockRenameTagMutate).not.toHaveBeenCalled();
+
+    await act(async () => {
+      finishSave();
+    });
+    await waitFor(() => {
+      expect(mockRenameTagMutate).toHaveBeenCalledWith({ oldTag: 'old', newTag: 'new' });
+    });
+  });
+
+  it('keeps a newer local alias edit while an older alias save lands', async () => {
+    let finishSave: () => void = () => undefined;
+    mockUpdateTagAliasesMutate.mockImplementationOnce(
+      () => new Promise<void>((resolve) => { finishSave = resolve; })
+    );
+    mockSettingsData = { tags: [], tagAliases: {} };
+    // A fresh element each time, or React skips the re-render.
+    const page = () => (
+      <MemoryRouter initialEntries={['/settings']}>
+        <SettingsPage />
+      </MemoryRouter>
+    );
+    const { rerender } = render(page());
+
+    fireEvent.click(screen.getByText('tag-aliases-change'));
+    await waitFor(() => expect(mockUpdateTagAliasesMutate).toHaveBeenCalled());
+
+    // A cache update from an earlier save must not replace the pending edit.
+    mockSettingsData = { tags: [], tagAliases: {} };
+    rerender(page());
+    expect(screen.getByTestId('tag-aliases')).toHaveTextContent('{"song":"music"}');
+
+    await act(async () => {
+      finishSave();
+      // Let the save chain settle.
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    mockSettingsData = { tags: [], tagAliases: { song: 'music', tune: 'music' } };
+    rerender(page());
+    expect(screen.getByTestId('tag-aliases')).toHaveTextContent('{"song":"music","tune":"music"}');
   });
 
   it('handles sticky save button and confirmation modal confirm/close actions', async () => {
