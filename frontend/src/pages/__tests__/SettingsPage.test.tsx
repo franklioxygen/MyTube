@@ -1237,6 +1237,19 @@ describe('SettingsPage', () => {
     expect(screen.getByTestId('tag-aliases')).toHaveTextContent('{"live":"现场"}');
   });
 
+  it('restores the confirmed aliases when an alias save fails', async () => {
+    mockUpdateTagAliasesMutate.mockImplementationOnce(() => Promise.reject(new Error('rejected')));
+    mockSettingsData = { tags: [], tagAliases: { tune: 'music' } };
+    renderPage('/settings');
+
+    fireEvent.click(screen.getByText('tag-aliases-change'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('tag-aliases')).toHaveTextContent('{"tune":"music"}');
+    });
+    expect(mockUpdateTagAliasesMutate).toHaveBeenCalledWith({ song: 'music' });
+  });
+
   it('keeps a newer local alias edit while an older alias save lands', async () => {
     let finishSave: () => void = () => undefined;
     mockUpdateTagAliasesMutate.mockImplementationOnce(

@@ -429,7 +429,17 @@ const SettingsPage: React.FC = () => {
         tagSaveChain.current = tagSaveChain.current
             .catch(() => undefined)
             .then(() => updateTagAliasesMutation.mutateAsync(tagAliases))
-            .catch(() => undefined)
+            .catch(() => {
+                // The server kept its map, so a refetch returns the same
+                // object and the sync effect never runs. Restore the last
+                // confirmed map unless a newer save is still queued.
+                if (pendingAliasSaves.current === 1) {
+                    setSettings(prev => ({
+                        ...prev,
+                        tagAliases: lastSettingsData.current?.tagAliases ?? {},
+                    }));
+                }
+            })
             .finally(() => {
                 pendingAliasSaves.current -= 1;
             });
