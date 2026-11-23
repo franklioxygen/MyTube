@@ -145,6 +145,7 @@ export function rewriteAutoTagsForAliases(aliasKeys: readonly string[]): number 
       }
     });
     if (updatedVideosCount > 0) {
+      bumpVideosListRevision();
       logger.info(`Applied tag aliases to suggestions on ${updatedVideosCount} videos.`);
     }
     return updatedVideosCount;

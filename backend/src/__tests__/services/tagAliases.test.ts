@@ -25,6 +25,7 @@ vi.mock("../../utils/logger", () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
 
+import { bumpVideosListRevision } from "../../services/storageService/videoListRevision";
 import { renameTag, rewriteAutoTagsForAliases } from "../../services/tagService";
 
 let sqlite: Database.Database;
@@ -34,6 +35,7 @@ beforeEach(() => {
   sqlite.exec("CREATE TABLE videos (id TEXT PRIMARY KEY NOT NULL, tags TEXT, auto_tags TEXT)");
   state.db = drizzle(sqlite, { schema });
   state.settings = {};
+  vi.mocked(bumpVideosListRevision).mockClear();
 });
 afterEach(() => {
   sqlite.close();
@@ -93,9 +95,18 @@ describe("rewriteAutoTagsForAliases", () => {
     addVideo("none", null, null);
 
     expect(rewriteAutoTagsForAliases(["привет"])).toBe(1);
+    expect(bumpVideosListRevision).toHaveBeenCalledTimes(1);
 
     expect(autoTagsOf("cyrillic")).toEqual(["hello", "world"]);
     expect(autoTagsOf("other-alias")).toEqual(["song"]);
     expect(autoTagsOf("none")).toBeNull();
+  });
+
+  it("leaves the list revision alone when no suggestion changes", () => {
+    state.settings = { tagAliases: { song: "music" } };
+    addVideo("plain", null, ["live"]);
+
+    expect(rewriteAutoTagsForAliases(["song"])).toBe(0);
+    expect(bumpVideosListRevision).not.toHaveBeenCalled();
   });
 });
