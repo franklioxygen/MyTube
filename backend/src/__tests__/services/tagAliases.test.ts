@@ -77,6 +77,14 @@ describe("renameTag and tag aliases", () => {
     expect(state.settings.tagAliases).toEqual({ 音乐: "music" });
   });
 
+  it("registers an old name of __proto__ as an ordinary alias", () => {
+    state.settings = { tags: ["__proto__"], tagAliases: JSON.parse('{"__proto__":"x"}') };
+
+    renameTag("__proto__", "music");
+
+    expect(JSON.stringify(state.settings.tagAliases)).toBe('{"__proto__":"music"}');
+  });
+
   it("adds no alias for a case-only rename", () => {
     state.settings = { tags: ["music"] };
 

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, useNavigate } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { overlay } from '../../theme/colors';
@@ -161,10 +161,7 @@ vi.mock('../../hooks/useSettingsMutations', () => ({
     },
     updateTagAliasesMutation: {
       isPending: false,
-      mutateAsync: (...args: any[]) => {
-        mockUpdateTagAliasesMutate(...args);
-        return Promise.resolve();
-      },
+      mutateAsync: (...args: any[]) => mockUpdateTagAliasesMutate(...args) ?? Promise.resolve(),
     },
     lastBackupInfo: null,
     isSaving: false,
@@ -1238,6 +1235,38 @@ describe('SettingsPage', () => {
     );
 
     expect(screen.getByTestId('tag-aliases')).toHaveTextContent('{"live":"现场"}');
+  });
+
+  it('keeps a newer local alias edit while an older alias save lands', async () => {
+    let finishSave: () => void = () => undefined;
+    mockUpdateTagAliasesMutate.mockImplementationOnce(
+      () => new Promise<void>((resolve) => { finishSave = resolve; })
+    );
+    mockSettingsData = { tags: [], tagAliases: {} };
+    // A fresh element each time, or React skips the re-render.
+    const page = () => (
+      <MemoryRouter initialEntries={['/settings']}>
+        <SettingsPage />
+      </MemoryRouter>
+    );
+    const { rerender } = render(page());
+
+    fireEvent.click(screen.getByText('tag-aliases-change'));
+    await waitFor(() => expect(mockUpdateTagAliasesMutate).toHaveBeenCalled());
+
+    // A cache update from an earlier save must not replace the pending edit.
+    mockSettingsData = { tags: [], tagAliases: {} };
+    rerender(page());
+    expect(screen.getByTestId('tag-aliases')).toHaveTextContent('{"song":"music"}');
+
+    await act(async () => {
+      finishSave();
+      // Let the save chain settle.
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    mockSettingsData = { tags: [], tagAliases: { song: 'music', tune: 'music' } };
+    rerender(page());
+    expect(screen.getByTestId('tag-aliases')).toHaveTextContent('{"song":"music","tune":"music"}');
   });
 
   it('handles sticky save button and confirmation modal confirm/close actions', async () => {

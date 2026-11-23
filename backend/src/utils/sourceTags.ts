@@ -102,7 +102,8 @@ export function normalizeTagAliases(value: unknown): Record<string, string> {
     throw new Error(`At most ${MAX_TAG_ALIASES} tag aliases are allowed.`);
   }
 
-  const result: Record<string, string> = {};
+  // No prototype, so an alias like "__proto__" stays an ordinary key.
+  const result: Record<string, string> = Object.create(null);
   for (const [rawAlias, rawTarget] of entries) {
     const alias = tagAliasKey(rawAlias);
     const target = cleanTag(rawTarget);
@@ -112,7 +113,8 @@ export function normalizeTagAliases(value: unknown): Record<string, string> {
     if (alias.length > MAX_AUTO_TAG_LENGTH || target.length > MAX_AUTO_TAG_LENGTH) {
       throw new Error(`Tag aliases and their tags are limited to ${MAX_AUTO_TAG_LENGTH} characters.`);
     }
-    if (alias === target.toLowerCase()) {
+    // Compare in lookup form: normalizeSourceTags cleans the target again.
+    if (alias === tagAliasKey(target)) {
       throw new Error(`Tag alias "${alias}" cannot point to itself.`);
     }
     if (Object.prototype.hasOwnProperty.call(result, alias)) {
@@ -121,7 +123,7 @@ export function normalizeTagAliases(value: unknown): Record<string, string> {
     result[alias] = target;
   }
   for (const target of Object.values(result)) {
-    if (Object.prototype.hasOwnProperty.call(result, target.toLowerCase())) {
+    if (Object.prototype.hasOwnProperty.call(result, tagAliasKey(target))) {
       throw new Error(`"${target}" is itself an alias, so it cannot be an alias target.`);
     }
   }

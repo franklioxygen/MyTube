@@ -97,8 +97,18 @@ describe("normalizeTagAliases", () => {
     expect(() => normalizeTagAliases({ ["x".repeat(65)]: "music" })).toThrow();
   });
 
+  it("keeps an alias named __proto__ as an ordinary key", () => {
+    const aliases = normalizeTagAliases(JSON.parse('{"__proto__":"Music"}'));
+    expect(Object.keys(aliases)).toEqual(["__proto__"]);
+    expect(JSON.stringify(aliases)).toBe('{"__proto__":"Music"}');
+    expect(normalizeSourceTags(["__proto__"], { aliases })).toEqual(["Music"]);
+  });
+
   it("rejects self-maps, duplicate aliases and chains", () => {
     expect(() => normalizeTagAliases({ music: "Music" })).toThrow(/itself/);
+    // Targets are compared the way lookup cleans them.
+    expect(() => normalizeTagAliases({ song: "# #song" })).toThrow(/itself/);
+    expect(() => normalizeTagAliases({ song: "# #music", music: "音乐" })).toThrow(/itself an alias/);
     expect(() => normalizeTagAliases({ Song: "music", song: "audio" })).toThrow(/twice/);
     expect(() => normalizeTagAliases({ song: "music", music: "音乐" })).toThrow(/itself an alias/);
   });

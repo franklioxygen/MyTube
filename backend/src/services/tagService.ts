@@ -76,7 +76,8 @@ function aliasesAfterRename(
     return null;
   }
 
-  const aliases: Record<string, string> = {};
+  // No prototype, so an alias like "__proto__" stays an ordinary key.
+  const aliases: Record<string, string> = Object.create(null);
   if (current && typeof current === "object" && !Array.isArray(current)) {
     for (const [alias, target] of Object.entries(current)) {
       if (typeof target !== "string") continue;

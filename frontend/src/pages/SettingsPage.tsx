@@ -310,6 +310,9 @@ const SettingsPage: React.FC = () => {
     const lastSettingsData = useRef(settingsData);
     // Tail of the in-flight tag-save chain; keeps immediate tag PATCHes ordered.
     const tagSaveChain = useRef<Promise<unknown>>(Promise.resolve());
+    // Alias saves still queued or in flight. While any remain, the local
+    // aliases are newer than what the server has confirmed.
+    const pendingAliasSaves = useRef(0);
     useEffect(() => {
         if (!settingsData || lastSettingsData.current === settingsData) return;
         lastSettingsData.current = settingsData;
@@ -329,7 +332,9 @@ const SettingsPage: React.FC = () => {
         setSettings(prev => ({
             ...prev,
             tags: settingsData.tags || [],
-            tagAliases: settingsData.tagAliases ?? {},
+            ...(pendingAliasSaves.current === 0
+                ? { tagAliases: settingsData.tagAliases ?? {} }
+                : {}),
             isPasswordSet: settingsData.isPasswordSet,
             isVisitorPasswordSet: settingsData.isVisitorPasswordSet,
             deploymentSecurity: settingsData.deploymentSecurity,
@@ -419,11 +424,15 @@ const SettingsPage: React.FC = () => {
 
     const handleTagAliasesChange = (tagAliases: Record<string, string>) => {
         setSettings(prev => ({ ...prev, tagAliases }));
+        pendingAliasSaves.current += 1;
         // Same chain as tag saves, so the two never overwrite each other.
         tagSaveChain.current = tagSaveChain.current
             .catch(() => undefined)
             .then(() => updateTagAliasesMutation.mutateAsync(tagAliases))
-            .catch(() => undefined);
+            .catch(() => undefined)
+            .finally(() => {
+                pendingAliasSaves.current -= 1;
+            });
     };
 
     const handleRenameTag = (oldTag: string, newTag: string) => {
