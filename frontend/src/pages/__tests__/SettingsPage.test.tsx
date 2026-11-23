@@ -167,6 +167,7 @@ vi.mock('../../hooks/useSettingsMutations', () => ({
       mutateAsync: (...args: any[]) => mockUpdateTagAliasesMutate(...args) ?? Promise.resolve(),
     },
     getConfirmedTagAliases: () => mockSettingsData.tagAliases ?? {},
+    getConfirmedTags: () => mockSettingsData.tags,
     lastBackupInfo: null,
     isSaving: false,
   }),
@@ -310,8 +311,9 @@ vi.mock('../../components/Settings/YtDlpVersionSettings', () => ({
 }));
 
 vi.mock('../../components/Settings/TagsSettings', () => ({
-  default: ({ onTagsChange, onRenameTag, onTagConflict, onTagAliasesChange, tagAliases }: any) => (
+  default: ({ tags, onTagsChange, onRenameTag, onTagConflict, onTagAliasesChange, tagAliases }: any) => (
     <div data-testid="tags-settings">
+      <button onClick={() => onTagsChange([...tags, 'y'])}>tags-add-y</button>
       <span data-testid="tag-aliases">{JSON.stringify(tagAliases)}</span>
       <button onClick={() => onTagsChange(['a', 'b'])}>tags-change</button>
       <button onClick={() => onTagAliasesChange({ song: 'music' })}>tag-aliases-change</button>
@@ -1255,6 +1257,28 @@ describe('SettingsPage', () => {
       before: { tune: 'music' },
       after: { song: 'music' },
     });
+  });
+
+  it('applies a tag edit queued behind a rename to the renamed list', async () => {
+    let finishRename: () => void = () => undefined;
+    mockRenameTagMutate.mockImplementationOnce(
+      () => new Promise<void>((resolve) => { finishRename = resolve; })
+    );
+    mockSettingsData = { tags: ['old', 'x'], tagAliases: {} };
+    renderPage('/settings');
+
+    fireEvent.click(screen.getByText('tags-rename-valid'));
+    fireEvent.click(screen.getByText('tags-add-y'));
+    await waitFor(() => expect(mockRenameTagMutate).toHaveBeenCalled());
+    expect(mockUpdateTagsMutate).not.toHaveBeenCalled();
+
+    // The rename's refetch confirms the new name before the queued edit runs.
+    mockSettingsData = { tags: ['new', 'x'], tagAliases: { old: 'new' } };
+    await act(async () => {
+      finishRename();
+    });
+
+    await waitFor(() => expect(mockUpdateTagsMutate).toHaveBeenCalledWith(['new', 'x', 'y']));
   });
 
   it('runs a rename only after an alias save queued before it', async () => {

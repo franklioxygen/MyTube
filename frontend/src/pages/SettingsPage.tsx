@@ -65,6 +65,23 @@ import {
     isValidPlayerSeekSeconds,
 } from '../utils/playerSeekIntervals';
 
+/**
+ * Apply one Tags Management edit (`before` -> `after`) onto the latest
+ * confirmed catalog, so an edit queued behind a rename does not restore the
+ * old name or drop the new one.
+ */
+function rebaseTagEdit(confirmed: string[], before: string[], after: string[]): string[] {
+    const removed = new Set(before.filter(tag => !after.includes(tag)));
+    const result = confirmed.filter(tag => !removed.has(tag));
+    for (const tag of after) {
+        if (before.includes(tag)) continue;
+        if (!result.some(existing => existing.toLowerCase() === tag.toLowerCase())) {
+            result.push(tag);
+        }
+    }
+    return result;
+}
+
 function isAutoDeleteSettingValid(settings: Settings): boolean {
     if (!settings.autoDeleteEnabled) {
         return true;
@@ -360,6 +377,7 @@ const SettingsPage: React.FC = () => {
         updateTagsMutation,
         updateTagAliasesMutation,
         getConfirmedTagAliases,
+        getConfirmedTags,
         lastBackupInfo,
         isSaving
     } = mutations;
@@ -410,6 +428,7 @@ const SettingsPage: React.FC = () => {
     };
 
     const handleTagsChange = (newTags: string[]) => {
+        const before = Array.isArray(settings.tags) ? settings.tags : [];
         // Reflect the change locally for snappy UI, then persist immediately so
         // tags added/removed in Tags Management survive a reload without needing
         // the global Save button.
@@ -417,9 +436,15 @@ const SettingsPage: React.FC = () => {
         // Serialize saves: chaining each PATCH after the previous one prevents a
         // slow earlier request from settling after a newer one and persisting a
         // stale tag list (which the settings sync would then copy back into state).
+        // The edit is applied to the confirmed list at send time, because a
+        // rename earlier in the chain may have changed it.
         tagSaveChain.current = tagSaveChain.current
             .catch(() => undefined)
-            .then(() => updateTagsMutation.mutateAsync(newTags))
+            .then(() =>
+                updateTagsMutation.mutateAsync(
+                    rebaseTagEdit(getConfirmedTags() ?? before, before, newTags)
+                )
+            )
             .catch(() => undefined);
     };
 

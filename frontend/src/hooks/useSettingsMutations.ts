@@ -683,6 +683,12 @@ export function useSettingsMutations({
   });
 
   // Tag aliases (issue #546) save immediately, like the tag catalog above.
+  // Undefined until settings have loaded, so callers can fall back to their own list.
+  const getConfirmedTags = (): string[] | undefined => {
+    const tags = queryClient.getQueryData<Settings>(["settings"])?.tags;
+    return Array.isArray(tags) ? tags : undefined;
+  };
+
   const getConfirmedTagAliases = (): Record<string, string> =>
     queryClient.getQueryData<Settings>(["settings"])?.tagAliases ?? {};
 
@@ -765,6 +771,7 @@ export function useSettingsMutations({
     updateTagsMutation,
     updateTagAliasesMutation,
     getConfirmedTagAliases,
+    getConfirmedTags,
     lastBackupInfo,
     isSaving,
   };
