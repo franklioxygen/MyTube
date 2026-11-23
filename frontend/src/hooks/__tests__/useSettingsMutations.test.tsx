@@ -871,7 +871,10 @@ describe('useSettingsMutations', () => {
         const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
 
         await act(async () => {
-            await result.current.updateTagAliasesMutation.mutateAsync({ song: 'Music' });
+            await result.current.updateTagAliasesMutation.mutateAsync({
+                before: {},
+                after: { song: 'Music' },
+            });
         });
 
         expect(api.patch).toHaveBeenCalledWith('/settings', { tagAliases: { song: 'Music' } });
@@ -879,7 +882,45 @@ describe('useSettingsMutations', () => {
             tags: ['Music'],
             tagAliases: { song: 'Music' },
         });
+        expect(result.current.getConfirmedTagAliases()).toEqual({ song: 'Music' });
         expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['video'] });
+    });
+
+    it('applies an alias edit onto the confirmed map, keeping an alias a rename added', async () => {
+        const queryClient = createTestQueryClient();
+        // Confirmed after a rename the page has not synced yet.
+        queryClient.setQueryData(['settings'], {
+            tagAliases: { song: 'audio', tune: 'audio', music: 'audio' },
+        });
+        const { result } = renderSettingsHook({ queryClient });
+
+        await act(async () => {
+            await result.current.updateTagAliasesMutation.mutateAsync({
+                before: { song: 'music', tune: 'music' },
+                after: { song: 'music', beat: 'drums' },
+            });
+        });
+
+        // tune was removed and beat added; song is unchanged by this edit,
+        // so the rename's retarget to audio and its music alias stay.
+        expect(api.patch).toHaveBeenCalledWith('/settings', {
+            tagAliases: { song: 'audio', music: 'audio', beat: 'drums' },
+        });
+    });
+
+    it('never sends tag aliases from a general settings save', async () => {
+        const queryClient = createTestQueryClient();
+        queryClient.setQueryData(['settings'], makeSettings({ language: 'en', tagAliases: {} }));
+        const { result } = renderSettingsHook({ queryClient });
+
+        await act(async () => {
+            await result.current.saveMutation.mutateAsync(
+                makeSettings({ language: 'fr', tagAliases: { song: 'music' } })
+            );
+        });
+
+        expect(api.patch).toHaveBeenCalledWith('/settings', { language: 'fr' });
+        expect(queryClient.getQueryData<Settings>(['settings'])?.tagAliases).toEqual({});
     });
 
     it('reports the shared fallback message when rename errors do not contain a usable API message', async () => {

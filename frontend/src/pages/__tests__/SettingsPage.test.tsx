@@ -166,6 +166,7 @@ vi.mock('../../hooks/useSettingsMutations', () => ({
       isPending: false,
       mutateAsync: (...args: any[]) => mockUpdateTagAliasesMutate(...args) ?? Promise.resolve(),
     },
+    getConfirmedTagAliases: () => mockSettingsData.tagAliases ?? {},
     lastBackupInfo: null,
     isSaving: false,
   }),
@@ -849,16 +850,6 @@ describe('SettingsPage', () => {
     expect(screen.getAllByRole('button', { name: 'save' })[0]).toBeDisabled();
   });
 
-  it('leaves tag aliases out of the global settings save', () => {
-    mockSettingsData = { tags: [], tagAliases: { song: 'music' } };
-    renderPage('/settings');
-
-    fireEvent.click(screen.getAllByRole('button', { name: 'save' })[0]);
-
-    expect(mockSaveMutate).toHaveBeenCalledTimes(1);
-    expect(mockSaveMutate.mock.calls[0][0]).not.toHaveProperty('tagAliases');
-  });
-
   it('includes changed seek intervals in the settings save payload', () => {
     renderPage('/settings');
 
@@ -1231,7 +1222,7 @@ describe('SettingsPage', () => {
     fireEvent.click(screen.getByText('tag-aliases-change'));
 
     await waitFor(() => {
-      expect(mockUpdateTagAliasesMutate).toHaveBeenCalledWith({ song: 'music' });
+      expect(mockUpdateTagAliasesMutate).toHaveBeenCalledWith({ before: {}, after: { song: 'music' } });
     });
   });
 
@@ -1260,7 +1251,10 @@ describe('SettingsPage', () => {
     await waitFor(() => {
       expect(screen.getByTestId('tag-aliases')).toHaveTextContent('{"tune":"music"}');
     });
-    expect(mockUpdateTagAliasesMutate).toHaveBeenCalledWith({ song: 'music' });
+    expect(mockUpdateTagAliasesMutate).toHaveBeenCalledWith({
+      before: { tune: 'music' },
+      after: { song: 'music' },
+    });
   });
 
   it('runs a rename only after an alias save queued before it', async () => {

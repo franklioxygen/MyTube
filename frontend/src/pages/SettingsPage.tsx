@@ -359,6 +359,7 @@ const SettingsPage: React.FC = () => {
         renameTagMutation,
         updateTagsMutation,
         updateTagAliasesMutation,
+        getConfirmedTagAliases,
         lastBackupInfo,
         isSaving
     } = mutations;
@@ -391,9 +392,6 @@ const SettingsPage: React.FC = () => {
         // - include "" only for an explicit clear-key action
         const settingsToSave: Settings = { ...settings };
         delete settingsToSave.liveTranslationApiKey;
-        // Aliases persist through the serialized tag save chain; sending them
-        // here could let this unserialized PATCH overwrite a newer alias save.
-        delete settingsToSave.tagAliases;
         const apiKeyDraft = liveTranslationApiKeyDraft.trim();
         if (clearLiveTranslationApiKeyRequested) {
             settingsToSave.liveTranslationApiKey = '';
@@ -426,25 +424,23 @@ const SettingsPage: React.FC = () => {
     };
 
     const handleTagAliasesChange = (tagAliases: Record<string, string>) => {
+        const before = settings.tagAliases ?? {};
         setSettings(prev => ({ ...prev, tagAliases }));
         pendingAliasSaves.current += 1;
-        // Same chain as tag saves, so the two never overwrite each other.
+        // Same chain as tag saves and renames, so none overwrites another.
         tagSaveChain.current = tagSaveChain.current
             .catch(() => undefined)
-            .then(() => updateTagAliasesMutation.mutateAsync(tagAliases))
-            .catch(() => {
-                // The server kept its map, so a refetch returns the same
-                // object and the sync effect never runs. Restore the last
-                // confirmed map unless a newer save is still queued.
-                if (pendingAliasSaves.current === 1) {
-                    setSettings(prev => ({
-                        ...prev,
-                        tagAliases: lastSettingsData.current?.tagAliases ?? {},
-                    }));
-                }
-            })
+            .then(() => updateTagAliasesMutation.mutateAsync({ before, after: tagAliases }))
+            .catch(() => undefined)
             .finally(() => {
                 pendingAliasSaves.current -= 1;
+                // Once no alias save is left, show what the server confirmed:
+                // it may hold an alias a rename added, or have rejected this
+                // edit (a refetch then returns the same object, so the sync
+                // effect would not run).
+                if (pendingAliasSaves.current === 0) {
+                    setSettings(prev => ({ ...prev, tagAliases: getConfirmedTagAliases() }));
+                }
             });
     };
 

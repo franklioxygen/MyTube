@@ -168,7 +168,11 @@ export function useSettingsMutations({
 
   // Save settings mutation
   const saveMutation = useMutation({
-    mutationFn: async (newSettings: Settings): Promise<SaveSettingsMutationResult> => {
+    mutationFn: async (draft: Settings): Promise<SaveSettingsMutationResult> => {
+      // Aliases persist only through updateTagAliasesMutation, which the
+      // settings page serializes; a general save (Save, Scan Files) sending
+      // a draft map could overwrite a newer alias save.
+      const { tagAliases: _draftAliases, ...newSettings } = draft;
       let currentSettings = queryClient.getQueryData<Settings>(["settings"]);
       if (!currentSettings) {
         const latestSettings = await api.get("/settings");
@@ -204,8 +208,11 @@ export function useSettingsMutations({
       // key-free payload.
       const { liveTranslationApiKey: _changedApiKey, ...changedSettings } =
         result.patchPayload;
-      const { liveTranslationApiKey: _submittedApiKey, ...safeNewSettings } =
-        newSettings;
+      const {
+        liveTranslationApiKey: _submittedApiKey,
+        tagAliases: _submittedAliases,
+        ...safeNewSettings
+      } = newSettings;
       // Update settings cache immediately so Header and other consumers react without waiting for refetch
       queryClient.setQueryData(["settings"], (old: Settings | undefined) =>
         old ? { ...old, ...changedSettings } : ({ ...safeNewSettings } as Settings)
@@ -623,15 +630,17 @@ export function useSettingsMutations({
       await api.post("/settings/tags/rename", { oldTag, newTag });
       return { oldTag, newTag };
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       setMessage({
         text: t("tagRenamedSuccess") || "Tag renamed successfully",
         type: "success",
       });
-      void queryClient.invalidateQueries({ queryKey: ["settings"] });
       void queryClient.invalidateQueries({ queryKey: ["videos"] });
       // The rename also folds stored source tag suggestions (video detail).
       void queryClient.invalidateQueries({ queryKey: ["video"] });
+      // Awaited: the rename registers an alias, and an alias save queued
+      // after it rebases on this refetched map.
+      await queryClient.invalidateQueries({ queryKey: ["settings"] });
     },
     onError: async (error: unknown) => {
       const apiMsg = await getApiErrorMessage(error, t);
@@ -674,8 +683,27 @@ export function useSettingsMutations({
   });
 
   // Tag aliases (issue #546) save immediately, like the tag catalog above.
+  const getConfirmedTagAliases = (): Record<string, string> =>
+    queryClient.getQueryData<Settings>(["settings"])?.tagAliases ?? {};
+
   const updateTagAliasesMutation = useMutation({
-    mutationFn: async (tagAliases: Record<string, string>) => {
+    // `before` and `after` are the page's maps around one edit. Only that
+    // edit is applied, onto the latest confirmed map, so an alias that a
+    // rename registered meanwhile is kept.
+    mutationFn: async ({
+      before,
+      after,
+    }: {
+      before: Record<string, string>;
+      after: Record<string, string>;
+    }) => {
+      const tagAliases = { ...getConfirmedTagAliases() };
+      for (const key of Object.keys(before)) {
+        if (!(key in after)) delete tagAliases[key];
+      }
+      for (const [key, value] of Object.entries(after)) {
+        if (before[key] !== value) tagAliases[key] = value;
+      }
       const response = await api.patch("/settings", { tagAliases });
       // The server returns the map in stored form (lowercased aliases).
       return (response.data?.settings?.tagAliases ?? tagAliases) as Record<string, string>;
@@ -729,6 +757,7 @@ export function useSettingsMutations({
     renameTagMutation,
     updateTagsMutation,
     updateTagAliasesMutation,
+    getConfirmedTagAliases,
     lastBackupInfo,
     isSaving,
   };
