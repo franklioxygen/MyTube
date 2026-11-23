@@ -769,6 +769,7 @@ export async function downloadVideo(
   if (autoTagsEnabled) {
     const autoTags = normalizeSourceTags(rawSourceInfo?.tags, {
       catalog: settings.tags,
+      aliases: settings.tagAliases,
     });
     if (autoTags.length > 0) videoData.autoTags = autoTags;
   }
@@ -912,6 +913,7 @@ export async function downloadVideo(
         ? {
             autoTags: normalizeSourceTags(rawSourceInfo?.tags, {
               catalog: settings.tags,
+              aliases: settings.tagAliases,
               // Re-read: the user may have promoted a suggestion
               // while this download ran.
               manualTags:

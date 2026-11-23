@@ -476,7 +476,10 @@ export async function downloadSinglePart(
     // Source tags are stored as suggestions only when the user opted in (#546).
     const autoTagsEnabled = settings.autoTagsFromSource === true;
     if (autoTagsEnabled) {
-      const autoTags = normalizeSourceTags(sourceTags, { catalog: settings.tags });
+      const autoTags = normalizeSourceTags(sourceTags, {
+        catalog: settings.tags,
+        aliases: settings.tagAliases,
+      });
       if (autoTags.length > 0) videoData.autoTags = autoTags;
     }
 
@@ -562,6 +565,7 @@ export async function downloadSinglePart(
             ? {
                 autoTags: normalizeSourceTags(sourceTags, {
                   catalog: settings.tags,
+                  aliases: settings.tagAliases,
                   // Re-read: the user may have promoted a suggestion
                   // while this download ran.
                   manualTags:

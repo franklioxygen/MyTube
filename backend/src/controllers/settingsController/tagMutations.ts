@@ -65,3 +65,27 @@ export const processTagChanges = (
 
   applyTagMutations(renamedPairs, deletedTags);
 };
+
+/**
+ * Apply added or retargeted tag aliases to suggestions that are already
+ * stored (issue #546). Removing an alias leaves stored suggestions alone.
+ */
+export const processTagAliasChanges = (
+  existingSettings: Settings,
+  settingsToPersist: Partial<Settings>
+): void => {
+  if (!hasOwnSetting(settingsToPersist, "tagAliases")) return;
+
+  const before = existingSettings.tagAliases ?? {};
+  const after = settingsToPersist.tagAliases ?? {};
+  const changedKeys = Object.keys(after).filter((key) => before[key] !== after[key]);
+  if (changedKeys.length === 0) return;
+
+  import("../../services/tagService")
+    .then(({ rewriteAutoTagsForAliases }) => {
+      rewriteAutoTagsForAliases(changedKeys);
+    })
+    .catch((err) => {
+      logger.error("Error applying tag aliases:", err);
+    });
+};

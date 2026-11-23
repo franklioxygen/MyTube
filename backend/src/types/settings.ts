@@ -132,6 +132,9 @@ export interface Settings {
   // Store yt-dlp source tags as per-video suggestions (videos.auto_tags,
   // issue #546). Off by default; never feeds settings.tags.
   autoTagsFromSource?: boolean;
+  // Lowercase alias → canonical tag, applied to source tags before they are
+  // stored as suggestions (issue #546 phase two).
+  tagAliases?: Record<string, string>;
   playFromBeginning?: boolean;
   theme?: 'light' | 'dark' | 'system';
   showThemeButton?: boolean;

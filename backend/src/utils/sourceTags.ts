@@ -5,12 +5,15 @@
 
 export const MAX_AUTO_TAGS = 20;
 export const MAX_AUTO_TAG_LENGTH = 64;
+export const MAX_TAG_ALIASES = 500;
 
 export interface NormalizeSourceTagsOptions {
   /** Global user tag catalog (settings.tags); matches reuse its spelling. */
   catalog?: readonly unknown[];
   /** The video's own user tags; these never repeat as suggestions. */
   manualTags?: readonly unknown[];
+  /** settings.tagAliases: lowercase alias → canonical tag. */
+  aliases?: Readonly<Record<string, unknown>>;
 }
 
 const cleanTag = (value: unknown): string => {
@@ -18,17 +21,29 @@ const cleanTag = (value: unknown): string => {
   return value.trim().replace(/^#+/, "").replace(/\s+/g, " ").trim();
 };
 
+/** The settings.tagAliases key a tag is looked up by. */
+export const tagAliasKey = (value: unknown): string => cleanTag(value).toLowerCase();
+
 /**
  * Turn a raw source tag list into at most MAX_AUTO_TAGS display-ready
- * suggestions: trimmed, without leading `#`, unique ignoring case, spelled
+ * suggestions: trimmed, without leading `#`, mapped through the user's tag
+ * aliases, unique ignoring case, spelled
  * like the catalog when it already has the tag, and without any tag the video
  * already carries.
  */
 export function normalizeSourceTags(
   raw: unknown,
-  { catalog = [], manualTags = [] }: NormalizeSourceTagsOptions = {}
+  { catalog = [], manualTags = [], aliases = {} }: NormalizeSourceTagsOptions = {}
 ): string[] {
   if (!Array.isArray(raw)) return [];
+
+  const aliasMap = new Map<string, string>();
+  for (const [alias, target] of Object.entries(aliases)) {
+    const canonical = cleanTag(target);
+    if (canonical && canonical.length <= MAX_AUTO_TAG_LENGTH) {
+      aliasMap.set(tagAliasKey(alias), canonical);
+    }
+  }
 
   const canonical = new Map<string, string>();
   for (const tag of catalog) {
@@ -43,8 +58,9 @@ export function normalizeSourceTags(
 
   const result: string[] = [];
   for (const value of raw) {
-    const tag = cleanTag(value);
-    if (!tag || tag.length > MAX_AUTO_TAG_LENGTH) continue;
+    const cleaned = cleanTag(value);
+    if (!cleaned || cleaned.length > MAX_AUTO_TAG_LENGTH) continue;
+    const tag = aliasMap.get(tagAliasKey(cleaned)) ?? cleaned;
     const key = tag.toLowerCase();
     if (seen.has(key)) continue;
     seen.add(key);
@@ -69,4 +85,45 @@ export function isValidAutoTagList(value: unknown): value is string[] {
         tag.length <= MAX_AUTO_TAG_LENGTH
     )
   );
+}
+
+/**
+ * Validate a client-submitted tag alias map and return it in stored form:
+ * keys cleaned like source tags and lowercased, values cleaned. Throws with a
+ * user-facing message when the map is malformed, too large, maps a tag to
+ * itself, or chains (a canonical name that is itself an alias).
+ */
+export function normalizeTagAliases(value: unknown): Record<string, string> {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new Error("Tag aliases must be an object.");
+  }
+  const entries = Object.entries(value);
+  if (entries.length > MAX_TAG_ALIASES) {
+    throw new Error(`At most ${MAX_TAG_ALIASES} tag aliases are allowed.`);
+  }
+
+  const result: Record<string, string> = {};
+  for (const [rawAlias, rawTarget] of entries) {
+    const alias = tagAliasKey(rawAlias);
+    const target = cleanTag(rawTarget);
+    if (!alias || !target) {
+      throw new Error("Tag aliases and their tags cannot be empty.");
+    }
+    if (alias.length > MAX_AUTO_TAG_LENGTH || target.length > MAX_AUTO_TAG_LENGTH) {
+      throw new Error(`Tag aliases and their tags are limited to ${MAX_AUTO_TAG_LENGTH} characters.`);
+    }
+    if (alias === target.toLowerCase()) {
+      throw new Error(`Tag alias "${alias}" cannot point to itself.`);
+    }
+    if (Object.prototype.hasOwnProperty.call(result, alias)) {
+      throw new Error(`Tag alias "${alias}" is listed twice.`);
+    }
+    result[alias] = target;
+  }
+  for (const target of Object.values(result)) {
+    if (Object.prototype.hasOwnProperty.call(result, target.toLowerCase())) {
+      throw new Error(`"${target}" is itself an alias, so it cannot be an alias target.`);
+    }
+  }
+  return result;
 }

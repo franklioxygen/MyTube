@@ -11,7 +11,7 @@ UPDATE_KEY_LIST=1 npx vitest run src/utils/locales/__tests__/localeParity.test.t
 
 This list is intentionally unnumbered. When new keys are inserted, only the local section order changes.
 
-Total keys: 1587
+Total keys: 1593
 
 ## Summary
 
@@ -22,7 +22,7 @@ Total keys: 1587
 | Header | 11 | `myTube` | `instruction` |
 | Home | 30 | `pasteUrl` | `views` |
 | Settings | 4 | `general` | `downloadSettings` |
-| Settings Categories | 251 | `interfaceDisplay` | `autoTagSourceHint` |
+| Settings Categories | 257 | `interfaceDisplay` | `autoTagSourceHint` |
 | Database | 38 | `database` | `cleanupTempFilesConfirmMessage` |
 | Task Hooks | 101 | `taskHooks` | `cleanupTempFilesFailed` |
 | Cookie Settings | 13 | `cookieSettings` | `youtubeCookiesMayHaveExpired` |
@@ -448,6 +448,12 @@ Total keys: 1587
 | `enterNewTagName` |
 | `autoTagsFromSource` |
 | `autoTagsFromSourceDescription` |
+| `tagAliases` |
+| `tagAliasesDescription` |
+| `tagAlias` |
+| `tagAliasTarget` |
+| `noTagAliases` |
+| `tagAliasInvalid` |
 | `autoTagPromoteHint` |
 | `autoTagSourceHint` |
 

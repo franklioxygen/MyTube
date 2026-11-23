@@ -30,6 +30,7 @@ const mockCleanupBackupDatabasesMutate = vi.fn();
 const mockRestoreFromLastBackupMutate = vi.fn();
 const mockRenameTagMutate = vi.fn();
 const mockUpdateTagsMutate = vi.fn();
+const mockUpdateTagAliasesMutate = vi.fn();
 
 const mockSetShowDeleteLegacyModal = vi.fn();
 const mockSetShowCleanupAuthorCollectionsModal = vi.fn();
@@ -155,6 +156,13 @@ vi.mock('../../hooks/useSettingsMutations', () => ({
       mutate: (...args: any[]) => mockUpdateTagsMutate(...args),
       mutateAsync: (...args: any[]) => {
         mockUpdateTagsMutate(...args);
+        return Promise.resolve();
+      },
+    },
+    updateTagAliasesMutation: {
+      isPending: false,
+      mutateAsync: (...args: any[]) => {
+        mockUpdateTagAliasesMutate(...args);
         return Promise.resolve();
       },
     },
@@ -301,9 +309,11 @@ vi.mock('../../components/Settings/YtDlpVersionSettings', () => ({
 }));
 
 vi.mock('../../components/Settings/TagsSettings', () => ({
-  default: ({ onTagsChange, onRenameTag, onTagConflict }: any) => (
+  default: ({ onTagsChange, onRenameTag, onTagConflict, onTagAliasesChange, tagAliases }: any) => (
     <div data-testid="tags-settings">
+      <span data-testid="tag-aliases">{JSON.stringify(tagAliases)}</span>
       <button onClick={() => onTagsChange(['a', 'b'])}>tags-change</button>
+      <button onClick={() => onTagAliasesChange({ song: 'music' })}>tag-aliases-change</button>
       <button onClick={() => onRenameTag('old', 'new')}>tags-rename-valid</button>
       <button onClick={() => onRenameTag('same', 'same')}>tags-rename-same</button>
       <button onClick={onTagConflict}>tags-conflict</button>
@@ -1203,6 +1213,31 @@ describe('SettingsPage', () => {
     await waitFor(() => {
       expect(mockUpdateTagsMutate).toHaveBeenCalledWith(['a', 'b']);
     });
+  });
+
+  it('persists tag alias changes immediately via updateTagAliasesMutation', async () => {
+    renderPage('/settings');
+
+    fireEvent.click(screen.getByText('tag-aliases-change'));
+
+    await waitFor(() => {
+      expect(mockUpdateTagAliasesMutate).toHaveBeenCalledWith({ song: 'music' });
+    });
+  });
+
+  it('syncs tag aliases from a settings refetch, since a rename adds one', () => {
+    mockSettingsData = { tags: ['Live'], tagAliases: {} };
+    const { rerender } = renderPage('/settings');
+    expect(screen.getByTestId('tag-aliases')).toHaveTextContent('{}');
+
+    mockSettingsData = { tags: ['现场'], tagAliases: { live: '现场' } };
+    rerender(
+      <MemoryRouter initialEntries={['/settings']}>
+        <SettingsPage />
+      </MemoryRouter>
+    );
+
+    expect(screen.getByTestId('tag-aliases')).toHaveTextContent('{"live":"现场"}');
   });
 
   it('handles sticky save button and confirmation modal confirm/close actions', async () => {

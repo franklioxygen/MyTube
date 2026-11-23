@@ -13,6 +13,7 @@ import {
   MAX_AUTO_DELETE_INTERVAL_DAYS,
 } from "../types/settings";
 import { logger } from "../utils/logger";
+import { normalizeTagAliases } from "../utils/sourceTags";
 import * as storageService from "./storageService";
 import {
   getTwitchCredentialValidationCode,
@@ -106,6 +107,16 @@ export function validateSettings(newSettings: Partial<Settings>): void {
 
   if (newSettings.autoTagsFromSource !== undefined && typeof newSettings.autoTagsFromSource !== "boolean") {
     throw new ValidationError("Auto tags from source flag must be a boolean.", "autoTagsFromSource");
+  }
+  if (newSettings.tagAliases !== undefined) {
+    try {
+      newSettings.tagAliases = normalizeTagAliases(newSettings.tagAliases);
+    } catch (error) {
+      throw new ValidationError(
+        error instanceof Error ? error.message : "Invalid tag aliases.",
+        "tagAliases"
+      );
+    }
   }
   if (newSettings.downloadBilibiliDanmaku !== undefined && typeof newSettings.downloadBilibiliDanmaku !== "boolean") {
     throw new ValidationError("Bilibili danmaku download flag must be a boolean.", "downloadBilibiliDanmaku");

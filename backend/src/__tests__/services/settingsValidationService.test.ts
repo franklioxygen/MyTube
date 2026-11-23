@@ -30,6 +30,18 @@ describe("settingsValidationService", () => {
       }).toThrow(ValidationError);
     });
 
+    it("stores tag aliases in normalized form and rejects chains", () => {
+      const settings: any = { tagAliases: { " Song ": "Music" } };
+      settingsValidationService.validateSettings(settings);
+      expect(settings.tagAliases).toEqual({ song: "Music" });
+
+      expect(() =>
+        settingsValidationService.validateSettings({
+          tagAliases: { song: "music", music: "音乐" },
+        })
+      ).toThrow(ValidationError);
+    });
+
     it("should allow tags that differ only by case when not both present", () => {
       expect(() => {
         settingsValidationService.validateSettings({ tags: ["aaa"] });

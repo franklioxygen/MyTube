@@ -671,10 +671,34 @@ export function useSettingsMutations({
     },
   });
 
+  // Tag aliases (issue #546) save immediately, like the tag catalog above.
+  const updateTagAliasesMutation = useMutation({
+    mutationFn: async (tagAliases: Record<string, string>) => {
+      const response = await api.patch("/settings", { tagAliases });
+      // The server returns the map in stored form (lowercased aliases).
+      return (response.data?.settings?.tagAliases ?? tagAliases) as Record<string, string>;
+    },
+    onSuccess: (tagAliases) => {
+      setMessage({ text: t("settingsSaved"), type: "success" });
+      queryClient.setQueryData(["settings"], (old: Settings | undefined) =>
+        old ? { ...old, tagAliases } : old
+      );
+    },
+    onError: async (error: unknown) => {
+      const apiMsg = await getApiErrorMessage(error, t);
+      setMessage({
+        text: typeof apiMsg === "string" && apiMsg ? apiMsg : t("settingsFailed"),
+        type: "error",
+      });
+      void queryClient.invalidateQueries({ queryKey: ["settings"] });
+    },
+  });
+
   // Computed isSaving state
   const isSaving =
     saveMutation.isPending ||
     updateTagsMutation.isPending ||
+    updateTagAliasesMutation.isPending ||
     migrateMutation.isPending ||
     cleanupMutation.isPending ||
     cleanupAuthorCollectionsMutation.isPending ||
@@ -699,6 +723,7 @@ export function useSettingsMutations({
     restoreFromLastBackupMutation,
     renameTagMutation,
     updateTagsMutation,
+    updateTagAliasesMutation,
     lastBackupInfo,
     isSaving,
   };

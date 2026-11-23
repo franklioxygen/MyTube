@@ -324,11 +324,12 @@ const SettingsPage: React.FC = () => {
         // After hydration the form is user-owned, so we must not clobber unsaved
         // edits. But the server is authoritative for response-only/derived fields
         // (which aren't editable drafts) and for the immediately-persisted tag
-        // list, so sync just those from each refetch and leave everything else as
-        // the user left it.
+        // list and aliases (a rename adds one), so sync just those from each
+        // refetch and leave everything else as the user left it.
         setSettings(prev => ({
             ...prev,
             tags: settingsData.tags || [],
+            tagAliases: settingsData.tagAliases ?? {},
             isPasswordSet: settingsData.isPasswordSet,
             isVisitorPasswordSet: settingsData.isVisitorPasswordSet,
             deploymentSecurity: settingsData.deploymentSecurity,
@@ -352,6 +353,7 @@ const SettingsPage: React.FC = () => {
         restoreFromLastBackupMutation,
         renameTagMutation,
         updateTagsMutation,
+        updateTagAliasesMutation,
         lastBackupInfo,
         isSaving
     } = mutations;
@@ -412,6 +414,15 @@ const SettingsPage: React.FC = () => {
         tagSaveChain.current = tagSaveChain.current
             .catch(() => undefined)
             .then(() => updateTagsMutation.mutateAsync(newTags))
+            .catch(() => undefined);
+    };
+
+    const handleTagAliasesChange = (tagAliases: Record<string, string>) => {
+        setSettings(prev => ({ ...prev, tagAliases }));
+        // Same chain as tag saves, so the two never overwrite each other.
+        tagSaveChain.current = tagSaveChain.current
+            .catch(() => undefined)
+            .then(() => updateTagAliasesMutation.mutateAsync(tagAliases))
             .catch(() => undefined);
     };
 
@@ -586,6 +597,9 @@ const SettingsPage: React.FC = () => {
                 isRenaming={renameTagMutation.isPending}
                 autoTagsFromSource={settings.autoTagsFromSource === true}
                 onAutoTagsFromSourceChange={(enabled) => handleChange('autoTagsFromSource', enabled)}
+                tagAliases={settings.tagAliases ?? {}}
+                onTagAliasesChange={handleTagAliasesChange}
+                onTagAliasInvalid={() => setMessage({ text: t('tagAliasInvalid'), type: 'error' })}
             />
             <DatabaseSettings
                 onMigrate={() => setShowMigrateConfirmModal(true)}
