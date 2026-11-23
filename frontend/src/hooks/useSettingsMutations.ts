@@ -697,12 +697,19 @@ export function useSettingsMutations({
       before: Record<string, string>;
       after: Record<string, string>;
     }) => {
-      const tagAliases = { ...getConfirmedTagAliases() };
+      // Prototype-free with own-property checks, so aliases named like
+      // Object members ("__proto__", "constructor") add and delete normally.
+      const has = (map: Record<string, string>, key: string) =>
+        Object.prototype.hasOwnProperty.call(map, key);
+      const tagAliases: Record<string, string> = Object.assign(
+        Object.create(null),
+        getConfirmedTagAliases()
+      );
       for (const key of Object.keys(before)) {
-        if (!(key in after)) delete tagAliases[key];
+        if (!has(after, key)) delete tagAliases[key];
       }
       for (const [key, value] of Object.entries(after)) {
-        if (before[key] !== value) tagAliases[key] = value;
+        if (!has(before, key) || before[key] !== value) tagAliases[key] = value;
       }
       const response = await api.patch("/settings", { tagAliases });
       // The server returns the map in stored form (lowercased aliases).

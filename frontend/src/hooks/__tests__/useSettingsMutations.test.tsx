@@ -908,6 +908,22 @@ describe('useSettingsMutations', () => {
         });
     });
 
+    it('adds and deletes aliases named like Object members', async () => {
+        const queryClient = createTestQueryClient();
+        queryClient.setQueryData(['settings'], { tagAliases: { constructor: 'build' } });
+        const { result } = renderSettingsHook({ queryClient });
+
+        await act(async () => {
+            await result.current.updateTagAliasesMutation.mutateAsync({
+                before: { constructor: 'build' },
+                after: JSON.parse('{"__proto__":"meta"}'),
+            });
+        });
+
+        const sent = vi.mocked(api.patch).mock.calls.at(-1)?.[1] as { tagAliases: object };
+        expect(JSON.stringify(sent.tagAliases)).toBe('{"__proto__":"meta"}');
+    });
+
     it('never sends tag aliases from a general settings save', async () => {
         const queryClient = createTestQueryClient();
         queryClient.setQueryData(['settings'], makeSettings({ language: 'en', tagAliases: {} }));
