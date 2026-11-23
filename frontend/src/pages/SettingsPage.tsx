@@ -64,23 +64,7 @@ import {
     arePlayerSeekIntervalsOrdered,
     isValidPlayerSeekSeconds,
 } from '../utils/playerSeekIntervals';
-
-/**
- * Apply one Tags Management edit (`before` -> `after`) onto the latest
- * confirmed catalog, so an edit queued behind a rename does not restore the
- * old name or drop the new one.
- */
-function rebaseTagEdit(confirmed: string[], before: string[], after: string[]): string[] {
-    const removed = new Set(before.filter(tag => !after.includes(tag)));
-    const result = confirmed.filter(tag => !removed.has(tag));
-    for (const tag of after) {
-        if (before.includes(tag)) continue;
-        if (!result.some(existing => existing.toLowerCase() === tag.toLowerCase())) {
-            result.push(tag);
-        }
-    }
-    return result;
-}
+import { rebaseTagEdit } from '../utils/tagEditRebase';
 
 function isAutoDeleteSettingValid(settings: Settings): boolean {
     if (!settings.autoDeleteEnabled) {
@@ -330,6 +314,8 @@ const SettingsPage: React.FC = () => {
     // Alias saves still queued or in flight. While any remain, the local
     // aliases are newer than what the server has confirmed.
     const pendingAliasSaves = useRef(0);
+    // Renames requested on this page, in order, for rebasing tag edits.
+    const requestedRenames = useRef<Array<readonly [string, string]>>([]);
     useEffect(() => {
         if (!settingsData || lastSettingsData.current === settingsData) return;
         lastSettingsData.current = settingsData;
@@ -429,6 +415,7 @@ const SettingsPage: React.FC = () => {
 
     const handleTagsChange = (newTags: string[]) => {
         const before = Array.isArray(settings.tags) ? settings.tags : [];
+        const renames = [...requestedRenames.current];
         // Reflect the change locally for snappy UI, then persist immediately so
         // tags added/removed in Tags Management survive a reload without needing
         // the global Save button.
@@ -442,7 +429,7 @@ const SettingsPage: React.FC = () => {
             .catch(() => undefined)
             .then(() =>
                 updateTagsMutation.mutateAsync(
-                    rebaseTagEdit(getConfirmedTags() ?? before, before, newTags)
+                    rebaseTagEdit(getConfirmedTags() ?? before, before, newTags, renames)
                 )
             )
             .catch(() => undefined);
@@ -471,6 +458,7 @@ const SettingsPage: React.FC = () => {
 
     const handleRenameTag = (oldTag: string, newTag: string) => {
         if (!oldTag || !newTag || oldTag === newTag) return;
+        requestedRenames.current.push([oldTag, newTag]);
         // On the tag save chain: a rename registers an alias, so an alias
         // save queued earlier must not land after it with an older map.
         tagSaveChain.current = tagSaveChain.current

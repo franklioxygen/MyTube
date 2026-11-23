@@ -314,6 +314,7 @@ vi.mock('../../components/Settings/TagsSettings', () => ({
   default: ({ tags, onTagsChange, onRenameTag, onTagConflict, onTagAliasesChange, tagAliases }: any) => (
     <div data-testid="tags-settings">
       <button onClick={() => onTagsChange([...tags, 'y'])}>tags-add-y</button>
+      <button onClick={() => onTagsChange(tags.filter((tag: string) => tag !== 'old'))}>tags-delete-old</button>
       <span data-testid="tag-aliases">{JSON.stringify(tagAliases)}</span>
       <button onClick={() => onTagsChange(['a', 'b'])}>tags-change</button>
       <button onClick={() => onTagAliasesChange({ song: 'music' })}>tag-aliases-change</button>
@@ -1279,6 +1280,26 @@ describe('SettingsPage', () => {
     });
 
     await waitFor(() => expect(mockUpdateTagsMutate).toHaveBeenCalledWith(['new', 'x', 'y']));
+  });
+
+  it('carries a deletion of the old name over to a queued rename', async () => {
+    let finishRename: () => void = () => undefined;
+    mockRenameTagMutate.mockImplementationOnce(
+      () => new Promise<void>((resolve) => { finishRename = resolve; })
+    );
+    mockSettingsData = { tags: ['old', 'x'], tagAliases: {} };
+    renderPage('/settings');
+
+    fireEvent.click(screen.getByText('tags-rename-valid'));
+    fireEvent.click(screen.getByText('tags-delete-old'));
+    await waitFor(() => expect(mockRenameTagMutate).toHaveBeenCalled());
+
+    mockSettingsData = { tags: ['new', 'x'], tagAliases: { old: 'new' } };
+    await act(async () => {
+      finishRename();
+    });
+
+    await waitFor(() => expect(mockUpdateTagsMutate).toHaveBeenCalledWith(['x']));
   });
 
   it('runs a rename only after an alias save queued before it', async () => {
