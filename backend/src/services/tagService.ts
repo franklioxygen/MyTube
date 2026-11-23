@@ -194,16 +194,21 @@ export function renameTag(oldTag: string, newTag: string): RenameTagResult {
       result.settingsUpdated = true;
     }
 
-    const tagAliases = aliasesAfterRename(currentSettings.tagAliases, oldTag, newTag);
+    // 2. Videos to update. Only load rows whose tags JSON array actually
+    // contains oldTag (filtered in SQL via json_each).
+    const matchingVideos = getVideosWithTag(oldTag);
+
+    // Register an alias only for a real rename: a stale request for a tag
+    // that no longer exists must not change how source tags are folded.
+    const tagAliases =
+      tagIndex !== -1 || matchingVideos.length > 0
+        ? aliasesAfterRename(currentSettings.tagAliases, oldTag, newTag)
+        : null;
     if (tagAliases) settingsUpdate.tagAliases = tagAliases;
 
     if (Object.keys(settingsUpdate).length > 0) {
       saveSettings({ ...currentSettings, ...settingsUpdate });
     }
-
-    // 2. Update videos. Only load rows whose tags JSON array actually contains
-    // oldTag (filtered in SQL via json_each), then rewrite each match.
-    const matchingVideos = getVideosWithTag(oldTag);
 
     db.transaction(() => {
         for (const video of matchingVideos) {

@@ -95,6 +95,25 @@ describe("renameTag and tag aliases", () => {
     expect(autoTagsOf("v")).toEqual(["#Music", "live"]);
   });
 
+  it("adds no alias when nothing had the old name", () => {
+    state.settings = { tags: ["other"], tagAliases: { song: "music" } };
+    addVideo("v", ["other"], ["gone"]);
+
+    renameTag("gone", "kept");
+
+    expect(state.settings.tagAliases).toEqual({ song: "music" });
+    expect(autoTagsOf("v")).toEqual(["gone"]);
+  });
+
+  it("adds an alias when only a video still had the old name", () => {
+    state.settings = { tags: [] };
+    addVideo("v", ["old"], null);
+
+    renameTag("old", "new");
+
+    expect(state.settings.tagAliases).toEqual({ old: "new" });
+  });
+
   it("adds no alias for a case-only rename", () => {
     state.settings = { tags: ["music"] };
 
