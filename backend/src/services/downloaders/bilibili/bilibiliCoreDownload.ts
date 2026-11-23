@@ -591,6 +591,7 @@ export async function downloadVideo(
       thumbnailUrl: thumbnailUrl,
       thumbnailSaved,
       description,
+      sourceTags: metaSource.tags,
       authorAvatarUrl: authorAvatarUrl || null,
       authorAvatarSaved,
       authorAvatarFilename: authorAvatarFilename,

@@ -446,6 +446,11 @@ export const es = {
   renameTagDescription:
     "Renombrar una etiqueta verificará y actualizará todos los videos que usan actualmente esta etiqueta.",
   enterNewTagName: "Ingrese el nuevo nombre para la etiqueta '{tag}'",
+  autoTagsFromSource: "Obtener etiquetas de la fuente del vídeo al descargar",
+  autoTagsFromSourceDescription:
+    "Las etiquetas de la fuente (YouTube, Bilibili, etc.) se muestran atenuadas en la página del vídeo como sugerencias. No aparecen en los filtros hasta que haces clic en una para añadirla. Se aplica a los vídeos descargados o vueltos a descargar después de activarlo.",
+  autoTagPromoteHint: "Sugerida por la fuente del vídeo. Haz clic para añadirla como etiqueta.",
+  autoTagSourceHint: "Sugerida por la fuente del vídeo",
 
   // Database
   database: "Base de Datos",

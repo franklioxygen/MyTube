@@ -67,6 +67,7 @@ import {
 } from "./ytdlpConfig";
 import { getProviderScript } from "./ytdlpHelpers";
 import { extractVideoMetadata } from "./ytdlpMetadata";
+import { normalizeSourceTags } from "../../../utils/sourceTags";
 import { processSubtitles } from "./ytdlpSubtitle";
 import { YtDlpDownloaderHelper } from "./ytdlpDownloaderHelper";
 import { downloadVideoAvatar } from "./avatarDownload";
@@ -763,6 +764,15 @@ export async function downloadVideo(
     createdAt: downloadedAtIso,
   };
 
+  // Source tags are stored as suggestions only when the user opted in (#546).
+  const autoTagsEnabled = settings.autoTagsFromSource === true;
+  if (autoTagsEnabled) {
+    const autoTags = normalizeSourceTags(rawSourceInfo?.tags, {
+      catalog: settings.tags,
+    });
+    if (autoTags.length > 0) videoData.autoTags = autoTags;
+  }
+
   // If duration is missing from info, try to extract it from file
   const finalVideoPath = newVideoPathWithFormat;
 
@@ -897,6 +907,19 @@ export async function downloadVideo(
       addedAt: new Date().toISOString(), // Update download date
       title: videoData.title, // Update title in case it changed
       description: videoData.description, // Update description in case it changed
+      // Refresh suggestions from the source; user tags are never touched.
+      ...(autoTagsEnabled
+        ? {
+            autoTags: normalizeSourceTags(rawSourceInfo?.tags, {
+              catalog: settings.tags,
+              // Re-read: the user may have promoted a suggestion
+              // while this download ran.
+              manualTags:
+                storageService.getVideoById(existingVideo.id)?.tags ??
+                existingVideo.tags,
+            }),
+          }
+        : {}),
       mediaType: videoData.mediaType,
       sourceVideoId: videoData.sourceVideoId,
       authorAvatarFilename: authorAvatarSaved

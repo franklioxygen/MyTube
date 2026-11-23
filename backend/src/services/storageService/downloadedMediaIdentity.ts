@@ -57,6 +57,7 @@ function serializeVideo(video: Video): typeof videos.$inferInsert {
   return {
     ...persistedVideo,
     tags: video.tags ? JSON.stringify(video.tags) : undefined,
+    autoTags: video.autoTags ? JSON.stringify(video.autoTags) : undefined,
     subtitles: video.subtitles ? JSON.stringify(video.subtitles) : undefined,
   } as typeof videos.$inferInsert;
 }

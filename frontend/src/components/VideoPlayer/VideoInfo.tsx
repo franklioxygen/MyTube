@@ -31,6 +31,7 @@ interface VideoInfoProps {
     onCollectionClick: (id: string) => void;
     availableTags: string[];
     onTagsUpdate?: (tags: string[]) => Promise<void>;
+    onAutoTagsUpdate?: (update: { tags?: string[]; autoTags: string[] }) => Promise<void>;
     isSubscribed?: boolean;
     onSubscribe?: () => void;
     onUnsubscribe?: () => void;
@@ -56,6 +57,7 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
     onCollectionClick,
     availableTags,
     onTagsUpdate,
+    onAutoTagsUpdate,
     isSubscribed,
     onSubscribe,
     onUnsubscribe,
@@ -116,8 +118,10 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
             <VideoTags
                 videoId={video.id}
                 tags={video.tags}
+                autoTags={video.autoTags}
                 availableTags={availableTags}
                 onTagsUpdate={onTagsUpdate}
+                onAutoTagsUpdate={onAutoTagsUpdate}
             />
 
             <Stack

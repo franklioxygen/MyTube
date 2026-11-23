@@ -129,6 +129,9 @@ export interface Settings {
   authorTags?: Record<string, string[]>;
   collectionTags?: Record<string, string[]>;
   showTagsOnThumbnail?: boolean;
+  // Store yt-dlp source tags as per-video suggestions (videos.auto_tags,
+  // issue #546). Off by default; never feeds settings.tags.
+  autoTagsFromSource?: boolean;
   playFromBeginning?: boolean;
   theme?: 'light' | 'dark' | 'system';
   showThemeButton?: boolean;
@@ -212,6 +215,7 @@ export const defaultSettings: Settings = {
   playSoundOnTaskComplete: "",
   tmdbApiKey: "",
   showTagsOnThumbnail: true,
+  autoTagsFromSource: false,
   playFromBeginning: false,
   showThemeButton: true,
   showAudioDownloadButton: true,

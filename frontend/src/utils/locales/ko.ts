@@ -440,6 +440,11 @@ export const ko = {
   renameTagDescription:
     "태그 이름을 변경하면 현재 이 태그를 사용하는 모든 동영상이 확인되고 업데이트됩니다.",
   enterNewTagName: "'{tag}' 태그의 새 이름을 입력하세요",
+  autoTagsFromSource: "다운로드할 때 동영상 출처에서 태그 가져오기",
+  autoTagsFromSourceDescription:
+    "출처(YouTube, Bilibili 등)가 제공한 태그를 동영상 페이지에 흐리게 추천 태그로 표시합니다. 클릭해 추가하기 전에는 태그 필터에 나타나지 않습니다. 켠 뒤 다운로드하거나 다시 다운로드한 동영상에만 적용됩니다.",
+  autoTagPromoteHint: "동영상 출처에서 추천한 태그입니다. 클릭하면 태그로 추가됩니다.",
+  autoTagSourceHint: "동영상 출처에서 추천한 태그",
 
   // Database
   database: "데이터베이스",

@@ -2,6 +2,7 @@ import { captureDownloadMediaInfo } from "../../mediaInfoService";
 import { downloadAutomaticDanmaku } from "../../danmaku/service";
 import { IMAGES_DIR, VIDEOS_DIR } from "../../../config/paths";
 import { getErrorMessage } from "../../../utils/errors";
+import { normalizeSourceTags } from "../../../utils/sourceTags";
 import { DownloadCancelledError } from "../../../errors/DownloadErrors";
 import { isCancellationError } from "../../../utils/downloadUtils";
 import {
@@ -196,6 +197,7 @@ export async function downloadSinglePart(
       videoAuthor,
       videoDate,
       videoDescription,
+      sourceTags: unknown,
       thumbnailUrl,
       thumbnailSaved,
       authorAvatarUrl,
@@ -279,6 +281,7 @@ export async function downloadSinglePart(
       bilibiliInfo.date ||
       new Date().toISOString().slice(0, 10).replace(/-/g, "");
     videoDescription = bilibiliInfo.description || "";
+    sourceTags = bilibiliInfo.sourceTags;
     thumbnailUrl = bilibiliInfo.thumbnailUrl;
     thumbnailSaved = bilibiliInfo.thumbnailSaved;
     authorAvatarUrl = bilibiliInfo.authorAvatarUrl || null;
@@ -470,6 +473,13 @@ export async function downloadSinglePart(
       createdAt: downloadedAtIso,
     };
 
+    // Source tags are stored as suggestions only when the user opted in (#546).
+    const autoTagsEnabled = settings.autoTagsFromSource === true;
+    if (autoTagsEnabled) {
+      const autoTags = normalizeSourceTags(sourceTags, { catalog: settings.tags });
+      if (autoTags.length > 0) videoData.autoTags = autoTags;
+    }
+
     // Under author_folder_only a collection is a logical grouping only: its
     // members (and their thumbnails/subtitles) belong in the author folder, not a
     // collection-named folder. Let organizeVideoByAuthor relocate them so nothing
@@ -547,6 +557,19 @@ export async function downloadSinglePart(
           height: dimensions?.height,
           title: videoData.title, // Update title in case it changed
           description: videoData.description, // Update description in case it changed
+          // Refresh suggestions from the source; user tags are never touched.
+          ...(autoTagsEnabled
+            ? {
+                autoTags: normalizeSourceTags(sourceTags, {
+                  catalog: settings.tags,
+                  // Re-read: the user may have promoted a suggestion
+                  // while this download ran.
+                  manualTags:
+                    storageService.getVideoById(existingVideo.id)?.tags ??
+                    existingVideo.tags,
+                }),
+              }
+            : {}),
           mediaType: videoData.mediaType,
           sourceVideoId: videoData.sourceVideoId,
           authorAvatarFilename: authorAvatarSaved

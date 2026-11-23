@@ -89,6 +89,50 @@ export function useVideoMutations({
     },
   });
 
+  // Source tag suggestions (issue #546): promoting one moves it into `tags`
+  // in the same request; dismissing one only rewrites `autoTags`. The target
+  // id travels with the request: the player stays mounted across videos, so
+  // a late response must not land in the next video's cache entry.
+  const autoTagsMutation = useMutation({
+    mutationFn: async ({
+      videoId: targetId,
+      ...update
+    }: {
+      videoId: string;
+      tags?: string[];
+      autoTags: string[];
+    }) => {
+      const response = await api.put(`/videos/${targetId}`, update);
+      return response.data;
+    },
+    onSuccess: async (data, { videoId: targetId, ...update }) => {
+      if (data.success) {
+        // A detail read already in flight may predate the PUT; it must not
+        // overwrite the update below.
+        await queryClient.cancelQueries({ queryKey: ["video", targetId] });
+        queryClient.setQueryData(["video", targetId], (old: Video | undefined) =>
+          old ? { ...old, ...update } : old
+        );
+        if (update.tags) {
+          const tags = update.tags;
+          // Home and the tag filters read the shared list, which holds tags
+          // (not suggestions). Patch it now, then refetch: invalidating also
+          // cancels a list read that predates the PUT and would undo the patch.
+          queryClient.setQueryData(["videos"], (old: Video[] | undefined) =>
+            old?.map((video) =>
+              video.id === targetId ? { ...video, tags } : video
+            )
+          );
+          void queryClient.invalidateQueries({ queryKey: ["videos"] });
+          void queryClient.invalidateQueries({ queryKey: ["settings"] });
+        }
+      }
+    },
+    onError: () => {
+      showSnackbar(t("error"), "error");
+    },
+  });
+
   // Visibility mutation
   const visibilityMutation = useMutation({
     mutationFn: async (visibility: number) => {
@@ -255,6 +299,7 @@ export function useVideoMutations({
     ratingMutation,
     titleMutation,
     tagsMutation,
+    autoTagsMutation,
     visibilityMutation,
     lockMutation,
     deleteMutation,

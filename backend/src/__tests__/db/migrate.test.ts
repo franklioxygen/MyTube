@@ -11,6 +11,7 @@ const ensureFavoritesTablesMock = vi.hoisted(() => vi.fn());
 const ensureGestureCredentialTableMock = vi.hoisted(() => vi.fn());
 const ensureAuthorProfilesTableMock = vi.hoisted(() => vi.fn());
 const ensureFederationTablesMock = vi.hoisted(() => vi.fn());
+const ensureVideoAutoTagsColumnMock = vi.hoisted(() => vi.fn());
 const sqliteGetMock = vi.hoisted(() => vi.fn());
 const sqlitePrepareMock = vi.hoisted(() => vi.fn());
 const securityMocks = vi.hoisted(() => ({
@@ -72,6 +73,7 @@ vi.mock("../../services/storageService/migrations/schemaMigrations", () => ({
   ensureGestureCredentialTable: ensureGestureCredentialTableMock,
   ensureAuthorProfilesTable: ensureAuthorProfilesTableMock,
   ensureFederationTables: ensureFederationTablesMock,
+  ensureVideoAutoTagsColumn: ensureVideoAutoTagsColumnMock,
 }));
 
 describe("runMigrations", () => {
@@ -118,6 +120,10 @@ describe("runMigrations", () => {
     expect(ensureAuthorProfilesTableMock).toHaveBeenCalledTimes(1);
     expect(ensureFederationTablesMock).toHaveBeenCalledTimes(1);
     expect(migrateLegacySharedVisitorPasswordMock).toHaveBeenCalledTimes(1);
+    // The legacy import inserts full video rows, which need auto_tags.
+    expect(
+      ensureVideoAutoTagsColumnMock.mock.invocationCallOrder[0]
+    ).toBeLessThan(runDataMigrationMock.mock.invocationCallOrder[0]);
     expect(
       migrateMock.mock.invocationCallOrder[0]
     ).toBeLessThan(runDataMigrationMock.mock.invocationCallOrder[0]);
@@ -150,6 +156,8 @@ describe("runMigrations", () => {
     expect(ensureGestureCredentialTableMock).toHaveBeenCalledTimes(1);
     expect(ensureAuthorProfilesTableMock).toHaveBeenCalledTimes(1);
     expect(ensureFederationTablesMock).toHaveBeenCalledTimes(1);
+    // Import/restore never rerun the startup column checks.
+    expect(ensureVideoAutoTagsColumnMock).toHaveBeenCalledTimes(1);
     expect(migrateLegacySharedVisitorPasswordMock).toHaveBeenCalledTimes(1);
     expect(runDataMigrationMock).not.toHaveBeenCalled();
   });

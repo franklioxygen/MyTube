@@ -444,6 +444,11 @@ export const ja = {
   renameTagDescription:
     "タグ名を変更すると、現在このタグを使用しているすべての動画が検証され、更新されます。",
   enterNewTagName: "タグ '{tag}' の新しい名前を入力してください",
+  autoTagsFromSource: "ダウンロード時に動画の配信元からタグを取得",
+  autoTagsFromSourceDescription:
+    "配信元（YouTube、Bilibili など）のタグを動画ページに薄い表示で候補として表示します。クリックして追加するまでタグの絞り込みには表示されません。有効化後にダウンロードまたは再ダウンロードした動画にのみ適用されます。",
+  autoTagPromoteHint: "配信元からの候補タグです。クリックするとタグとして追加します。",
+  autoTagSourceHint: "配信元からの候補タグ",
 
   // Database
   database: "データベース",

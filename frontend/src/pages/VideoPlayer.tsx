@@ -251,6 +251,7 @@ const VideoPlayer: React.FC = () => {
         ratingMutation,
         titleMutation,
         tagsMutation,
+        autoTagsMutation,
         visibilityMutation,
         lockMutation,
         deleteMutation,
@@ -472,6 +473,11 @@ const VideoPlayer: React.FC = () => {
     const handleUpdateTags = async (newTags: string[]) => {
         if (!id) return;
         await tagsMutation.mutateAsync(newTags);
+    };
+
+    const handleUpdateAutoTags = async (update: { tags?: string[]; autoTags: string[] }) => {
+        if (!id) return;
+        await autoTagsMutation.mutateAsync({ videoId: id, ...update });
     };
 
     const handleToggleVisibility = async () => {
@@ -868,6 +874,7 @@ const VideoPlayer: React.FC = () => {
                             onCollectionClick={handleCollectionClick}
                             availableTags={availableTags}
                             onTagsUpdate={can('canEdit') ? handleUpdateTags : undefined}
+                            onAutoTagsUpdate={can('canEdit') ? handleUpdateAutoTags : undefined}
                             isSubscribed={isSubscribed}
                             onSubscribe={handleSubscribe}
                             onUnsubscribe={handleUnsubscribe}

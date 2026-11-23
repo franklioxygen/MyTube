@@ -183,6 +183,7 @@ export const WHITELISTED_SETTINGS = [
   "authorTags",
   "collectionTags",
   "showTagsOnThumbnail",
+  "autoTagsFromSource",
   "playFromBeginning",
   "theme",
   "showThemeButton",
