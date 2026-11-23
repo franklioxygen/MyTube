@@ -764,15 +764,6 @@ export async function downloadVideo(
     createdAt: downloadedAtIso,
   };
 
-  // Source tags are stored as suggestions only when the user opted in (#546).
-  const autoTagsEnabled = settings.autoTagsFromSource === true;
-  if (autoTagsEnabled) {
-    // Read at write time: aliases or the catalog may change mid-download.
-    const { tags: catalog, tagAliases: aliases } = storageService.getSettings();
-    const autoTags = normalizeSourceTags(rawSourceInfo?.tags, { catalog, aliases });
-    if (autoTags.length > 0) videoData.autoTags = autoTags;
-  }
-
   // If duration is missing from info, try to extract it from file
   const finalVideoPath = newVideoPathWithFormat;
 
@@ -809,6 +800,16 @@ export async function downloadVideo(
     }
   } catch (e) {
     logger.error("Failed to get file size:", e);
+  }
+
+  // Source tags are stored as suggestions only when the user opted in (#546).
+  const autoTagsEnabled = settings.autoTagsFromSource === true;
+  if (autoTagsEnabled) {
+    // After the probes above, right before the write: aliases or the
+    // catalog may change while they run.
+    const { tags: catalog, tagAliases: aliases } = storageService.getSettings();
+    const autoTags = normalizeSourceTags(rawSourceInfo?.tags, { catalog, aliases });
+    if (autoTags.length > 0) videoData.autoTags = autoTags;
   }
 
   // Reuse the exact row resolved before output allocation so an explicit repair

@@ -846,6 +846,16 @@ describe('SettingsPage', () => {
     expect(screen.getAllByRole('button', { name: 'save' })[0]).toBeDisabled();
   });
 
+  it('leaves tag aliases out of the global settings save', () => {
+    mockSettingsData = { tags: [], tagAliases: { song: 'music' } };
+    renderPage('/settings');
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'save' })[0]);
+
+    expect(mockSaveMutate).toHaveBeenCalledTimes(1);
+    expect(mockSaveMutate.mock.calls[0][0]).not.toHaveProperty('tagAliases');
+  });
+
   it('includes changed seek intervals in the settings save payload', () => {
     renderPage('/settings');
 

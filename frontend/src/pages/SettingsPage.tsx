@@ -391,6 +391,9 @@ const SettingsPage: React.FC = () => {
         // - include "" only for an explicit clear-key action
         const settingsToSave: Settings = { ...settings };
         delete settingsToSave.liveTranslationApiKey;
+        // Aliases persist through the serialized tag save chain; sending them
+        // here could let this unserialized PATCH overwrite a newer alias save.
+        delete settingsToSave.tagAliases;
         const apiKeyDraft = liveTranslationApiKeyDraft.trim();
         if (clearLiveTranslationApiKeyRequested) {
             settingsToSave.liveTranslationApiKey = '';
