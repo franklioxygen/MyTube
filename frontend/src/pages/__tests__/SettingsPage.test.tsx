@@ -150,7 +150,10 @@ vi.mock('../../hooks/useSettingsMutations', () => ({
     mergeDatabaseMutation: { isPending: false, mutate: (...args: any[]) => mockMergeDatabaseMutate(...args) },
     cleanupBackupDatabasesMutation: { isPending: false, mutate: (...args: any[]) => mockCleanupBackupDatabasesMutate(...args) },
     restoreFromLastBackupMutation: { isPending: false, mutate: (...args: any[]) => mockRestoreFromLastBackupMutate(...args) },
-    renameTagMutation: { isPending: false, mutate: (...args: any[]) => mockRenameTagMutate(...args) },
+    renameTagMutation: {
+      isPending: false,
+      mutateAsync: (...args: any[]) => mockRenameTagMutate(...args) ?? Promise.resolve(),
+    },
     updateTagsMutation: {
       isPending: false,
       mutate: (...args: any[]) => mockUpdateTagsMutate(...args),
@@ -1206,7 +1209,7 @@ describe('SettingsPage', () => {
     expect(mockMergeDatabaseMutate).toHaveBeenCalled();
     expect(mockCleanupBackupDatabasesMutate).toHaveBeenCalled();
     expect(mockRestoreFromLastBackupMutate).toHaveBeenCalled();
-    expect(mockRenameTagMutate).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(mockRenameTagMutate).toHaveBeenCalledTimes(1));
     expect(mockSetShowCleanupTempFilesModal).toHaveBeenCalledWith(true);
   });
 
@@ -1258,6 +1261,26 @@ describe('SettingsPage', () => {
       expect(screen.getByTestId('tag-aliases')).toHaveTextContent('{"tune":"music"}');
     });
     expect(mockUpdateTagAliasesMutate).toHaveBeenCalledWith({ song: 'music' });
+  });
+
+  it('runs a rename only after an alias save queued before it', async () => {
+    let finishSave: () => void = () => undefined;
+    mockUpdateTagAliasesMutate.mockImplementationOnce(
+      () => new Promise<void>((resolve) => { finishSave = resolve; })
+    );
+    renderPage('/settings');
+
+    fireEvent.click(screen.getByText('tag-aliases-change'));
+    fireEvent.click(screen.getByText('tags-rename-valid'));
+    await waitFor(() => expect(mockUpdateTagAliasesMutate).toHaveBeenCalled());
+    expect(mockRenameTagMutate).not.toHaveBeenCalled();
+
+    await act(async () => {
+      finishSave();
+    });
+    await waitFor(() => {
+      expect(mockRenameTagMutate).toHaveBeenCalledWith({ oldTag: 'old', newTag: 'new' });
+    });
   });
 
   it('keeps a newer local alias edit while an older alias save lands', async () => {

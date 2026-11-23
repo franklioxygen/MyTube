@@ -450,7 +450,12 @@ const SettingsPage: React.FC = () => {
 
     const handleRenameTag = (oldTag: string, newTag: string) => {
         if (!oldTag || !newTag || oldTag === newTag) return;
-        renameTagMutation.mutate({ oldTag, newTag });
+        // On the tag save chain: a rename registers an alias, so an alias
+        // save queued earlier must not land after it with an older map.
+        tagSaveChain.current = tagSaveChain.current
+            .catch(() => undefined)
+            .then(() => renameTagMutation.mutateAsync({ oldTag, newTag }))
+            .catch(() => undefined);
     };
 
     const handleExportDatabase = () => {
