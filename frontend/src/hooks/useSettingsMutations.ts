@@ -630,6 +630,8 @@ export function useSettingsMutations({
       });
       void queryClient.invalidateQueries({ queryKey: ["settings"] });
       void queryClient.invalidateQueries({ queryKey: ["videos"] });
+      // The rename also folds stored source tag suggestions (video detail).
+      void queryClient.invalidateQueries({ queryKey: ["video"] });
     },
     onError: async (error: unknown) => {
       const apiMsg = await getApiErrorMessage(error, t);
@@ -683,6 +685,9 @@ export function useSettingsMutations({
       queryClient.setQueryData(["settings"], (old: Settings | undefined) =>
         old ? { ...old, tagAliases } : old
       );
+      // The server rewrote matching stored suggestions, which video detail
+      // queries carry (the list does not).
+      void queryClient.invalidateQueries({ queryKey: ["video"] });
     },
     onError: async (error: unknown) => {
       const apiMsg = await getApiErrorMessage(error, t);

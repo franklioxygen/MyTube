@@ -70,10 +70,10 @@ export const processTagChanges = (
  * Apply added or retargeted tag aliases to suggestions that are already
  * stored (issue #546). Removing an alias leaves stored suggestions alone.
  */
-export const processTagAliasChanges = (
+export const processTagAliasChanges = async (
   existingSettings: Settings,
   settingsToPersist: Partial<Settings>
-): void => {
+): Promise<void> => {
   if (!hasOwnSetting(settingsToPersist, "tagAliases")) return;
 
   const before = existingSettings.tagAliases ?? {};
@@ -81,11 +81,12 @@ export const processTagAliasChanges = (
   const changedKeys = Object.keys(after).filter((key) => before[key] !== after[key]);
   if (changedKeys.length === 0) return;
 
-  import("../../services/tagService")
-    .then(({ rewriteAutoTagsForAliases }) => {
-      rewriteAutoTagsForAliases(changedKeys);
-    })
-    .catch((err) => {
-      logger.error("Error applying tag aliases:", err);
-    });
+  // Awaited by the settings save, so a client that refetches videos after
+  // the response sees the rewritten suggestions.
+  try {
+    const { rewriteAutoTagsForAliases } = await import("../../services/tagService");
+    rewriteAutoTagsForAliases(changedKeys);
+  } catch (err) {
+    logger.error("Error applying tag aliases:", err);
+  }
 };

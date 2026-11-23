@@ -447,7 +447,7 @@ const persistSettingsUpdate = async (
   }
 
   processTagChanges(existingSettings, settingsToPersist);
-  processTagAliasChanges(existingSettings, settingsToPersist);
+  await processTagAliasChanges(existingSettings, settingsToPersist);
   await moveSubtitlesIfSettingChanged(existingSettings, settingsToPersist);
   await moveThumbnailsIfSettingChanged(existingSettings, settingsToPersist);
   applyCloudflaredSettingChanges(

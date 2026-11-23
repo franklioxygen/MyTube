@@ -858,6 +858,28 @@ describe('useSettingsMutations', () => {
         });
         expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['settings'] });
         expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['videos'] });
+        expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['video'] });
+    });
+
+    it('saves tag aliases, keeps the stored form and refreshes video details', async () => {
+        vi.mocked(api.patch).mockResolvedValue({
+            data: { settings: { tagAliases: { song: 'Music' } } },
+        } as any);
+        const queryClient = createTestQueryClient();
+        queryClient.setQueryData(['settings'], { tags: ['Music'] });
+        const { result } = renderSettingsHook({ queryClient });
+        const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
+
+        await act(async () => {
+            await result.current.updateTagAliasesMutation.mutateAsync({ song: 'Music' });
+        });
+
+        expect(api.patch).toHaveBeenCalledWith('/settings', { tagAliases: { song: 'Music' } });
+        expect(queryClient.getQueryData(['settings'])).toEqual({
+            tags: ['Music'],
+            tagAliases: { song: 'Music' },
+        });
+        expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['video'] });
     });
 
     it('reports the shared fallback message when rename errors do not contain a usable API message', async () => {
