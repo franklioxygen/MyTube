@@ -71,7 +71,9 @@ function aliasesAfterRename(
 ): Record<string, string> | null {
   const oldKey = tagAliasKey(oldTag);
   const newKey = tagAliasKey(newTag);
-  if (!oldKey || !newKey || oldKey === newKey) return null;
+  // A case-only rename needs no alias: the catalog spelling already applies.
+  // "music" -> "#Music" does, since source tags are cleaned to "music".
+  if (!oldKey || !newKey || oldTag.toLowerCase() === newTag.toLowerCase()) return null;
   if (oldKey.length > MAX_AUTO_TAG_LENGTH || newTag.length > MAX_AUTO_TAG_LENGTH) {
     return null;
   }
@@ -82,7 +84,9 @@ function aliasesAfterRename(
     for (const [alias, target] of Object.entries(current)) {
       if (typeof target !== "string") continue;
       const nextTarget = tagAliasKey(target) === oldKey ? newTag : target;
-      if (alias === newKey || alias === tagAliasKey(nextTarget)) continue;
+      // Drop no-op aliases, and the new name's own alias to some other tag.
+      if (alias === nextTarget.toLowerCase()) continue;
+      if (alias === newKey && alias !== oldKey) continue;
       aliases[alias] = nextTarget;
     }
   }

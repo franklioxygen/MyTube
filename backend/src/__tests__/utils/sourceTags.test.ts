@@ -119,9 +119,11 @@ describe("normalizeTagAliases", () => {
 
   it("rejects self-maps, duplicate aliases and chains", () => {
     expect(() => normalizeTagAliases({ music: "Music" })).toThrow(/itself/);
-    // A source tag spelled like the target would be looked up by its key.
-    expect(() => normalizeTagAliases({ song: " #Song " })).toThrow(/itself/);
+    expect(() => normalizeTagAliases({ song: " Song " })).toThrow(/itself/);
+    // A source tag spelled like "#Music" is looked up as "music".
     expect(() => normalizeTagAliases({ song: "#Music", music: "音乐" })).toThrow(/itself an alias/);
+    // Only the spelling differs, so this maps "music" to the catalog's "#Music".
+    expect(normalizeTagAliases({ music: "#Music" })).toEqual({ music: "#Music" });
     expect(() => normalizeTagAliases({ Song: "music", song: "audio" })).toThrow(/twice/);
     expect(() => normalizeTagAliases({ song: "music", music: "音乐" })).toThrow(/itself an alias/);
   });

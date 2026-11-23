@@ -110,7 +110,7 @@ const TagsSettings: React.FC<TagsSettingsProps> = ({
             otherAliases.some(([key]) => key === aliasKey(target)) ||
             otherAliases.some(([, value]) => aliasKey(value) === alias);
         if (
-            alias === aliasKey(target) ||
+            alias === target.toLowerCase() ||
             isChain ||
             alias.length > MAX_TAG_ALIAS_LENGTH ||
             target.length > MAX_TAG_ALIAS_LENGTH

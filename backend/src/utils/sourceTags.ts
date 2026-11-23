@@ -115,8 +115,9 @@ export function normalizeTagAliases(value: unknown): Record<string, string> {
     if (alias.length > MAX_AUTO_TAG_LENGTH || target.length > MAX_AUTO_TAG_LENGTH) {
       throw new Error(`Tag aliases and their tags are limited to ${MAX_AUTO_TAG_LENGTH} characters.`);
     }
-    // A source tag spelled like the target is looked up by this key.
-    if (alias === tagAliasKey(target)) {
+    // Targets keep their spelling, so only an identical name is a no-op:
+    // "music" -> "#Music" is a real alias.
+    if (alias === target.toLowerCase()) {
       throw new Error(`Tag alias "${alias}" cannot point to itself.`);
     }
     if (Object.prototype.hasOwnProperty.call(result, alias)) {
@@ -124,8 +125,11 @@ export function normalizeTagAliases(value: unknown): Record<string, string> {
     }
     result[alias] = target;
   }
-  for (const target of Object.values(result)) {
-    if (Object.prototype.hasOwnProperty.call(result, tagAliasKey(target))) {
+  for (const [alias, target] of Object.entries(result)) {
+    // A chain: the key a source tag spelled like this target is looked up
+    // by belongs to another alias.
+    const targetKey = tagAliasKey(target);
+    if (targetKey !== alias && Object.prototype.hasOwnProperty.call(result, targetKey)) {
       throw new Error(`"${target}" is itself an alias, so it cannot be an alias target.`);
     }
   }
