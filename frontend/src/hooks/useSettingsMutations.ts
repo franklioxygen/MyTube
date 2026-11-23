@@ -721,7 +721,10 @@ export function useSettingsMutations({
       // The server returns the map in stored form (lowercased aliases).
       return (response.data?.settings?.tagAliases ?? tagAliases) as Record<string, string>;
     },
-    onSuccess: (tagAliases) => {
+    onSuccess: async (tagAliases) => {
+      // A settings read already in flight predates this save and would put
+      // the older map back; the next alias edit would then rebase on it.
+      await queryClient.cancelQueries({ queryKey: ["settings"] });
       setMessage({ text: t("settingsSaved"), type: "success" });
       queryClient.setQueryData(["settings"], (old: Settings | undefined) =>
         old ? { ...old, tagAliases } : old

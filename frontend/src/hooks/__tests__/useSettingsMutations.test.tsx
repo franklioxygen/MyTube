@@ -869,6 +869,7 @@ describe('useSettingsMutations', () => {
         queryClient.setQueryData(['settings'], { tags: ['Music'] });
         const { result } = renderSettingsHook({ queryClient });
         const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
+        const cancelSpy = vi.spyOn(queryClient, 'cancelQueries');
 
         await act(async () => {
             await result.current.updateTagAliasesMutation.mutateAsync({
@@ -884,6 +885,7 @@ describe('useSettingsMutations', () => {
         });
         expect(result.current.getConfirmedTagAliases()).toEqual({ song: 'Music' });
         expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['video'] });
+        expect(cancelSpy).toHaveBeenCalledWith({ queryKey: ['settings'] });
     });
 
     it('applies an alias edit onto the confirmed map, keeping an alias a rename added', async () => {

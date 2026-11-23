@@ -90,6 +90,9 @@ function aliasesAfterRename(
       aliases[alias] = nextTarget;
     }
   }
+  // "#Music" -> "Music": source tags already look the new name up, so an
+  // alias would only point to itself.
+  if (oldKey === newTag.toLowerCase()) return aliases;
   if (
     !Object.prototype.hasOwnProperty.call(aliases, oldKey) &&
     Object.keys(aliases).length >= MAX_TAG_ALIASES
@@ -200,10 +203,10 @@ export function renameTag(oldTag: string, newTag: string): RenameTagResult {
 
     // Register an alias only for a real rename: a stale request for a tag
     // that no longer exists must not change how source tags are folded.
-    const tagAliases =
-      tagIndex !== -1 || matchingVideos.length > 0
-        ? aliasesAfterRename(currentSettings.tagAliases, oldTag, newTag)
-        : null;
+    const renamedSomething = tagIndex !== -1 || matchingVideos.length > 0;
+    const tagAliases = renamedSomething
+      ? aliasesAfterRename(currentSettings.tagAliases, oldTag, newTag)
+      : null;
     if (tagAliases) settingsUpdate.tagAliases = tagAliases;
 
     if (Object.keys(settingsUpdate).length > 0) {
@@ -237,7 +240,9 @@ export function renameTag(oldTag: string, newTag: string): RenameTagResult {
     if (result.updatedVideosCount > 0) {
       bumpVideosListRevision();
     }
-    if (tagAliases) rewriteAutoTagsForAliases([tagAliasKey(oldTag)]);
+    // Re-normalize stored suggestions under the old name, alias or not: a
+    // case-only rename changes the catalog spelling they should use.
+    if (renamedSomething) rewriteAutoTagsForAliases([tagAliasKey(oldTag)]);
 
     logger.info(`Renamed tag "${oldTag}" to "${newTag}". Updated ${result.updatedVideosCount} videos.`);
     return result;

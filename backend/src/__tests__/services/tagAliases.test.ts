@@ -114,13 +114,26 @@ describe("renameTag and tag aliases", () => {
     expect(state.settings.tagAliases).toEqual({ old: "new" });
   });
 
-  it("adds no alias for a case-only rename", () => {
+  it("adds no alias for a case-only rename but respells stored suggestions", () => {
     state.settings = { tags: ["music"] };
+    addVideo("v", null, ["music", "live"]);
 
     renameTag("music", "Music");
 
     expect(state.settings.tags).toEqual(["Music"]);
     expect(state.settings.tagAliases).toBeUndefined();
+    expect(autoTagsOf("v")).toEqual(["Music", "live"]);
+  });
+
+  it("adds no self-alias when a rename only drops a leading #", () => {
+    state.settings = { tags: ["#Music"], tagAliases: { song: "#Music" } };
+    addVideo("v", null, ["music"]);
+
+    renameTag("#Music", "Music");
+
+    // The existing alias follows the rename; no "music" -> "Music" entry.
+    expect(state.settings.tagAliases).toEqual({ song: "Music" });
+    expect(autoTagsOf("v")).toEqual(["Music"]);
   });
 });
 
