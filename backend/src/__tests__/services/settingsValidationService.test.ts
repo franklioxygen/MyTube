@@ -42,6 +42,13 @@ describe("settingsValidationService", () => {
       ).toThrow(ValidationError);
     });
 
+    it("accepts a boolean searchAutoTags and rejects anything else", () => {
+      expect(() => settingsValidationService.validateSettings({ searchAutoTags: true })).not.toThrow();
+      expect(() =>
+        settingsValidationService.validateSettings({ searchAutoTags: "yes" } as any)
+      ).toThrow(ValidationError);
+    });
+
     it("should allow tags that differ only by case when not both present", () => {
       expect(() => {
         settingsValidationService.validateSettings({ tags: ["aaa"] });

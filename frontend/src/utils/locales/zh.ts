@@ -426,6 +426,9 @@ export const zh = {
   autoTagsFromSource: "下载时从视频来源获取标签",
   autoTagsFromSourceDescription:
     "来源（如 YouTube、Bilibili）提供的标签会以浅色显示在视频页上作为建议，不会出现在标签筛选中，点击后才会添加为正式标签。仅对开启后下载或重新下载的视频生效。",
+  searchAutoTags: "搜索时也匹配建议标签",
+  searchAutoTagsDescription:
+    "在媒体库中搜索时，也会匹配视频页上显示的来源建议标签。标签筛选、RSS 和推荐仍然只看正式标签。",
   tagAliases: "标签别名",
   tagAliasesDescription: "来源标签与别名一致时，会改为建议它对应的标签。重命名标签时，旧名称会自动加入这里。",
   tagAlias: "别名",
@@ -434,6 +437,7 @@ export const zh = {
   tagAliasInvalid: "无法添加这个别名：别名不能指向它自己，同一个名称也不能既是别名又是目标标签。",
   autoTagPromoteHint: "来自视频来源的建议标签，点击添加为标签。",
   autoTagSourceHint: "来自视频来源的建议标签",
+  promoteAllAutoTags: "全部添加为标签",
 
   // Database
   database: "数据库",

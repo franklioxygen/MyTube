@@ -515,6 +515,32 @@ describe('StorageService', () => {
 
       expect(selectedColumns).toHaveProperty('autoDeleteLocked');
     });
+
+    it('returns source tag suggestions parsed, and omits unset or unreadable ones', () => {
+      // Local search can match suggestions (issue #546 phase three).
+      let selectedColumns: Record<string, unknown> | undefined;
+      const rows = [
+        { id: 'a', tags: '[]', autoTags: '["live","music"]' },
+        { id: 'b', tags: '[]', autoTags: null },
+        { id: 'c', tags: '[]', autoTags: 'not json' },
+      ];
+      (db.select as any).mockImplementation((columns: Record<string, unknown>) => {
+        selectedColumns = columns;
+        return {
+          from: vi.fn().mockReturnValue({
+            orderBy: vi.fn().mockReturnValue({
+              $dynamic: vi.fn().mockReturnValue({ all: vi.fn().mockReturnValue(rows) }),
+            }),
+          }),
+        };
+      });
+
+      const result = storageService.getVideoSummaries();
+
+      expect(selectedColumns).toHaveProperty('autoTags');
+      expect(result.map((video) => video.autoTags)).toEqual([['live', 'music'], undefined, undefined]);
+      expect(JSON.parse(JSON.stringify(result[1]))).not.toHaveProperty('autoTags');
+    });
   });
 
   describe('getVideoById', () => {

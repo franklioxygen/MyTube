@@ -96,13 +96,75 @@ describe('useVideoMutations', () => {
         expect(mockPut).toHaveBeenCalledWith('/videos/a', { tags: ['live'], autoTags: [] });
         expect(queryClient.getQueryData(['video', 'a'])).toEqual({ id: 'a', tags: ['live'], autoTags: [] });
         expect(queryClient.getQueryData(['video', 'b'])).toEqual({ id: 'b', tags: ['other'], autoTags: [] });
-        // The shared list behind home and the tag filters sees the promotion.
+        // The shared list behind home, the tag filters and search sees the promotion.
         expect(queryClient.getQueryData(['videos'])).toEqual([
-            { id: 'a', tags: ['live'] },
+            { id: 'a', tags: ['live'], autoTags: [] },
             { id: 'b', tags: ['other'] },
         ]);
         // ...and is refetched, so an older list read cannot undo it.
         expect(queryClient.getQueryState(['videos'])?.isInvalidated).toBe(true);
+    });
+
+    it('patches the shared list when a suggestion is dismissed, leaving the catalog alone', async () => {
+        // Local search can match suggestions, so a dismissed one must leave the list.
+        const queryClient = new QueryClient({
+            defaultOptions: { queries: { retry: false } },
+        });
+        queryClient.setQueryData(['video', 'a'], { id: 'a', tags: [], autoTags: ['live', 'lofi'] } as unknown as Video);
+        queryClient.setQueryData(['videos'], [{ id: 'a', tags: [], autoTags: ['live', 'lofi'] }] as unknown as Video[]);
+        queryClient.setQueryData(['settings'], { tags: [] });
+
+        const wrapper = ({ children }: { children: React.ReactNode }) => (
+            <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+        );
+        const { result } = renderHook(() => useVideoMutations({ videoId: 'a' }), { wrapper });
+        await act(async () => {
+            await result.current.autoTagsMutation.mutateAsync({ videoId: 'a', autoTags: ['lofi'] });
+        });
+
+        expect(queryClient.getQueryData(['videos'])).toEqual([{ id: 'a', tags: [], autoTags: ['lofi'] }]);
+        expect(queryClient.getQueryState(['videos'])?.isInvalidated).toBe(true);
+        expect(queryClient.getQueryState(['settings'])?.isInvalidated).toBe(false);
+    });
+
+    it('drops a first list read still pending when a dismissal lands', async () => {
+        const queryClient = new QueryClient({
+            defaultOptions: { queries: { retry: false } },
+        });
+        queryClient.setQueryData(['video', 'a'], { id: 'a', tags: [], autoTags: ['live'] } as unknown as Video);
+        // No list cache yet: its first read started before the PUT.
+        let releaseOldRead: () => void = () => undefined;
+        const listFn = vi
+            .fn()
+            .mockReturnValueOnce(
+                new Promise((resolve) => {
+                    releaseOldRead = () => resolve([{ id: 'a', tags: [], autoTags: ['live'] }]);
+                })
+            )
+            .mockResolvedValue([{ id: 'a', tags: [], autoTags: [] }]);
+
+        const wrapper = ({ children }: { children: React.ReactNode }) => (
+            <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+        );
+        const { result } = renderHook(
+            () => ({
+                list: useQuery({ queryKey: ['videos'], queryFn: listFn }),
+                mutations: useVideoMutations({ videoId: 'a' }),
+            }),
+            { wrapper }
+        );
+        await waitFor(() => expect(listFn).toHaveBeenCalledTimes(1));
+
+        await act(async () => {
+            await result.current.mutations.autoTagsMutation.mutateAsync({ videoId: 'a', autoTags: [] });
+        });
+        await act(async () => {
+            releaseOldRead();
+        });
+
+        expect(listFn).toHaveBeenCalledTimes(2);
+        await waitFor(() => expect(result.current.list.isFetching).toBe(false));
+        expect(result.current.list.data).toEqual([{ id: 'a', tags: [], autoTags: [] }]);
     });
 
     it('keeps a promotion when an older list read lands after it', async () => {

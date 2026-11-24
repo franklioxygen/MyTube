@@ -113,17 +113,18 @@ export function useVideoMutations({
         queryClient.setQueryData(["video", targetId], (old: Video | undefined) =>
           old ? { ...old, ...update } : old
         );
+        // Home, the tag filters and local search read the shared list, which
+        // holds both fields. A list read that predates the PUT would undo the
+        // patch; invalidating alone reuses one that has no data yet (the first
+        // load), so cancel it, then patch, then refetch.
+        await queryClient.cancelQueries({ queryKey: ["videos"] });
+        queryClient.setQueryData(["videos"], (old: Video[] | undefined) =>
+          old?.map((video) =>
+            video.id === targetId ? { ...video, ...update } : video
+          )
+        );
+        void queryClient.invalidateQueries({ queryKey: ["videos"] });
         if (update.tags) {
-          const tags = update.tags;
-          // Home and the tag filters read the shared list, which holds tags
-          // (not suggestions). Patch it now, then refetch: invalidating also
-          // cancels a list read that predates the PUT and would undo the patch.
-          queryClient.setQueryData(["videos"], (old: Video[] | undefined) =>
-            old?.map((video) =>
-              video.id === targetId ? { ...video, tags } : video
-            )
-          );
-          void queryClient.invalidateQueries({ queryKey: ["videos"] });
           void queryClient.invalidateQueries({ queryKey: ["settings"] });
         }
       }

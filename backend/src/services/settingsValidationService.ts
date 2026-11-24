@@ -108,6 +108,9 @@ export function validateSettings(newSettings: Partial<Settings>): void {
   if (newSettings.autoTagsFromSource !== undefined && typeof newSettings.autoTagsFromSource !== "boolean") {
     throw new ValidationError("Auto tags from source flag must be a boolean.", "autoTagsFromSource");
   }
+  if (newSettings.searchAutoTags !== undefined && typeof newSettings.searchAutoTags !== "boolean") {
+    throw new ValidationError("Search auto tags flag must be a boolean.", "searchAutoTags");
+  }
   if (newSettings.tagAliases !== undefined) {
     try {
       newSettings.tagAliases = normalizeTagAliases(newSettings.tagAliases);

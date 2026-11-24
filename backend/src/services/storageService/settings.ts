@@ -184,6 +184,7 @@ export const WHITELISTED_SETTINGS = [
   "collectionTags",
   "showTagsOnThumbnail",
   "autoTagsFromSource",
+  "searchAutoTags",
   "tagAliases",
   "playFromBeginning",
   "theme",

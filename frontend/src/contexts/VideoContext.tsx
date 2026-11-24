@@ -110,6 +110,9 @@ export const useVideoActions = () => {
 // Stable fallback so the provider-value useMemo deps don't see a fresh array
 // identity on every render while the settings query is unresolved.
 const EMPTY_TAGS: string[] = [];
+// Same for the list while its first read is pending: the search matcher is
+// derived from it and re-applied during render whenever it changes.
+const EMPTY_VIDEOS: Video[] = [];
 
 export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const { showSnackbar } = useSnackbar();
@@ -122,7 +125,7 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const hasFederationPeersRef = useRef(false);
 
     // Videos Query - Optimized for faster initial load
-    const { data: videosRaw = [], isLoading: videosLoading, error: videosError, refetch: refetchVideos } = useQuery({
+    const { data: videosRaw = EMPTY_VIDEOS, isLoading: videosLoading, error: videosError, refetch: refetchVideos } = useQuery({
         queryKey: ['videos'],
         queryFn: async () => {
             try {
@@ -189,6 +192,7 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const showYoutubeSearch = settingsData?.showYoutubeSearch ?? true;
     const showBilibiliSearch = settingsData?.showBilibiliSearch ?? false;
     const captureSearchText = settingsData?.statisticsCaptureSearchText === true;
+    const searchAutoTags = settingsData?.searchAutoTags === true;
 
     const [selectedTags, setSelectedTags] = useState<string[]>([]);
     const [lastSearchEventId, setLastSearchEventId] = useState<string | null>(null);
@@ -321,17 +325,29 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         return videos.filter(video => {
             // Prepare searchable text. The list payload intentionally omits
             // description (heavy column, only the player loads it), so local
-            // search matches title/author/tags.
+            // search matches title/author/tags, plus source tag suggestions
+            // when that setting is on (issue #546).
             const searchableText = [
                 video.title,
                 video.author,
-                ...(video.tags || [])
+                ...(video.tags || []),
+                ...(searchAutoTags ? video.autoTags || [] : [])
             ].join(' ').toLowerCase();
 
             // Check if ALL terms are present (AND logic)
             return terms.every(term => searchableText.includes(term));
         });
-    }, [videos]);
+    }, [videos, searchAutoTags]);
+
+    // Local results are taken when a search runs, so a search already on
+    // screen is re-matched whenever the matcher changes: the list was
+    // refetched (a suggestion promoted or dismissed, a download finished), or
+    // the setting was toggled or resolved after a cold-load /search?q=...
+    const [appliedMatcher, setAppliedMatcher] = useState(() => searchLocalVideos);
+    if (appliedMatcher !== searchLocalVideos) {
+        setAppliedMatcher(() => searchLocalVideos);
+        if (searchTerm) setLocalSearchResults(searchLocalVideos(searchTerm));
+    }
 
     const resetSearch = useCallback(() => {
         searchGeneration.current += 1;

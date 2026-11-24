@@ -132,6 +132,9 @@ export interface Settings {
   // Store yt-dlp source tags as per-video suggestions (videos.auto_tags,
   // issue #546). Off by default; never feeds settings.tags.
   autoTagsFromSource?: boolean;
+  // Library search also matches those suggestions (issue #546 phase three).
+  // Off by default; filters, RSS and recommendations still read tags only.
+  searchAutoTags?: boolean;
   // Lowercase alias → canonical tag, applied to source tags before they are
   // stored as suggestions (issue #546 phase two).
   tagAliases?: Record<string, string>;
@@ -219,6 +222,7 @@ export const defaultSettings: Settings = {
   tmdbApiKey: "",
   showTagsOnThumbnail: true,
   autoTagsFromSource: false,
+  searchAutoTags: false,
   playFromBeginning: false,
   showThemeButton: true,
   showAudioDownloadButton: true,

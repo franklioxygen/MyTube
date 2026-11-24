@@ -181,6 +181,77 @@ describe('VideoContext', () => {
     expect(hits[0].id).toBe('v1');
   });
 
+  it('matches source tag suggestions only when searchAutoTags is on, and re-matches a search on screen', async () => {
+    let searchAutoTags = false;
+    let v1AutoTags = ['live'];
+    const searchCalls: string[] = [];
+    mockApiGet.mockImplementation((url: string) => {
+      if (url === '/videos') {
+        return Promise.resolve({
+          data: [
+            { id: 'v1', title: 'Concert', author: 'Alice', tags: [], autoTags: v1AutoTags, visibility: 1 },
+            { id: 'v2', title: 'Live session', author: 'Bob', tags: [], visibility: 1 },
+          ],
+        });
+      }
+      if (url === '/settings') {
+        return Promise.resolve({ data: { tags: [], showYoutubeSearch: false, searchAutoTags } });
+      }
+      if (url === '/search') searchCalls.push(url);
+      return Promise.resolve({ data: {} });
+    });
+
+    const { wrapper, queryClient } = createWrapper();
+    const { result } = renderHook(() => useVideo(), { wrapper });
+    await waitFor(() => { expect(result.current.videos).toHaveLength(2); });
+    await waitFor(() => { expect(queryClient.getQueryData(['settings'])).toBeDefined(); });
+
+    await act(async () => { await result.current.handleSearch('live'); });
+    expect(result.current.localSearchResults.map((video) => video.id)).toEqual(['v2']);
+
+    // Turned on in Settings while the results are on screen.
+    searchAutoTags = true;
+    await act(async () => { await queryClient.invalidateQueries({ queryKey: ['settings'] }); });
+    await waitFor(() => {
+      expect(result.current.localSearchResults.map((video) => video.id)).toEqual(['v1', 'v2']);
+    });
+    expect(result.current.searchLocalVideos('alice live').map((video) => video.id)).toEqual(['v1']);
+
+    // The suggestion is dismissed on the video page; the refetched list drops
+    // the match from the results still on screen.
+    v1AutoTags = [];
+    await act(async () => { await queryClient.invalidateQueries({ queryKey: ['videos'] }); });
+    await waitFor(() => {
+      expect(result.current.localSearchResults.map((video) => video.id)).toEqual(['v2']);
+    });
+    // Only local results change; no external search runs again.
+    expect(searchCalls).toEqual([]);
+  });
+
+  it('renders while the first list read is still pending after settings arrive', async () => {
+    let releaseVideos: () => void = () => undefined;
+    mockApiGet.mockImplementation((url: string) => {
+      if (url === '/videos') {
+        return new Promise((resolve) => {
+          releaseVideos = () => resolve({ data: [{ id: 'v1', title: 'React', author: 'Alice', visibility: 1 }] });
+        });
+      }
+      if (url === '/settings') {
+        return Promise.resolve({ data: { tags: [], showYoutubeSearch: false, searchAutoTags: true } });
+      }
+      return Promise.resolve({ data: {} });
+    });
+
+    const { wrapper, queryClient } = createWrapper();
+    const { result } = renderHook(() => useVideo(), { wrapper });
+    // Settings resolving re-renders the provider while the list has no data.
+    await waitFor(() => { expect(queryClient.getQueryData(['settings'])).toBeDefined(); });
+    expect(result.current.videos).toEqual([]);
+
+    await act(async () => { releaseVideos(); });
+    await waitFor(() => { expect(result.current.videos).toHaveLength(1); });
+  });
+
   it('handleSearch returns validation error for empty query and resets state', async () => {
     const { wrapper } = createWrapper();
     const { result } = renderHook(() => useVideo(), { wrapper });

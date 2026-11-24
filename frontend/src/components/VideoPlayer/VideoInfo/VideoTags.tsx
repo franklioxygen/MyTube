@@ -1,4 +1,4 @@
-import { Add, LocalOffer } from '@mui/icons-material';
+import { Add, DoneAll, LocalOffer } from '@mui/icons-material';
 import { Autocomplete, Box, Chip, TextField, Tooltip, Typography, useMediaQuery, useTheme } from '@mui/material';
 import React, { useState } from 'react';
 import { useLanguage } from '../../../contexts/LanguageContext';
@@ -66,6 +66,20 @@ const VideoTags: React.FC<VideoTagsProps> = ({ videoId, tags, autoTags, availabl
         });
     };
 
+    // Promote every visible suggestion in one request (issue #546 phase
+    // three). Suggestions the video already carries as tags are dropped too.
+    const promoteAllAutoTags = () => {
+        const next = [...tagsArray];
+        const keys = new Set(ownTagKeys);
+        for (const tag of visibleAutoTags) {
+            const lower = tag.toLowerCase();
+            if (keys.has(lower)) continue;
+            keys.add(lower);
+            next.push(availableTagsArray.find((option) => option.toLowerCase() === lower) ?? tag);
+        }
+        saveAutoTags({ tags: next, autoTags: [] });
+    };
+
     const dismissAutoTag = (tag: string) => {
         saveAutoTags({ autoTags: autoTagsArray.filter((value) => value !== tag) });
     };
@@ -87,6 +101,22 @@ const VideoTags: React.FC<VideoTagsProps> = ({ videoId, tags, autoTags, availabl
             />
         </Tooltip>
     ));
+    // One suggestion is promoted by clicking it; the shortcut is for several.
+    if (onAutoTagsUpdate && visibleAutoTags.length > 1) {
+        autoTagChips.push(
+            <Chip
+                key="auto-promote-all"
+                icon={<DoneAll fontSize="small" />}
+                label={t('promoteAllAutoTags')}
+                size="small"
+                variant="outlined"
+                color="primary"
+                data-testid="auto-tag-promote-all"
+                disabled={suggestionsLocked}
+                onClick={promoteAllAutoTags}
+            />
+        );
+    }
 
     // On touch/mobile the inline autocomplete dropdown is awkward: it's anchored to
     // a tiny input and the on-screen keyboard covers it. Show the current tags as

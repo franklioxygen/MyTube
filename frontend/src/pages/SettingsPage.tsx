@@ -633,6 +633,8 @@ const SettingsPage: React.FC = () => {
                 isRenaming={renameTagMutation.isPending}
                 autoTagsFromSource={settings.autoTagsFromSource === true}
                 onAutoTagsFromSourceChange={(enabled) => handleChange('autoTagsFromSource', enabled)}
+                searchAutoTags={settings.searchAutoTags === true}
+                onSearchAutoTagsChange={(enabled) => handleChange('searchAutoTags', enabled)}
                 tagAliases={settings.tagAliases ?? {}}
                 onTagAliasesChange={handleTagAliasesChange}
                 onTagAliasInvalid={() => setMessage({ text: t('tagAliasInvalid'), type: 'error' })}

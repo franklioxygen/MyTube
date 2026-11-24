@@ -429,6 +429,9 @@ export const en = {
   autoTagsFromSource: "Get tags from the video source when downloading",
   autoTagsFromSourceDescription:
     "Tags reported by the source (e.g. YouTube, Bilibili) are shown faded on the video page as suggestions. They do not appear in tag filters until you click one to add it. Applies to videos downloaded or re-downloaded after this is turned on.",
+  searchAutoTags: "Also match suggested tags when searching",
+  searchAutoTagsDescription:
+    "Library search also matches the source tag suggestions shown on video pages. Tag filters, RSS and recommendations still use your own tags only.",
   tagAliases: "Tag aliases",
   tagAliasesDescription:
     "When a source tag matches an alias, it is suggested as the alias's tag instead. Renaming a tag adds its old name here automatically.",
@@ -439,6 +442,7 @@ export const en = {
     "This alias can't be added: an alias can't point to its own name, and a name can't be both an alias and a target.",
   autoTagPromoteHint: "Suggested by the video source. Click to add it as a tag.",
   autoTagSourceHint: "Suggested by the video source",
+  promoteAllAutoTags: "Add all as tags",
   // Database
   database: "Database",
   migrateDataDescription:

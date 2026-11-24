@@ -146,10 +146,12 @@ export function getVideosStrict(
 }
 
 // Every videos column except the heavy free-text ones. `description` (KBs of
-// YouTube description per row), `subtitles` (JSON blobs), and `autoTags`
-// (source tag suggestions, issue #546) are only consumed by the player, which fetches the full row via getVideoById — omitting them
+// YouTube description per row) and `subtitles` (JSON blobs) are only consumed
+// by the player, which fetches the full row via getVideoById — omitting them
 // here keeps the list payload and its per-row JSON.parse cost proportional to
-// what list views actually render.
+// what list views actually render. `autoTags` (source tag suggestions, issue
+// #546) is included because local search can match them; it is null unless
+// source tags are turned on, and capped at 20 short values per video.
 // Built lazily (like publicOnlyVisitorFilter above) so the schema reference is
 // not evaluated at module load time, which would break tests that partially
 // mock the db schema.
@@ -178,6 +180,7 @@ const videoSummaryColumns = () => ({
   width: videos.width,
   height: videos.height,
   tags: videos.tags,
+  autoTags: videos.autoTags,
   progress: videos.progress,
   progressUpdatedAt: videos.progressUpdatedAt,
   fileSize: videos.fileSize,
@@ -224,6 +227,7 @@ export function getVideoSummaries(
     return allVideos.map((v) => ({
       ...v,
       tags: parseVideoMetadata(v.id, "tags", v.tags),
+      autoTags: parseAutoTags(v.autoTags),
     })) as import("./types").Video[];
   } catch (error) {
     logger.error(

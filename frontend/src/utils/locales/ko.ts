@@ -443,6 +443,9 @@ export const ko = {
   autoTagsFromSource: "다운로드할 때 동영상 출처에서 태그 가져오기",
   autoTagsFromSourceDescription:
     "출처(YouTube, Bilibili 등)가 제공한 태그를 동영상 페이지에 흐리게 추천 태그로 표시합니다. 클릭해 추가하기 전에는 태그 필터에 나타나지 않습니다. 켠 뒤 다운로드하거나 다시 다운로드한 동영상에만 적용됩니다.",
+  searchAutoTags: "검색할 때 추천 태그도 포함",
+  searchAutoTagsDescription:
+    "라이브러리 검색에서 동영상 페이지에 표시되는 출처 추천 태그도 찾습니다. 태그 필터, RSS, 추천은 계속 직접 붙인 태그만 사용합니다.",
   tagAliases: "태그 별칭",
   tagAliasesDescription: "출처 태그가 별칭과 일치하면 대신 연결된 태그를 추천합니다. 태그 이름을 바꾸면 이전 이름이 여기에 자동으로 추가됩니다.",
   tagAlias: "별칭",
@@ -451,6 +454,7 @@ export const ko = {
   tagAliasInvalid: "이 별칭은 추가할 수 없습니다. 별칭은 자기 이름을 가리킬 수 없고, 같은 이름을 별칭과 대상 태그로 동시에 쓸 수 없습니다.",
   autoTagPromoteHint: "동영상 출처에서 추천한 태그입니다. 클릭하면 태그로 추가됩니다.",
   autoTagSourceHint: "동영상 출처에서 추천한 태그",
+  promoteAllAutoTags: "모두 태그로 추가",
 
   // Database
   database: "데이터베이스",
