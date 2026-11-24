@@ -228,6 +228,30 @@ describe('VideoContext', () => {
     expect(searchCalls).toEqual([]);
   });
 
+  it('renders while the first list read is still pending after settings arrive', async () => {
+    let releaseVideos: () => void = () => undefined;
+    mockApiGet.mockImplementation((url: string) => {
+      if (url === '/videos') {
+        return new Promise((resolve) => {
+          releaseVideos = () => resolve({ data: [{ id: 'v1', title: 'React', author: 'Alice', visibility: 1 }] });
+        });
+      }
+      if (url === '/settings') {
+        return Promise.resolve({ data: { tags: [], showYoutubeSearch: false, searchAutoTags: true } });
+      }
+      return Promise.resolve({ data: {} });
+    });
+
+    const { wrapper, queryClient } = createWrapper();
+    const { result } = renderHook(() => useVideo(), { wrapper });
+    // Settings resolving re-renders the provider while the list has no data.
+    await waitFor(() => { expect(queryClient.getQueryData(['settings'])).toBeDefined(); });
+    expect(result.current.videos).toEqual([]);
+
+    await act(async () => { releaseVideos(); });
+    await waitFor(() => { expect(result.current.videos).toHaveLength(1); });
+  });
+
   it('handleSearch returns validation error for empty query and resets state', async () => {
     const { wrapper } = createWrapper();
     const { result } = renderHook(() => useVideo(), { wrapper });

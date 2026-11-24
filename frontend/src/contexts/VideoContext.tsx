@@ -110,6 +110,9 @@ export const useVideoActions = () => {
 // Stable fallback so the provider-value useMemo deps don't see a fresh array
 // identity on every render while the settings query is unresolved.
 const EMPTY_TAGS: string[] = [];
+// Same for the list while its first read is pending: the search matcher is
+// derived from it and re-applied during render whenever it changes.
+const EMPTY_VIDEOS: Video[] = [];
 
 export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const { showSnackbar } = useSnackbar();
@@ -122,7 +125,7 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const hasFederationPeersRef = useRef(false);
 
     // Videos Query - Optimized for faster initial load
-    const { data: videosRaw = [], isLoading: videosLoading, error: videosError, refetch: refetchVideos } = useQuery({
+    const { data: videosRaw = EMPTY_VIDEOS, isLoading: videosLoading, error: videosError, refetch: refetchVideos } = useQuery({
         queryKey: ['videos'],
         queryFn: async () => {
             try {
