@@ -337,11 +337,12 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }, [videos, searchAutoTags]);
 
     // Local results are taken when a search runs, so a search already on
-    // screen is re-matched when the setting changes: toggled in Settings, or
-    // resolved only after a cold-load /search?q=... had already matched.
-    const [appliedSearchAutoTags, setAppliedSearchAutoTags] = useState(searchAutoTags);
-    if (appliedSearchAutoTags !== searchAutoTags) {
-        setAppliedSearchAutoTags(searchAutoTags);
+    // screen is re-matched whenever the matcher changes: the list was
+    // refetched (a suggestion promoted or dismissed, a download finished), or
+    // the setting was toggled or resolved after a cold-load /search?q=...
+    const [appliedMatcher, setAppliedMatcher] = useState(() => searchLocalVideos);
+    if (appliedMatcher !== searchLocalVideos) {
+        setAppliedMatcher(() => searchLocalVideos);
         if (searchTerm) setLocalSearchResults(searchLocalVideos(searchTerm));
     }
 

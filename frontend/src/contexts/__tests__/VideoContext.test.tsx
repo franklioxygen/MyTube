@@ -183,12 +183,13 @@ describe('VideoContext', () => {
 
   it('matches source tag suggestions only when searchAutoTags is on, and re-matches a search on screen', async () => {
     let searchAutoTags = false;
+    let v1AutoTags = ['live'];
     const searchCalls: string[] = [];
     mockApiGet.mockImplementation((url: string) => {
       if (url === '/videos') {
         return Promise.resolve({
           data: [
-            { id: 'v1', title: 'Concert', author: 'Alice', tags: [], autoTags: ['live'], visibility: 1 },
+            { id: 'v1', title: 'Concert', author: 'Alice', tags: [], autoTags: v1AutoTags, visibility: 1 },
             { id: 'v2', title: 'Live session', author: 'Bob', tags: [], visibility: 1 },
           ],
         });
@@ -215,6 +216,14 @@ describe('VideoContext', () => {
       expect(result.current.localSearchResults.map((video) => video.id)).toEqual(['v1', 'v2']);
     });
     expect(result.current.searchLocalVideos('alice live').map((video) => video.id)).toEqual(['v1']);
+
+    // The suggestion is dismissed on the video page; the refetched list drops
+    // the match from the results still on screen.
+    v1AutoTags = [];
+    await act(async () => { await queryClient.invalidateQueries({ queryKey: ['videos'] }); });
+    await waitFor(() => {
+      expect(result.current.localSearchResults.map((video) => video.id)).toEqual(['v2']);
+    });
     // Only local results change; no external search runs again.
     expect(searchCalls).toEqual([]);
   });
