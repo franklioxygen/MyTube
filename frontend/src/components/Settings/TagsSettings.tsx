@@ -25,6 +25,8 @@ interface TagsSettingsProps {
     isRenaming?: boolean;
     autoTagsFromSource?: boolean;
     onAutoTagsFromSourceChange?: (enabled: boolean) => void;
+    searchAutoTags?: boolean;
+    onSearchAutoTagsChange?: (enabled: boolean) => void;
     tagAliases?: Record<string, string>;
     onTagAliasesChange?: (aliases: Record<string, string>) => void;
     onTagAliasInvalid?: () => void;
@@ -43,6 +45,8 @@ const TagsSettings: React.FC<TagsSettingsProps> = ({
     isRenaming = false,
     autoTagsFromSource = false,
     onAutoTagsFromSourceChange,
+    searchAutoTags = false,
+    onSearchAutoTagsChange,
     tagAliases = {},
     onTagAliasesChange,
     onTagAliasInvalid,
@@ -148,6 +152,22 @@ const TagsSettings: React.FC<TagsSettingsProps> = ({
                     />
                     <Typography variant="body2" color="text.secondary">
                         {t('autoTagsFromSourceDescription')}
+                    </Typography>
+                </Box>
+            )}
+            {onSearchAutoTagsChange && (
+                <Box sx={{ mb: 2 }} id="searchAutoTags-setting">
+                    <FormControlLabel
+                        control={
+                            <Switch
+                                checked={searchAutoTags}
+                                onChange={(event) => onSearchAutoTagsChange(event.target.checked)}
+                            />
+                        }
+                        label={t('searchAutoTags')}
+                    />
+                    <Typography variant="body2" color="text.secondary">
+                        {t('searchAutoTagsDescription')}
                     </Typography>
                 </Box>
             )}

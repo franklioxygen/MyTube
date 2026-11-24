@@ -24,6 +24,24 @@ describe('TagsSettings', () => {
         expect(screen.getByLabelText('newTag')).toBeInTheDocument();
     });
 
+    it('toggles matching suggestions in search', async () => {
+        const user = userEvent.setup();
+        const onSearchAutoTagsChange = vi.fn();
+        render(
+            <TagsSettings
+                tags={defaultTags}
+                onTagsChange={mockOnTagsChange}
+                searchAutoTags={false}
+                onSearchAutoTagsChange={onSearchAutoTagsChange}
+            />
+        );
+
+        const toggle = screen.getByRole('switch', { name: 'searchAutoTags' });
+        expect(toggle).not.toBeChecked();
+        await user.click(toggle);
+        expect(onSearchAutoTagsChange).toHaveBeenCalledWith(true);
+    });
+
     it('should add new tag via button', async () => {
         const user = userEvent.setup();
         render(<TagsSettings tags={defaultTags} onTagsChange={mockOnTagsChange} />);

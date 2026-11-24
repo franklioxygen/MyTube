@@ -189,6 +189,7 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const showYoutubeSearch = settingsData?.showYoutubeSearch ?? true;
     const showBilibiliSearch = settingsData?.showBilibiliSearch ?? false;
     const captureSearchText = settingsData?.statisticsCaptureSearchText === true;
+    const searchAutoTags = settingsData?.searchAutoTags === true;
 
     const [selectedTags, setSelectedTags] = useState<string[]>([]);
     const [lastSearchEventId, setLastSearchEventId] = useState<string | null>(null);
@@ -321,17 +322,28 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         return videos.filter(video => {
             // Prepare searchable text. The list payload intentionally omits
             // description (heavy column, only the player loads it), so local
-            // search matches title/author/tags.
+            // search matches title/author/tags, plus source tag suggestions
+            // when that setting is on (issue #546).
             const searchableText = [
                 video.title,
                 video.author,
-                ...(video.tags || [])
+                ...(video.tags || []),
+                ...(searchAutoTags ? video.autoTags || [] : [])
             ].join(' ').toLowerCase();
 
             // Check if ALL terms are present (AND logic)
             return terms.every(term => searchableText.includes(term));
         });
-    }, [videos]);
+    }, [videos, searchAutoTags]);
+
+    // Local results are taken when a search runs, so a search already on
+    // screen is re-matched when the setting changes: toggled in Settings, or
+    // resolved only after a cold-load /search?q=... had already matched.
+    const [appliedSearchAutoTags, setAppliedSearchAutoTags] = useState(searchAutoTags);
+    if (appliedSearchAutoTags !== searchAutoTags) {
+        setAppliedSearchAutoTags(searchAutoTags);
+        if (searchTerm) setLocalSearchResults(searchLocalVideos(searchTerm));
+    }
 
     const resetSearch = useCallback(() => {
         searchGeneration.current += 1;

@@ -96,6 +96,37 @@ describe('VideoTags source tag suggestions', () => {
         expect(onAutoTagsUpdate).toHaveBeenCalledTimes(2);
     });
 
+    it('adds every visible suggestion in one update, using catalog spellings', () => {
+        const onAutoTagsUpdate = vi.fn().mockResolvedValue(undefined);
+        render(
+            <VideoTags
+                videoId="v1"
+                tags={['music']}
+                autoTags={['live', 'Music', 'lofi', 'LOFI']}
+                availableTags={['music', 'Live']}
+                onTagsUpdate={vi.fn()}
+                onAutoTagsUpdate={onAutoTagsUpdate}
+            />
+        );
+        fireEvent.click(screen.getByTestId('auto-tag-promote-all'));
+        // "Music" is already a tag and "LOFI" repeats "lofi"; nothing is left suggested.
+        expect(onAutoTagsUpdate).toHaveBeenCalledWith({
+            tags: ['music', 'Live', 'lofi'],
+            autoTags: [],
+        });
+    });
+
+    it('offers adding all only for several suggestions, and only when editable', () => {
+        const { rerender } = render(
+            <VideoTags videoId="v1" tags={['music']} autoTags={['live', 'music']} availableTags={[]}
+                onTagsUpdate={vi.fn()} onAutoTagsUpdate={vi.fn()} />
+        );
+        // One visible suggestion: clicking it is enough.
+        expect(screen.queryByTestId('auto-tag-promote-all')).not.toBeInTheDocument();
+        rerender(<VideoTags videoId="v1" tags={[]} autoTags={['live', 'lofi']} availableTags={[]} />);
+        expect(screen.queryByTestId('auto-tag-promote-all')).not.toBeInTheDocument();
+    });
+
     it('shows suggestions read-only when editing is not allowed', () => {
         render(<VideoTags videoId="v1" tags={[]} autoTags={['live']} availableTags={[]} />);
         expect(autoChips()).toHaveLength(1);

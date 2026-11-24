@@ -452,6 +452,9 @@ export const de = {
   autoTagsFromSource: "Beim Herunterladen Tags von der Videoquelle übernehmen",
   autoTagsFromSourceDescription:
     "Tags der Quelle (z. B. YouTube, Bilibili) werden auf der Videoseite blass als Vorschläge angezeigt. Erst wenn du einen anklickst, wird er als Tag hinzugefügt und erscheint in den Tag-Filtern. Gilt für Videos, die nach dem Einschalten heruntergeladen oder erneut heruntergeladen werden.",
+  searchAutoTags: "Beim Suchen auch vorgeschlagene Tags finden",
+  searchAutoTagsDescription:
+    "Die Bibliothekssuche findet auch die Tag-Vorschläge der Quelle, die auf Videoseiten angezeigt werden. Tag-Filter, RSS und Empfehlungen nutzen weiterhin nur deine eigenen Tags.",
   tagAliases: "Tag-Aliasse",
   tagAliasesDescription:
     "Stimmt ein Quell-Tag mit einem Alias überein, wird stattdessen der zugehörige Tag vorgeschlagen. Beim Umbenennen eines Tags wird der alte Name hier automatisch eingetragen.",
@@ -462,6 +465,7 @@ export const de = {
     "Dieser Alias kann nicht hinzugefügt werden: Ein Alias darf nicht auf seinen eigenen Namen zeigen, und ein Name darf nicht zugleich Alias und Ziel sein.",
   autoTagPromoteHint: "Vorschlag der Videoquelle. Klicken, um ihn als Tag hinzuzufügen.",
   autoTagSourceHint: "Vorschlag der Videoquelle",
+  promoteAllAutoTags: "Alle als Tags hinzufügen",
 
   // Database
   database: "Datenbank",
