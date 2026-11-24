@@ -10,6 +10,16 @@ vi.mock('../../../contexts/LanguageContext', () => ({
     useLanguage: () => ({ t: (key: string) => key }),
 }));
 
+// FilenameTemplateSettings fetches its catalog and preview. Left unmocked, the
+// failed requests log from the API client after the file ends, which Vitest
+// reports as an unhandled teardown error under load.
+vi.mock('../../../utils/apiClient', () => ({
+    api: {
+        get: vi.fn(() => new Promise(() => {})),
+        post: vi.fn(() => new Promise(() => {})),
+    },
+}));
+
 describe('DownloadSettings', () => {
     const mockOnChange = vi.fn();
     const mockOnCleanup = vi.fn();
