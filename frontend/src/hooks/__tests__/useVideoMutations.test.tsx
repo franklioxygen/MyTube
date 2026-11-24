@@ -127,6 +127,46 @@ describe('useVideoMutations', () => {
         expect(queryClient.getQueryState(['settings'])?.isInvalidated).toBe(false);
     });
 
+    it('drops a first list read still pending when a dismissal lands', async () => {
+        const queryClient = new QueryClient({
+            defaultOptions: { queries: { retry: false } },
+        });
+        queryClient.setQueryData(['video', 'a'], { id: 'a', tags: [], autoTags: ['live'] } as unknown as Video);
+        // No list cache yet: its first read started before the PUT.
+        let releaseOldRead: () => void = () => undefined;
+        const listFn = vi
+            .fn()
+            .mockReturnValueOnce(
+                new Promise((resolve) => {
+                    releaseOldRead = () => resolve([{ id: 'a', tags: [], autoTags: ['live'] }]);
+                })
+            )
+            .mockResolvedValue([{ id: 'a', tags: [], autoTags: [] }]);
+
+        const wrapper = ({ children }: { children: React.ReactNode }) => (
+            <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+        );
+        const { result } = renderHook(
+            () => ({
+                list: useQuery({ queryKey: ['videos'], queryFn: listFn }),
+                mutations: useVideoMutations({ videoId: 'a' }),
+            }),
+            { wrapper }
+        );
+        await waitFor(() => expect(listFn).toHaveBeenCalledTimes(1));
+
+        await act(async () => {
+            await result.current.mutations.autoTagsMutation.mutateAsync({ videoId: 'a', autoTags: [] });
+        });
+        await act(async () => {
+            releaseOldRead();
+        });
+
+        expect(listFn).toHaveBeenCalledTimes(2);
+        await waitFor(() => expect(result.current.list.isFetching).toBe(false));
+        expect(result.current.list.data).toEqual([{ id: 'a', tags: [], autoTags: [] }]);
+    });
+
     it('keeps a promotion when an older list read lands after it', async () => {
         const queryClient = new QueryClient({
             defaultOptions: { queries: { retry: false } },
