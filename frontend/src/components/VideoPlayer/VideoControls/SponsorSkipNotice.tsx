@@ -3,7 +3,7 @@ import { Box, Button, Typography, useMediaQuery } from '@mui/material';
 import React from 'react';
 import { useLanguage } from '../../../contexts/LanguageContext';
 import { overlay } from '../../../theme/colors';
-import { SPONSORBLOCK_CATEGORY_LABEL_KEYS } from '../../../utils/sponsorBlock';
+import { SPONSORBLOCK_CATEGORY_LABEL_KEYS, type SkipRange } from '../../../utils/sponsorBlock';
 import type { SponsorSkipNotice as Notice } from './hooks/useSponsorSkip';
 
 interface SponsorSkipNoticeProps {
@@ -24,9 +24,8 @@ const SponsorSkipNotice: React.FC<SponsorSkipNoticeProps> = ({ notice, onUndo, o
     const isTouch = useMediaQuery('(hover: none), (pointer: coarse)');
     if (!notice) return null;
 
-    const category = notice.range.categories
-        .map((item) => t(SPONSORBLOCK_CATEGORY_LABEL_KEYS[item]))
-        .join(' / ');
+    const categoryOf = (range: SkipRange) =>
+        range.categories.map((item) => t(SPONSORBLOCK_CATEGORY_LABEL_KEYS[item])).join(' / ');
     const buttonSx = {
         color: overlay.white92,
         minHeight: isTouch ? 44 : 32,
@@ -49,7 +48,7 @@ const SponsorSkipNotice: React.FC<SponsorSkipNoticeProps> = ({ notice, onUndo, o
                 display: 'flex',
                 alignItems: 'center',
                 gap: 0.5,
-                pl: notice.kind === 'skipped' ? 1.5 : 0.5,
+                pl: notice.skipped ? 1.5 : 0.5,
                 pr: 0.5,
                 borderRadius: 1,
                 bgcolor: overlay.black75,
@@ -58,18 +57,19 @@ const SponsorSkipNotice: React.FC<SponsorSkipNoticeProps> = ({ notice, onUndo, o
                 transition: 'bottom 0.35s ease',
             }}
         >
-            {notice.kind === 'skipped' ? (
+            {notice.skipped && (
                 <>
                     <Typography variant="body2" noWrap sx={{ minWidth: 0 }}>
-                        {t('sponsorBlockSkipped', { category })}
+                        {t('sponsorBlockSkipped', { category: categoryOf(notice.skipped) })}
                     </Typography>
                     <Button size="small" startIcon={<Undo />} onClick={onUndo} sx={buttonSx}>
                         {t('sponsorBlockUndo')}
                     </Button>
                 </>
-            ) : (
+            )}
+            {notice.prompt && (
                 <Button size="small" endIcon={<SkipNext />} onClick={onSkip} sx={buttonSx}>
-                    {t('sponsorBlockSkip', { category })}
+                    {t('sponsorBlockSkip', { category: categoryOf(notice.prompt) })}
                 </Button>
             )}
         </Box>

@@ -18,7 +18,20 @@ const BASE_STEP_SECONDS = 1;
 const STEP_SLACK_SECONDS = 0.5;
 const SAMPLED_EVENTS = ['timeupdate', 'seeked', 'play'] as const;
 
-export type SponsorSkipNotice = { kind: 'skipped' | 'prompt'; range: SkipRange } | null;
+/**
+ * What the player shows over the picture. Both parts can be up at once: a
+ * skip that lands inside a manual range (sponsor, then an outro shown as a
+ * button) must still offer Undo for the skip.
+ */
+export type SponsorSkipNotice = {
+    /** The last automatic or manual skip, undoable for a few seconds. */
+    skipped?: SkipRange;
+    /** A range the playhead is in that can be skipped by hand. */
+    prompt?: SkipRange;
+} | null;
+
+const withNotice = (skipped?: SkipRange, prompt?: SkipRange): SponsorSkipNotice =>
+    skipped || prompt ? { skipped, prompt } : null;
 
 interface UseSponsorSkipOptions {
     videoRef: RefObject<HTMLVideoElement | null>;
@@ -130,7 +143,8 @@ export function useSponsorSkip({
         handledRef.current.add(range.key);
         previousTimeRef.current = null;
         seek(range.end, { toEnd: range.toEnd });
-        setNotice({ kind: 'skipped', range });
+        // Where the skip lands decides the prompt; the next sample sets it.
+        setNotice(withNotice(range));
     }, [setNotice]);
 
     useEffect(() => {
@@ -196,14 +210,11 @@ export function useSponsorSkip({
                 performSkip(decision.range);
                 return;
             }
-            setNotice((current) => {
-                if (decision.kind === 'prompt') {
-                    return current?.kind === 'prompt' && current.range.key === decision.range.key
-                        ? current
-                        : { kind: 'prompt', range: decision.range };
-                }
-                return current?.kind === 'prompt' ? null : current;
-            });
+            // Only the prompt follows the playhead; an undoable skip stays up.
+            const prompt = decision.kind === 'prompt' ? decision.range : undefined;
+            setNotice((current) =>
+                current?.prompt?.key === prompt?.key ? current : withNotice(current?.skipped, prompt)
+            );
         };
 
         for (const type of SAMPLED_EVENTS) video.addEventListener(type, sample);
@@ -212,27 +223,31 @@ export function useSponsorSkip({
         };
     }, [videoRef, hasRanges, performSkip, setNotice]);
 
+    const skipped = notice?.skipped;
     useEffect(() => {
-        if (notice?.kind !== 'skipped') return;
+        if (!skipped) return;
         const timer = window.setTimeout(() => {
-            setNotice((current) => (current === notice ? null : current));
+            setNotice((current) =>
+                current?.skipped === skipped ? withNotice(undefined, current.prompt) : current
+            );
         }, SKIPPED_NOTICE_MS);
         return () => window.clearTimeout(timer);
-    }, [notice, setNotice]);
+    }, [skipped, setNotice]);
 
     const undo = useCallback(() => {
-        if (notice?.kind !== 'skipped') return;
-        const { range } = notice;
-        for (const uuid of range.uuids) undoneRef.current.add(uuid);
-        handledRef.current.delete(range.key);
+        if (!skipped) return;
+        for (const uuid of skipped.uuids) undoneRef.current.add(uuid);
+        handledRef.current.delete(skipped.key);
         previousTimeRef.current = null;
-        latestRef.current.skipTo?.(range.start);
+        latestRef.current.skipTo?.(skipped.start);
+        // Landing back at the start raises this range's own skip button.
         setNotice(null);
-    }, [notice, setNotice]);
+    }, [skipped, setNotice]);
 
+    const prompt = notice?.prompt;
     const skipNow = useCallback(() => {
-        if (notice?.kind === 'prompt') performSkip(notice.range);
-    }, [notice, performSkip]);
+        if (prompt) performSkip(prompt);
+    }, [prompt, performSkip]);
 
     return { plan, notice, undo, skipNow };
 }

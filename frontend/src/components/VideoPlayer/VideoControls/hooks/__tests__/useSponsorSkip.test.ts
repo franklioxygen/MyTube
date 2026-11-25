@@ -1,5 +1,5 @@
 import { act, renderHook } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from 'vitest';
 import type { SponsorSegment } from '../../../../../types';
 import type { SponsorBlockCategorySettings } from '../../../../../utils/sponsorBlock';
 import { SKIPPED_NOTICE_MS, useSponsorSkip } from '../useSponsorSkip';
@@ -23,7 +23,7 @@ const sponsor = (overrides: Partial<SponsorSegment> = {}): SponsorSegment => ({
 });
 
 let media: FakeMedia;
-let skipTo: ReturnType<typeof vi.fn>;
+let skipTo: Mock<(time: number, options?: { toEnd?: boolean }) => void>;
 let restoring: boolean;
 
 const emit = (type: string) => act(() => { media.dispatchEvent(new Event(type)); });
@@ -90,7 +90,7 @@ describe('useSponsorSkip', () => {
         tick(9.75);
         tick(10.0);
         expect(skipTo).toHaveBeenCalledExactlyOnceWith(20, { toEnd: false });
-        expect(result.current.notice).toMatchObject({ kind: 'skipped', range: { key: 'sponsor-1' } });
+        expect(result.current.notice).toMatchObject({ skipped: { key: 'sponsor-1' } });
     });
 
     it('never reacts to its own seek', () => {
@@ -101,7 +101,7 @@ describe('useSponsorSkip', () => {
         media.seeking = false;
         media.currentTime = 10.1;
         emit('timeupdate');
-        expect(result.current.notice?.kind).toBe('skipped');
+        expect(result.current.notice?.skipped?.key).toBe('sponsor-1');
         media.currentTime = 20;
         land();
         tick(20.25);
@@ -115,7 +115,7 @@ describe('useSponsorSkip', () => {
         seek(15);
         tick(15.25);
         expect(skipTo).not.toHaveBeenCalled();
-        expect(result.current.notice).toMatchObject({ kind: 'prompt', range: { key: 'sponsor-1' } });
+        expect(result.current.notice).toMatchObject({ prompt: { key: 'sponsor-1' } });
         act(() => result.current.skipNow());
         expect(skipTo).toHaveBeenCalledWith(20, { toEnd: false });
     });
@@ -132,7 +132,7 @@ describe('useSponsorSkip', () => {
         media.seeking = false;
         tick(10.8, 100);
         expect(skipTo).not.toHaveBeenCalled();
-        expect(result.current.notice?.kind).toBe('prompt');
+        expect(result.current.notice?.prompt?.key).toBe('sponsor-1');
     });
 
     it('skips an intro at 0 when playback starts there', () => {
@@ -163,7 +163,7 @@ describe('useSponsorSkip', () => {
         tick(10.25);
         tick(10.5);
         expect(skipTo).toHaveBeenCalledTimes(2);
-        expect(result.current.notice?.kind).toBe('prompt');
+        expect(result.current.notice?.prompt?.key).toBe('sponsor-1');
     });
 
     it('forgets undone ranges when another video loads', () => {
@@ -179,6 +179,21 @@ describe('useSponsorSkip', () => {
         tick(5.25);
         tick(10.0);
         expect(skipTo).toHaveBeenCalledTimes(3);
+    });
+
+    it('keeps Undo when a skip lands inside a range shown as a button', () => {
+        const { result } = setup(
+            [sponsor({ start: 50, end: 60 }), sponsor({ uuid: 'outro-1', category: 'outro', start: 60, end: 80 })],
+            { categories: { sponsor: 'auto', outro: 'manual' } }
+        );
+        tick(49.75);
+        tick(50.1);
+        land();
+        expect(result.current.notice).toMatchObject({ skipped: { key: 'sponsor-1' }, prompt: { key: 'outro-1' } });
+        // Undo is offered for its usual time; the button stays while inside.
+        act(() => { vi.advanceTimersByTime(SKIPPED_NOTICE_MS); });
+        expect(result.current.notice?.skipped).toBeUndefined();
+        expect(result.current.notice?.prompt?.key).toBe('outro-1');
     });
 
     it('skips a range that reaches the end all the way to the end', () => {
@@ -211,7 +226,7 @@ describe('useSponsorSkip', () => {
         rerender({ segments: [sponsor()], resetKey: 'video-a' });
         tick(16);
         expect(skipTo).not.toHaveBeenCalled();
-        expect(result.current.notice?.kind).toBe('prompt');
+        expect(result.current.notice?.prompt?.key).toBe('sponsor-1');
     });
 
     it('shows only a button when this device paused automatic skipping', () => {
@@ -219,7 +234,7 @@ describe('useSponsorSkip', () => {
         tick(9.75);
         tick(10.1);
         expect(skipTo).not.toHaveBeenCalled();
-        expect(result.current.notice?.kind).toBe('prompt');
+        expect(result.current.notice?.prompt?.key).toBe('sponsor-1');
     });
 
     it('hides the skipped notice after a few seconds', () => {

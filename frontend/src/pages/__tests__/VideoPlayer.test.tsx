@@ -87,7 +87,7 @@ vi.mock('../../hooks/useVideoQueries', () => ({
     useVideoQueries: () => mockVideoQueryReturn,
 }));
 
-const mockUseSponsorBlockSegments = vi.fn((_videoId?: string): { data?: unknown } => ({ data: undefined }));
+const mockUseSponsorBlockSegments = vi.fn<(videoId?: string) => { data?: unknown }>(() => ({ data: undefined }));
 vi.mock('../../hooks/useSponsorBlockSegments', () => ({
     useSponsorBlockSegments: (videoId: string | undefined) => mockUseSponsorBlockSegments(videoId),
 }));
