@@ -284,6 +284,28 @@ export const useVideoPlayer = ({
     seekTo(videoElement, newTime);
   }, [clearPendingStartTimeRestore, seekTo]);
 
+  // A SponsorBlock skip (issue #555). A range that reaches the end skips past
+  // the end guard on purpose: clamped back inside the range, the skip would
+  // land where it started and 'ended' (Up Next, loop) would never fire.
+  const skipTo = useCallback((time: number, options: { toEnd?: boolean } = {}) => {
+    const videoElement = videoRef.current;
+    if (!videoElement || !isFinite(videoElement.duration)) return;
+
+    clearPendingStartTimeRestore();
+    seekTo(
+      videoElement,
+      options.toEnd ? videoElement.duration : time,
+      { skipEndGuard: options.toEnd }
+    );
+  }, [clearPendingStartTimeRestore, seekTo]);
+
+  // While a resume position is still being applied, nothing may move the
+  // playhead: the restore would be lost.
+  const isStartTimeRestorePending = useCallback(
+    () => pendingStartTimeRestoreRef.current !== null,
+    []
+  );
+
   // A single frame step. HTMLVideoElement exposes no frame rate, so this
   // assumes 30fps like every other web player has to; the point of the
   // shortcut is inspecting a still, not exact frame accounting. Stepping
@@ -471,6 +493,8 @@ export const useVideoPlayer = ({
     playbackRate,
     handlePlayPause,
     handleSeek,
+    skipTo,
+    isStartTimeRestorePending,
     handleFrameStep,
     handleProgressChange,
     handleProgressChangeCommitted,

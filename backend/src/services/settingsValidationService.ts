@@ -11,6 +11,7 @@ import {
   MIN_PLAYER_SEEK_SECONDS,
   MIN_AUTO_DELETE_INTERVAL_DAYS,
   MAX_AUTO_DELETE_INTERVAL_DAYS,
+  normalizeSponsorBlockCategories,
 } from "../types/settings";
 import { logger } from "../utils/logger";
 import { normalizeTagAliases } from "../utils/sourceTags";
@@ -120,6 +121,19 @@ export function validateSettings(newSettings: Partial<Settings>): void {
         "tagAliases"
       );
     }
+  }
+  if (newSettings.sponsorBlockEnabled !== undefined && typeof newSettings.sponsorBlockEnabled !== "boolean") {
+    throw new ValidationError("SponsorBlock enabled flag must be a boolean.", "sponsorBlockEnabled");
+  }
+  if (newSettings.sponsorBlockCategories !== undefined) {
+    const categories = normalizeSponsorBlockCategories(newSettings.sponsorBlockCategories);
+    if (!categories) {
+      throw new ValidationError(
+        "SponsorBlock categories must map each category to auto, manual or off.",
+        "sponsorBlockCategories"
+      );
+    }
+    newSettings.sponsorBlockCategories = categories;
   }
   if (newSettings.downloadBilibiliDanmaku !== undefined && typeof newSettings.downloadBilibiliDanmaku !== "boolean") {
     throw new ValidationError("Bilibili danmaku download flag must be a boolean.", "downloadBilibiliDanmaku");

@@ -214,6 +214,36 @@ export interface DeploymentSecurityModel {
   source: 'env';
 }
 
+/** Keep in sync with SPONSORBLOCK_CATEGORIES in backend/src/types/settings.ts. */
+export type SponsorBlockCategory =
+  | 'sponsor'
+  | 'selfpromo'
+  | 'interaction'
+  | 'intro'
+  | 'outro'
+  | 'preview'
+  | 'hook'
+  | 'music_offtopic'
+  | 'filler';
+export type SponsorBlockMode = 'auto' | 'manual' | 'off';
+
+/** One segment as GET /api/videos/:id/sponsorblock returns it. */
+export interface SponsorSegment {
+  uuid: string;
+  /** Any upstream category; only SponsorBlockCategory values can be skipped. */
+  category: string;
+  actionType: 'skip' | 'mute' | 'poi' | 'full';
+  start: number;
+  end: number;
+  /** Duration of the video the segment was submitted against; 0 when unknown. */
+  videoDuration: number;
+}
+
+export interface SponsorBlockResponse {
+  status: 'disabled' | 'unsupported' | 'ready' | 'none' | 'unavailable';
+  segments: SponsorSegment[];
+}
+
 export interface Settings {
   loginEnabled: boolean;
   password?: string;
@@ -285,6 +315,10 @@ export interface Settings {
   autoTagsFromSource?: boolean;
   searchAutoTags?: boolean;
   tagAliases?: Record<string, string>;
+  /** Skip SponsorBlock segments of YouTube videos during playback (issue #555). */
+  sponsorBlockEnabled?: boolean;
+  /** Per-category mode; a missing category is "off". */
+  sponsorBlockCategories?: Partial<Record<SponsorBlockCategory, SponsorBlockMode>>;
   preferredAudioLanguage?: string;
   audioFormat?: 'm4a' | 'mp3' | 'opus';
   defaultVideoCodec?: string;

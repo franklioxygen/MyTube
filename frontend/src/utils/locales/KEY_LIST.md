@@ -11,7 +11,7 @@ UPDATE_KEY_LIST=1 npx vitest run src/utils/locales/__tests__/localeParity.test.t
 
 This list is intentionally unnumbered. When new keys are inserted, only the local section order changes.
 
-Total keys: 1596
+Total keys: 1627
 
 ## Summary
 
@@ -22,7 +22,8 @@ Total keys: 1596
 | Header | 11 | `myTube` | `instruction` |
 | Home | 30 | `pasteUrl` | `views` |
 | Settings | 4 | `general` | `downloadSettings` |
-| Settings Categories | 260 | `interfaceDisplay` | `promoteAllAutoTags` |
+| Settings Categories | 211 | `interfaceDisplay` | `pauseOnFocusLoss` |
+| SponsorBlock (issue #555) | 80 | `sponsorBlockTitle` | `promoteAllAutoTags` |
 | Database | 38 | `database` | `cleanupTempFilesConfirmMessage` |
 | Task Hooks | 101 | `taskHooks` | `cleanupTempFilesFailed` |
 | Cookie Settings | 13 | `cookieSettings` | `youtubeCookiesMayHaveExpired` |
@@ -410,6 +411,42 @@ Total keys: 1596
 | `telegramTestFailed` |
 | `telegramTestMissingFields` |
 | `pauseOnFocusLoss` |
+
+### SponsorBlock (issue #555)
+
+| Key |
+| --- |
+| `sponsorBlockTitle` |
+| `sponsorBlockDescription` |
+| `sponsorBlockEnable` |
+| `sponsorBlockModeAuto` |
+| `sponsorBlockModeManual` |
+| `sponsorBlockModeOff` |
+| `sponsorBlockCategorySponsor` |
+| `sponsorBlockCategorySponsorDescription` |
+| `sponsorBlockCategorySelfpromo` |
+| `sponsorBlockCategorySelfpromoDescription` |
+| `sponsorBlockCategoryInteraction` |
+| `sponsorBlockCategoryInteractionDescription` |
+| `sponsorBlockCategoryIntro` |
+| `sponsorBlockCategoryIntroDescription` |
+| `sponsorBlockCategoryOutro` |
+| `sponsorBlockCategoryOutroDescription` |
+| `sponsorBlockCategoryPreview` |
+| `sponsorBlockCategoryPreviewDescription` |
+| `sponsorBlockCategoryHook` |
+| `sponsorBlockCategoryHookDescription` |
+| `sponsorBlockCategoryMusicOfftopic` |
+| `sponsorBlockCategoryMusicOfftopicDescription` |
+| `sponsorBlockCategoryFiller` |
+| `sponsorBlockCategoryFillerDescription` |
+| `sponsorBlockSkipped` |
+| `sponsorBlockUndo` |
+| `sponsorBlockSkip` |
+| `sponsorBlockAutoSkipOn` |
+| `sponsorBlockAutoSkipOff` |
+| `sponsorBlockDurationMismatch` |
+| `sponsorBlockAttribution` |
 | `playFromBeginning` |
 | `seekControls` |
 | `seekControlsDescription` |

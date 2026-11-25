@@ -11,12 +11,15 @@ import LiveTranslationControlButton from './LiveTranslationControlButton';
 import LoopControl from './LoopControl';
 import PlaybackControls from './PlaybackControls';
 import SpeedControl from './SpeedControl';
-import ProgressBar from './ProgressBar';
+import ProgressBar, { type ProgressBarSegment } from './ProgressBar';
 import SubtitleControl from './SubtitleControl';
 import VolumeControl from './VolumeControl';
 
 interface ControlsOverlayProps {
     danmakuControl?: React.ReactNode;
+    /** Shown for audio too, unlike danmaku. */
+    sponsorBlockControl?: React.ReactNode;
+    progressSegments?: ProgressBarSegment[];
     isFullscreen: boolean;
     controlsVisible: boolean;
     isPlaying: boolean;
@@ -65,6 +68,8 @@ interface ControlsOverlayProps {
 
 const ControlsOverlay: React.FC<ControlsOverlayProps> = ({
     danmakuControl,
+    sponsorBlockControl,
+    progressSegments,
     isFullscreen,
     controlsVisible,
     isPlaying,
@@ -191,6 +196,7 @@ const ControlsOverlay: React.FC<ControlsOverlayProps> = ({
                         currentTime={currentTime}
                         duration={duration}
                         isFullscreen={isFullscreen}
+                        segments={progressSegments}
                         onProgressChange={onProgressChange}
                         onProgressChangeCommitted={onProgressChangeCommitted}
                         onProgressMouseDown={onProgressMouseDown}
@@ -260,6 +266,8 @@ const ControlsOverlay: React.FC<ControlsOverlayProps> = ({
             {/* Seek Controls */}
             <PlaybackControls
                 danmakuControl={!isAudio && !isMobile ? danmakuControl : undefined}
+                // One instance only: CSS hiding would mount it in both rows.
+                sponsorBlockControl={!isMobile ? sponsorBlockControl : undefined}
                 isPlaying={isPlaying}
                 onPlayPause={onPlayPause}
                 onSeek={onSeek}
@@ -273,6 +281,7 @@ const ControlsOverlay: React.FC<ControlsOverlayProps> = ({
             {/* Mobile: Live Translate, Fullscreen, Loop, Speed */}
             <Stack direction="row" spacing={0.5} alignItems="center" sx={{ display: { xs: 'flex', sm: 'none' }, ml: 1, justifyContent: 'center', mt: 1 }}>
                 {!isAudio && isMobile && danmakuControl}
+                {isMobile && sponsorBlockControl}
                 {!isAudio && <LiveTranslationControlButton />}
 
                 {!isAudio && <FullscreenControl

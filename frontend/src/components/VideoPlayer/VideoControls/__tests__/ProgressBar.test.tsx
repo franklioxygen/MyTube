@@ -65,4 +65,32 @@ describe('ProgressBar', () => {
         fireEvent.mouseDown(slider);
         expect(defaultProps.onProgressMouseDown).toHaveBeenCalled();
     });
+
+    describe('segments', () => {
+        const segments = [
+            { start: 10, end: 35, color: '#00d400' },
+            { start: 100, end: 100.2, color: '#ffff00' },
+        ];
+
+        it('paints each segment at its share of the duration without taking clicks', () => {
+            render(<ProgressBar {...defaultProps} duration={200} segments={segments} />);
+            const layer = screen.getByTestId('progress-segments');
+            expect(layer).toHaveStyle({ pointerEvents: 'none' });
+            const [first, second] = Array.from(layer.children) as HTMLElement[];
+            expect(first).toHaveStyle({ left: '5%', width: '12.5%' });
+            expect(second).toHaveStyle({ left: '50%', minWidth: '2px' });
+        });
+
+        it('paints nothing before the duration is known', () => {
+            render(<ProgressBar {...defaultProps} duration={0} segments={segments} />);
+            expect(screen.queryByTestId('progress-segments')).toBeNull();
+        });
+
+        it('keeps the same slider when segments arrive, so a drag is not interrupted', () => {
+            const { rerender } = render(<ProgressBar {...defaultProps} />);
+            const before = screen.getByRole('slider');
+            rerender(<ProgressBar {...defaultProps} segments={segments} />);
+            expect(screen.getByRole('slider')).toBe(before);
+        });
+    });
 });

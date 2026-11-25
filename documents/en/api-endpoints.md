@@ -89,6 +89,9 @@ For both upload endpoints, `authorKey` takes precedence and must exactly match a
   - Supported upload formats: `.vtt`, `.srt`, `.ass`, `.ssa`
 - `DELETE /api/videos/:id` - Delete video record and related files
 - `GET /api/videos/:id/comments` - Get comments for the video (if available)
+- `GET /api/videos/:id/sponsorblock` - SponsorBlock segments for a YouTube video, used to skip them during playback
+  - Response: `{ status, segments }`. `status` is `disabled` (the setting is off), `unsupported` (not a YouTube video), `ready`, `none` or `unavailable` (the lookup failed and nothing is cached). Each segment is `{ uuid, category, actionType, start, end, videoDuration }`; `videoDuration` is `0` when unknown.
+  - The server looks segments up on sponsor.ajay.app by the first 4 characters of the SHA-256 of the YouTube ID, through the yt-dlp proxy used for YouTube, and keeps them in memory (24 hours, or 1 hour when there are none). Visitors can read only visible videos. Limited to 60 requests a minute per client. Segment data is from SponsorBlock, licensed CC BY-NC-SA 4.0; check that license before using it commercially.
 - `POST /api/videos/:id/rate` - Rate a video
   - Body: `{ rating: number }` where `1 <= rating <= 5`
 - `POST /api/videos/:id/refresh-thumbnail` - Refresh thumbnail

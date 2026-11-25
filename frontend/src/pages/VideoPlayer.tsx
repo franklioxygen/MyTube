@@ -27,6 +27,8 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { useVideo } from '../contexts/VideoContext';
 import { useCloudStorageUrl } from '../hooks/useCloudStorageUrl';
 import { useSettings } from '../hooks/useSettings';
+import { useSponsorBlockSegments } from '../hooks/useSponsorBlockSegments';
+import { resolveSponsorBlockCategories } from '../utils/sponsorBlock';
 import { useStatisticsIngestion } from '../hooks/useStatisticsIngestion';
 import { useVideoCollections } from '../hooks/useVideoCollections';
 import { useVideoMutations } from '../hooks/useVideoMutations';
@@ -519,6 +521,20 @@ const VideoPlayer: React.FC = () => {
         window.scrollTo(0, 0);
     }, [id]);
 
+    // SponsorBlock only knows YouTube IDs, and only native items have one we
+    // can look up. Waiting for this opening's detail lets a late resume
+    // position land before anything could skip an intro at 0 (issue #555).
+    const sponsorBlockVideoId =
+        settings?.sponsorBlockEnabled === true &&
+        video?.source === 'youtube' &&
+        !isRemoteVideo(video) &&
+        isDetailFresh
+            ? video.id
+            : undefined;
+    const { data: sponsorBlock } = useSponsorBlockSegments(sponsorBlockVideoId);
+    const sponsorSegments = sponsorBlockVideoId ? sponsorBlock?.segments : undefined;
+    const sponsorBlockCategories = resolveSponsorBlockCategories(settings);
+
     if (loading) {
         return (
             <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: viewportHeight(50) }}>
@@ -813,6 +829,8 @@ const VideoPlayer: React.FC = () => {
                         seekIntervals={seekIntervals}
                         onNextVideo={nextPlayableIndex >= 0 ? handleNextVideo : undefined}
                         onPreviousVideo={previousVideoId ? handlePreviousVideo : undefined}
+                        sponsorSegments={sponsorSegments}
+                        sponsorBlockCategories={sponsorBlockCategories}
                     /> : <VideoControls
                         danmakuVideoId={danmakuVideoId}
                         danmakuCanRefresh={!!video.sourceUrl?.includes('bilibili.com/video/')}
@@ -846,6 +864,8 @@ const VideoPlayer: React.FC = () => {
                         }
                         onNextVideo={nextPlayableIndex >= 0 ? handleNextVideo : undefined}
                         onPreviousVideo={previousVideoId ? handlePreviousVideo : undefined}
+                        sponsorSegments={sponsorSegments}
+                        sponsorBlockCategories={sponsorBlockCategories}
                     />}
 
                     <LiveTranslationStatusAlert isCinemaMode={effectiveCinemaMode} />

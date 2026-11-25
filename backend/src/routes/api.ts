@@ -25,6 +25,7 @@ import { asyncHandler } from "../middleware/errorHandler";
 import { federationNoStore } from "../middleware/federationAuthMiddleware";
 import { requireAdmin } from "../middleware/requireAdmin";
 import * as danmakuController from "../controllers/danmakuController";
+import * as sponsorBlockController from "../controllers/sponsorBlockController";
 
 type ApiRouteMethod = "delete" | "get" | "patch" | "post" | "put";
 
@@ -79,6 +80,7 @@ const apiRouteDefinitions: ApiRouteDefinition[] = [
   { method: "post", path: "/videos/:id/danmaku", handlers: [requireAdmin, danmakuController.uploadDanmaku, asyncHandler(danmakuController.importXml)] },
   { method: "post", path: "/videos/:id/danmaku/refresh", handlers: [requireAdmin, asyncHandler(danmakuController.refresh)] },
   { method: "delete", path: "/videos/:id/danmaku", handlers: [requireAdmin, asyncHandler(danmakuController.remove)] },
+  { method: "get", path: "/videos/:id/sponsorblock", handlers: [sponsorBlockController.sponsorBlockLimiter, asyncHandler(sponsorBlockController.read)] },
   {
     method: "get",
     path: "/search/authors",

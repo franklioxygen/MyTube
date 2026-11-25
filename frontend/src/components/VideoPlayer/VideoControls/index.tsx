@@ -8,7 +8,15 @@ import {
     PlayerSeekIntervals,
 } from '../../../utils/playerSeekIntervals';
 import { SPEED_OPTIONS } from '../../../utils/constants';
+import {
+    DEFAULT_SPONSORBLOCK_CATEGORIES,
+    type SponsorBlockCategorySettings,
+} from '../../../utils/sponsorBlock';
+import type { SponsorSegment } from '../../../types';
 import ControlsOverlay from './ControlsOverlay';
+import SponsorBlockControl from './SponsorBlockControl';
+import SponsorSkipNotice from './SponsorSkipNotice';
+import { useSponsorSkip } from './hooks/useSponsorSkip';
 import { useFocusPause } from './hooks/useFocusPause';
 import { useFullscreen } from './hooks/useFullscreen';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
@@ -54,7 +62,27 @@ interface VideoControlsProps {
     /** Up Next navigation, bound to shift+N / shift+P. */
     onNextVideo?: () => void;
     onPreviousVideo?: () => void;
+    /** SponsorBlock segments of this video (issue #555); omitted when there are none to use. */
+    sponsorSegments?: SponsorSegment[];
+    sponsorBlockCategories?: SponsorBlockCategorySettings;
 }
+
+// Per-device "pause automatic skipping"; storage can be unavailable.
+const SPONSORBLOCK_AUTO_SKIP_KEY = 'sponsorBlockAutoSkip';
+const readAutoSkip = (): boolean => {
+    try {
+        return localStorage.getItem(SPONSORBLOCK_AUTO_SKIP_KEY) !== 'off';
+    } catch {
+        return true;
+    }
+};
+const writeAutoSkip = (enabled: boolean): void => {
+    try {
+        localStorage.setItem(SPONSORBLOCK_AUTO_SKIP_KEY, enabled ? 'on' : 'off');
+    } catch {
+        /* The choice still holds for this page. */
+    }
+};
 
 const VideoControls: React.FC<VideoControlsProps> = ({
     danmakuVideoId,
@@ -88,8 +116,11 @@ const VideoControls: React.FC<VideoControlsProps> = ({
     onEnterCompatibilityMode,
     onNextVideo,
     onPreviousVideo,
+    sponsorSegments,
+    sponsorBlockCategories = DEFAULT_SPONSORBLOCK_CATEGORIES,
 }) => {
     const [danmakuContainer, setDanmakuContainer] = useState<HTMLDivElement | null>(null);
+    const [sponsorAutoSkip, setSponsorAutoSkip] = useState(readAutoSkip);
     // Core video player logic
     const videoPlayer = useVideoPlayer({
         src,
@@ -132,6 +163,27 @@ const VideoControls: React.FC<VideoControlsProps> = ({
         handleToggleFullscreen,
         handleControlsMouseEnter,
     } = useFullscreen(videoPlayer.videoRef);
+
+    // SponsorBlock skipping. Lives here rather than in its control button,
+    // which remounts across the mobile breakpoint and would lose undo state.
+    const sponsorSkip = useSponsorSkip({
+        videoRef: videoPlayer.videoRef,
+        segments: sponsorSegments,
+        categories: sponsorBlockCategories,
+        autoSkip: sponsorAutoSkip,
+        duration: videoPlayer.duration,
+        isDragging: videoPlayer.isDragging,
+        resetKey: src,
+        skipTo: videoPlayer.skipTo,
+        isStartTimeRestorePending: videoPlayer.isStartTimeRestorePending,
+    });
+    const handleToggleSponsorAutoSkip = useCallback(() => {
+        const next = !sponsorAutoSkip;
+        writeAutoSkip(next);
+        setSponsorAutoSkip(next);
+    }, [sponsorAutoSkip]);
+    const showSponsorBlockControl =
+        sponsorSkip.plan.bands.length > 0 || sponsorSkip.plan.durationMismatch;
 
     // Loading and error states
     const loading = useVideoLoading();
@@ -387,6 +439,12 @@ const VideoControls: React.FC<VideoControlsProps> = ({
                         audioMode={audioMode}
                         isPlaying={videoPlayer.isPlaying}
                     />
+                    <SponsorSkipNotice
+                        notice={sponsorSkip.notice}
+                        onUndo={sponsorSkip.undo}
+                        onSkip={sponsorSkip.skipNow}
+                        raised={isFullscreen && controlsVisible}
+                    />
                 </Box>
                 <Box
                     sx={{
@@ -407,6 +465,14 @@ const VideoControls: React.FC<VideoControlsProps> = ({
                                 getTime={() => videoPlayer.videoRef.current?.currentTime ?? 0}
                                 overlayContainer={danmakuContainer} canRefresh={danmakuCanRefresh} />
                         </Suspense> : undefined}
+                        sponsorBlockControl={showSponsorBlockControl ? (
+                            <SponsorBlockControl
+                                autoSkip={sponsorAutoSkip}
+                                durationMismatch={sponsorSkip.plan.durationMismatch}
+                                onToggle={handleToggleSponsorAutoSkip}
+                            />
+                        ) : undefined}
+                        progressSegments={sponsorSkip.plan.bands}
                         isFullscreen={isFullscreen}
                         controlsVisible={controlsVisible}
                         isPlaying={videoPlayer.isPlaying}
