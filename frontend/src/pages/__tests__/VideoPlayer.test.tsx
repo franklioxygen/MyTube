@@ -435,7 +435,7 @@ describe('VideoPlayer', () => {
             mockVideoQueryReturn = {
                 ...mockVideoQueryReturn,
                 video: { ...mockVideo, source: 'youtube' },
-                isDetailFresh: true,
+                hasSettledDetail: true,
             };
         });
         afterEach(() => {
@@ -466,7 +466,7 @@ describe('VideoPlayer', () => {
             ['the video is not from YouTube', () => {
                 mockVideoQueryReturn.video = { ...mockVideo, source: 'bilibili' };
             }],
-            ["this opening's detail has not loaded", () => { mockVideoQueryReturn.isDetailFresh = false; }],
+            ['only the list row has loaded', () => { mockVideoQueryReturn.hasSettledDetail = false; }],
             ['the video comes from another instance', () => {
                 mockVideoQueryReturn.video = {
                     ...mockVideo,

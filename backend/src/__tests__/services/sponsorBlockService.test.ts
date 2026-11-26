@@ -93,6 +93,21 @@ describe("getSponsorBlockSegments", () => {
     expect(fetchSponsorSegments).toHaveBeenCalledTimes(1);
   });
 
+  it("keeps a 429's longer backoff when another lookup then fails with a 503", async () => {
+    let failSecond!: (error: Error) => void;
+    vi.mocked(fetchSponsorSegments)
+      .mockRejectedValueOnce(new SponsorBlockUnavailableError("rateLimited"))
+      .mockReturnValueOnce(new Promise((_, reject) => { failSecond = reject; }));
+    const first = getSponsorBlockSegments(youtube("aaaaaaaaaa1"));
+    const second = getSponsorBlockSegments(youtube("aaaaaaaaaa2"));
+    await first;
+    failSecond(new SponsorBlockUnavailableError("upstream"));
+    await second;
+    vi.setSystemTime(Date.now() + 2 * 60 * 1000);
+    expect((await getSponsorBlockSegments(youtube("aaaaaaaaaa3"))).status).toBe("unavailable");
+    expect(fetchSponsorSegments).toHaveBeenCalledTimes(2);
+  });
+
   it("does not back off when a broken proxy meant nothing was sent", async () => {
     vi.mocked(fetchSponsorSegments)
       .mockRejectedValueOnce(new SponsorBlockUnavailableError("proxy"))

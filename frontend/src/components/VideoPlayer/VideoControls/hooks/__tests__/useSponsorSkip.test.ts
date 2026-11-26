@@ -138,6 +138,20 @@ describe('useSponsorSkip', () => {
         expect(result.current.notice?.prompt?.key).toBe('sponsor-1');
     });
 
+    it('counts a seek reported only by its seeking event as a seek', () => {
+        const { result } = setup();
+        tick(9.5);
+        tick(9.75);
+        // A buffered seek can finish before anything is sampled mid-seek.
+        act(() => { vi.advanceTimersByTime(100); });
+        media.currentTime = 10.7;
+        emit('seeking');
+        emit('timeupdate');
+        emit('seeked');
+        expect(skipTo).not.toHaveBeenCalled();
+        expect(result.current.notice?.prompt?.key).toBe('sponsor-1');
+    });
+
     it('skips an intro at 0 when playback starts there', () => {
         setup([sponsor({ uuid: 'intro', category: 'intro', start: 0, end: 30 })], { categories: { intro: 'auto' } });
         emit('play');
@@ -184,6 +198,17 @@ describe('useSponsorSkip', () => {
         expect(skipTo).toHaveBeenCalledTimes(3);
     });
 
+    it('does not bring back an Undo after switching to another video and back', () => {
+        const { result, rerender } = setup();
+        tick(9.75);
+        tick(10.1);
+        land();
+        expect(result.current.notice?.skipped?.key).toBe('sponsor-1');
+        rerender({ segments: [], resetKey: 'video-b' });
+        rerender({ segments: [sponsor()], resetKey: 'video-a' });
+        expect(result.current.notice).toBeNull();
+    });
+
     it('keeps Undo when a skip lands inside a range shown as a button', () => {
         const { result } = setup(
             [sponsor({ start: 50, end: 60 }), sponsor({ uuid: 'outro-1', category: 'outro', start: 60, end: 80 })],
@@ -218,7 +243,7 @@ describe('useSponsorSkip', () => {
     });
 
     it('treats segments that arrive mid-playback as walked into when playback ran through the start', () => {
-        const { rerender } = setup(undefined);
+        const { rerender } = setup([]);
         media.playedRanges = [[0, 12]];
         rerender({ segments: [sponsor()], resetKey: 'video-a' });
         tick(12);
@@ -226,10 +251,23 @@ describe('useSponsorSkip', () => {
     });
 
     it('does not skip when playback resumed inside the range before segments arrived', () => {
-        const { result, rerender } = setup(undefined);
+        const { result, rerender } = setup([]);
         media.playedRanges = [[15, 16]];
         rerender({ segments: [sponsor()], resetKey: 'video-a' });
         tick(16);
+        expect(skipTo).not.toHaveBeenCalled();
+        expect(result.current.notice?.prompt?.key).toBe('sponsor-1');
+    });
+
+    it('does not take earlier playback for the current run when segments arrive late', () => {
+        const { result, rerender } = setup([]);
+        tick(17.75);
+        tick(18);
+        // Played through 18, then back to 15: played still reads one range from 0.
+        seek(15);
+        media.playedRanges = [[0, 18]];
+        rerender({ segments: [sponsor()], resetKey: 'video-a' });
+        tick(15.25);
         expect(skipTo).not.toHaveBeenCalled();
         expect(result.current.notice?.prompt?.key).toBe('sponsor-1');
     });

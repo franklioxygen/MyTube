@@ -91,9 +91,12 @@ function refresh(id: string): Promise<CacheEntry | null> {
     .catch((error: unknown) => {
       const kind = error instanceof SponsorBlockUnavailableError ? error.kind : "upstream";
       // A broken proxy sends nothing, so there is nothing to back off from.
+      // A shorter backoff never cuts a longer one short (a 503 after a 429).
       if (kind !== "proxy") {
-        backoffUntil =
-          Date.now() + (kind === "rateLimited" ? RATE_LIMIT_BACKOFF_MS : UPSTREAM_BACKOFF_MS);
+        backoffUntil = Math.max(
+          backoffUntil,
+          Date.now() + (kind === "rateLimited" ? RATE_LIMIT_BACKOFF_MS : UPSTREAM_BACKOFF_MS)
+        );
       }
       logger.warn("SponsorBlock lookup failed", { kind });
       return null;

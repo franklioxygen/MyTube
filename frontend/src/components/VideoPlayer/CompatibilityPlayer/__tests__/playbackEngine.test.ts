@@ -718,6 +718,37 @@ describe("CompatibilityPlaybackEngine", () => {
     await engine.destroy();
   });
 
+  it("ends playback on a seek to the end, where an ordinary seek stops short", async () => {
+    const { seeks } = buildDemuxer({ packets: withKeyframes(packetsUpTo(4)), durationUs: 4_000_000 });
+    const context = { drawImage: vi.fn(), save: vi.fn(), restore: vi.fn() };
+    const canvas = { width: 1280, height: 720, getContext: () => context } as unknown as HTMLCanvasElement;
+    const snapshots: PlaybackSnapshot[] = [];
+    const onSeeked = vi.fn();
+    const engine = new CompatibilityPlaybackEngine(canvas, {
+      onChange: (snapshot) => snapshots.push(snapshot),
+      onSeeked,
+    });
+    await engine.load("https://example.test/media");
+    await settle();
+
+    await engine.seek(3.9);
+    expect(seeks[seeks.length - 1]).toBe(3_750_000);
+
+    await engine.play();
+    await settle();
+    context.drawImage.mockClear();
+    await engine.seek(3.9, { exact: true, toEnd: true });
+    await settle();
+    audioContexts[0].currentTime += 0.5;
+    await runFrames(3);
+
+    expect(seeks[seeks.length - 1]).toBe(4_000_000);
+    expect(onSeeked).toHaveBeenLastCalledWith(4);
+    expect(context.drawImage).not.toHaveBeenCalled();
+    expect(snapshots[snapshots.length - 1].status).toBe("ended");
+    await engine.destroy();
+  });
+
   it("reports the authoritative position after a seek", async () => {
     buildDemuxer({ packets: withKeyframes(packetsUpTo(4)) });
     const onSeeked = vi.fn();

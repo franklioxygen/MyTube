@@ -157,13 +157,14 @@ export function buildSkipPlan(
     // A file trimmed by yt-dlp (--sponsorblock-remove, --download-sections)
     // has a shorter timeline, and skipping by the source's times would cut
     // into the video itself. Segments with a known duration tell us which
-    // version of the video they were made for.
+    // version of the video they were made for, whether or not their category
+    // is skipped here.
     const matches = (segment: SponsorSegment) =>
         Math.abs(segment.videoDuration - duration) <= DURATION_TOLERANCE_SECONDS;
-    const known = candidates.filter((segment) => segment.videoDuration > 0);
+    const known = segments.filter((segment) => segment.videoDuration > 0);
     let kept = candidates;
     let durationMismatch = false;
-    if (known.length > 0) {
+    if (candidates.length > 0 && known.length > 0) {
         if (known.some(matches)) {
             kept = candidates.filter((segment) => segment.videoDuration === 0 || matches(segment));
         } else {

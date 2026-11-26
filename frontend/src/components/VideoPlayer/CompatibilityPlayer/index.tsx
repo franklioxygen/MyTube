@@ -44,6 +44,7 @@ import {
     CompatibilityPlaybackEngine,
     PlaybackSnapshot,
     PlaybackStatus,
+    type SeekOptions,
 } from './playbackEngine';
 import { EngineSkipMedia } from './skipMedia';
 
@@ -156,8 +157,8 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
     // progress-bar release — is funnelled through this queue rather than
     // racing into it and being dropped. The newest target wins.
     const seekQueueRef = useRef<number | null>(null);
-    /** Whether the queued target must be reached exactly (a SponsorBlock skip). */
-    const seekQueueExactRef = useRef(false);
+    /** How a SponsorBlock skip must reach the queued target; null for any other seek. */
+    const seekQueueOptionsRef = useRef<SeekOptions | null>(null);
     const seekRunningRef = useRef(false);
     /** Where the reposition in flight is heading, when this player chose it. */
     const pendingTargetRef = useRef<number | null>(null);
@@ -231,12 +232,12 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
                 }
                 const target = seekQueueRef.current;
                 if (target !== null) {
-                    const exact = seekQueueExactRef.current;
+                    const options = seekQueueOptionsRef.current;
                     seekQueueRef.current = null;
-                    seekQueueExactRef.current = false;
+                    seekQueueOptionsRef.current = null;
                     pendingTargetRef.current = target;
                     await reposition(engine, () =>
-                        exact ? engine.seek(target, { exact }) : engine.seek(target)
+                        options ? engine.seek(target, options) : engine.seek(target)
                     );
                     continue;
                 }
@@ -275,9 +276,9 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
     }, [finishSeek, reposition]);
 
     const queueSeek = useCallback(
-        (target: number, exact = false) => {
+        (target: number, options: SeekOptions | null = null) => {
             seekQueueRef.current = target;
-            seekQueueExactRef.current = exact;
+            seekQueueOptionsRef.current = options;
             void drainSeekQueue();
         },
         [drainSeekQueue]
@@ -312,7 +313,7 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
         // Nothing aimed at the outgoing video may reach the incoming one, and
         // the bar must not open on the position of the video just left.
         seekQueueRef.current = null;
-        seekQueueExactRef.current = false;
+        seekQueueOptionsRef.current = null;
         pendingTargetRef.current = null;
         seekRunningRef.current = false;
         committedSeekRef.current = null;
@@ -528,12 +529,18 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
 
     // SponsorBlock (issue #555): the same engine as the standard player, fed by
     // skipMedia. A skip lands exactly on the segment's end; the engine would
-    // otherwise resume at the keyframe before it and replay the tail.
+    // otherwise resume at the keyframe before it and replay the tail. One that
+    // runs through the end ends playback, as it does on a media element.
     const { autoSkip: sponsorAutoSkip, toggleAutoSkip } = useSponsorAutoSkip();
-    const skipToForSponsor = useCallback((time: number) => queueSeek(time, true), [queueSeek]);
+    const skipToForSponsor = useCallback(
+        (time: number, { toEnd = false }: { toEnd?: boolean } = {}) =>
+            queueSeek(time, { exact: true, toEnd }),
+        [queueSeek]
+    );
     const sponsorSkip = useSponsorSkip({
         mediaRef: skipMediaRef,
-        segments: sponsorSegments,
+        // A file without a seek index cannot skip anything, like the seek controls.
+        segments: snapshot.canSeek ? sponsorSegments : undefined,
         categories: sponsorBlockCategories,
         autoSkip: sponsorAutoSkip,
         duration: snapshot.duration ?? 0,

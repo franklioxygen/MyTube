@@ -28,6 +28,11 @@ export type PlaybackStatus =
     | 'ended'
     | 'error';
 
+export interface SeekOptions {
+    exact?: boolean;
+    toEnd?: boolean;
+}
+
 export interface PlaybackSnapshot {
     status: PlaybackStatus;
     /** Seconds. */
@@ -347,9 +352,10 @@ export class CompatibilityPlaybackEngine {
      * Playback normally resumes at the keyframe at or before the target, which
      * can be several seconds early. `exact` resumes at the target itself by
      * decoding through to it without presenting, for a SponsorBlock skip that
-     * must not replay the end of what it skipped.
+     * must not replay the end of what it skipped. `toEnd` goes to the very end
+     * instead of stopping short of it, for a skip that runs through the end.
      */
-    async seek(seconds: number, { exact = false }: { exact?: boolean } = {}): Promise<void> {
+    async seek(seconds: number, { exact = false, toEnd = false }: SeekOptions = {}): Promise<void> {
         const demuxer = this.demuxer;
         if (
             !demuxer?.canSeek ||
@@ -361,7 +367,10 @@ export class CompatibilityPlaybackEngine {
         }
 
         const limit = this.durationSeconds ?? Number.POSITIVE_INFINITY;
-        const target = Math.min(Math.max(0, seconds), Math.max(0, limit - 0.25));
+        const target =
+            toEnd && Number.isFinite(limit)
+                ? limit
+                : Math.min(Math.max(0, seconds), Math.max(0, limit - 0.25));
         const wasPlaying =
             this.status === 'playing' || this.status === 'buffering';
 

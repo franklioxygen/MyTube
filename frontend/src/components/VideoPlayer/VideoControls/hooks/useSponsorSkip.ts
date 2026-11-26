@@ -16,7 +16,7 @@ export const SKIPPED_NOTICE_MS = 5000;
 // same rule. Throttled timers deliver late samples, hence the floor and slack.
 const BASE_STEP_SECONDS = 1;
 const STEP_SLACK_SECONDS = 0.5;
-const SAMPLED_EVENTS = ['timeupdate', 'seeked', 'play'] as const;
+const SAMPLED_EVENTS = ['seeking', 'timeupdate', 'seeked', 'play'] as const;
 
 /**
  * What the player shows over the picture. Both parts can be up at once: a
@@ -115,6 +115,11 @@ export function useSponsorSkip({
     const [noticeState, setNoticeState] = useState<{ owner: string; notice: SponsorSkipNotice }>(
         () => ({ owner: resetKey, notice: null })
     );
+    // Switching videos drops it, so coming back to one never revives an Undo
+    // whose timer went with the switch.
+    if (noticeState.owner !== resetKey && noticeState.notice !== null) {
+        setNoticeState({ owner: resetKey, notice: null });
+    }
     const notice = hasRanges && noticeState.owner === resetKey ? noticeState.notice : null;
     const setNotice = useCallback(
         (update: SponsorSkipNotice | ((current: SponsorSkipNotice) => SponsorSkipNotice)) => {
@@ -161,9 +166,13 @@ export function useSponsorSkip({
         setNotice(withNotice(range));
     }, [setNotice]);
 
+    // Listening before there is anything to skip too: segments that arrive
+    // mid-playback then meet the position playback actually came from, which
+    // the media's played ranges (all of its history) cannot tell. Subscribed
+    // again when ranges arrive, in case the media mounted after this did.
     useEffect(() => {
         const video = mediaRef.current;
-        if (!video || !hasRanges) return;
+        if (!video) return;
 
         const isHandled = (range: SkipRange) => handledRef.current.has(range.key);
         const isUndone = (range: SkipRange) =>
@@ -177,9 +186,10 @@ export function useSponsorSkip({
                 previousTimeRef.current = null;
                 return;
             }
-            // `seeking` flips as soon as currentTime is written, while the
-            // event is still queued: a sample in between is not playback.
-            if (video.seeking) {
+            // A seek starting is not playback: the flag flips as soon as
+            // currentTime is written, and the event can come after a short
+            // buffered seek has already cleared it.
+            if (event.type === 'seeking' || video.seeking) {
                 seekPendingRef.current = true;
                 return;
             }
@@ -208,6 +218,7 @@ export function useSponsorSkip({
             seekPendingRef.current = false;
             previousTimeRef.current = time;
             previousAtRef.current = now;
+            if (currentPlan.ranges.length === 0) return;
 
             // Leaving a range makes it skippable again: seeking back before it, a loop.
             for (const key of handledRef.current) {

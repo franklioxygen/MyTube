@@ -140,7 +140,7 @@ const VideoPlayer: React.FC = () => {
     });
 
     // Use custom hooks
-    const { video, loading, isDetailFresh, error, comments, loadingComments } = useVideoQueries({
+    const { video, loading, isDetailFresh, hasSettledDetail, error, comments, loadingComments } = useVideoQueries({
         videoId: id,
         videos,
         showComments
@@ -522,13 +522,14 @@ const VideoPlayer: React.FC = () => {
     }, [id]);
 
     // SponsorBlock only knows YouTube IDs, and only native items have one we
-    // can look up. Waiting for this opening's detail lets a late resume
-    // position land before anything could skip an intro at 0 (issue #555).
+    // can look up. Waiting for the full detail, not the list row, lets a late
+    // resume position land before anything could skip an intro at 0 (issue
+    // #555); a cached one already carries it.
     const sponsorBlockVideoId =
         settings?.sponsorBlockEnabled === true &&
         video?.source === 'youtube' &&
         !isRemoteVideo(video) &&
-        isDetailFresh
+        hasSettledDetail
             ? video.id
             : undefined;
     const { data: sponsorBlock } = useSponsorBlockSegments(sponsorBlockVideoId);

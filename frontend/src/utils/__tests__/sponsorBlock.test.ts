@@ -91,6 +91,16 @@ describe('buildSkipPlan', () => {
         it('trusts segments when no duration is known', () => {
             expect(plan([segment({ videoDuration: 0 })]).ranges).toHaveLength(1);
         });
+
+        it('takes the duration from categories that are not skipped too', () => {
+            const segments = [
+                segment({ uuid: 'unknown', videoDuration: 0 }),
+                segment({ uuid: 'intro', category: 'intro', start: 0, end: 5, videoDuration: 130 }),
+            ];
+            expect(plan(segments)).toMatchObject({ ranges: [], durationMismatch: true });
+            // Nothing to skip here means nothing to warn about either.
+            expect(plan(segments.slice(1)).durationMismatch).toBe(false);
+        });
     });
 
     it('plans nothing until the duration is known', () => {

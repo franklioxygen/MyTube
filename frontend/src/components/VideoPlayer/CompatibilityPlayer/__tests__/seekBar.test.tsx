@@ -617,7 +617,7 @@ describe('D Mode SponsorBlock skipping', () => {
         await playAt(engine, 20.05);
 
         // Exact, so the engine does not resume at the keyframe before 30.
-        expect(engine.seek).toHaveBeenCalledExactlyOnceWith(30, { exact: true });
+        expect(engine.seek).toHaveBeenCalledExactlyOnceWith(30, { exact: true, toEnd: false });
         expect(screen.getByRole('status')).toHaveTextContent('sponsorBlockSkipped');
     });
 
@@ -637,7 +637,7 @@ describe('D Mode SponsorBlock skipping', () => {
         expect(engine.seek).toHaveBeenCalledTimes(1);
 
         fireEvent.click(screen.getByRole('button', { name: /sponsorBlockUndo/ }));
-        expect(engine.seek).toHaveBeenLastCalledWith(20, { exact: true });
+        expect(engine.seek).toHaveBeenLastCalledWith(20, { exact: true, toEnd: false });
     });
 
     it('only offers a button when a skip button moves the viewer just inside', async () => {
@@ -692,8 +692,43 @@ describe('D Mode SponsorBlock skipping', () => {
 
         expect(engine.seek).not.toHaveBeenCalled();
         fireEvent.click(screen.getByRole('button', { name: /sponsorBlockSkip/ }));
-        expect(engine.seek).toHaveBeenCalledExactlyOnceWith(30, { exact: true });
+        expect(engine.seek).toHaveBeenCalledExactlyOnceWith(30, { exact: true, toEnd: false });
         expect(localStorage.getItem('sponsorBlockAutoSkip')).toBe('off');
+    });
+
+    it('skips a segment that runs through the end all the way to the end', async () => {
+        render(
+            <CompatibilityPlayer
+                src="clip.webm"
+                sponsorSegments={[{ ...sponsor, uuid: 'outro', category: 'outro', start: 110, end: 120 }]}
+                sponsorBlockCategories={{ outro: 'auto' }}
+            />
+        );
+        const engine = harness.engines[0];
+        await playAt(engine, 109.8);
+        await playAt(engine, 110.05);
+
+        expect(engine.seek).toHaveBeenCalledExactlyOnceWith(120, { exact: true, toEnd: true });
+    });
+
+    it('leaves a file that cannot seek alone, as its seek controls do', async () => {
+        render(
+            <CompatibilityPlayer
+                src="clip.webm"
+                sponsorSegments={[sponsor]}
+                sponsorBlockCategories={{ sponsor: 'auto' }}
+            />
+        );
+        const engine = harness.engines[0];
+        for (const currentTime of [19.8, 20.05]) {
+            await act(async () => {
+                engine.options.onChange(snapshotOf({ status: 'playing', currentTime, canSeek: false }));
+            });
+        }
+
+        expect(engine.seek).not.toHaveBeenCalled();
+        expect(screen.queryByTestId('progress-segments')).toBeNull();
+        expect(screen.queryByRole('status')).toBeNull();
     });
 
     it('shows nothing for a video without segments', async () => {
