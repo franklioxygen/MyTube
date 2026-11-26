@@ -449,6 +449,18 @@ describe('VideoPlayer', () => {
             expect(capturedVideoControlsProps.sponsorBlockCategories).toEqual({ sponsor: 'auto' });
         });
 
+        it('hands the same segments to the compatibility player', () => {
+            vi.stubEnv('VITE_FORCE_COMPATIBILITY_MODE', 'true');
+            try {
+                render(<VideoPlayer />);
+                expect(screen.getByTestId('compatibility-player')).toBeTruthy();
+                expect(capturedCompatibilityPlayerProps.sponsorSegments).toEqual(segments);
+                expect(capturedCompatibilityPlayerProps.sponsorBlockCategories).toEqual({ sponsor: 'auto' });
+            } finally {
+                vi.unstubAllEnvs();
+            }
+        });
+
         it.each([
             ['the feature is off', () => { mockSettingsData.data = { websiteName: 'TestSite' }; }],
             ['the video is not from YouTube', () => {

@@ -7,10 +7,17 @@ interface SponsorBlockControlProps {
     autoSkip: boolean;
     durationMismatch: boolean;
     onToggle: () => void;
+    /** Colour while not skipping; D Mode's strip sets its own text colour. */
+    offColor?: 'default' | 'inherit';
 }
 
 /** Turns automatic SponsorBlock skipping on or off for this device (issue #555). */
-const SponsorBlockControl: React.FC<SponsorBlockControlProps> = ({ autoSkip, durationMismatch, onToggle }) => {
+const SponsorBlockControl: React.FC<SponsorBlockControlProps> = ({
+    autoSkip,
+    durationMismatch,
+    onToggle,
+    offColor = 'default',
+}) => {
     const { t } = useLanguage();
     const isTouch = useMediaQuery('(hover: none), (pointer: coarse)');
     const state = t(autoSkip ? 'sponsorBlockAutoSkipOn' : 'sponsorBlockAutoSkipOff');
@@ -27,7 +34,7 @@ const SponsorBlockControl: React.FC<SponsorBlockControlProps> = ({ autoSkip, dur
             }
         >
             <IconButton
-                color={autoSkip && !durationMismatch ? 'primary' : 'default'}
+                color={autoSkip && !durationMismatch ? 'primary' : offColor}
                 onClick={onToggle}
                 size="small"
                 aria-label={state}

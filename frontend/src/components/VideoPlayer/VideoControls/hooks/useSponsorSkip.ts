@@ -33,8 +33,20 @@ export type SponsorSkipNotice = {
 const withNotice = (skipped?: SkipRange, prompt?: SkipRange): SponsorSkipNotice =>
     skipped || prompt ? { skipped, prompt } : null;
 
+/**
+ * What the engine reads from the player: the media element itself, or D Mode's
+ * stand-in for one, which raises the same events from its playback engine.
+ */
+export interface SkipMedia extends EventTarget {
+    readonly currentTime: number;
+    readonly seeking: boolean;
+    readonly paused: boolean;
+    readonly playbackRate: number;
+    readonly played?: Pick<TimeRanges, 'length' | 'start' | 'end'>;
+}
+
 interface UseSponsorSkipOptions {
-    videoRef: RefObject<HTMLVideoElement | null>;
+    mediaRef: RefObject<SkipMedia | null>;
     segments?: readonly SponsorSegment[];
     categories: SponsorBlockCategorySettings;
     /** The per-device switch; off turns automatic categories into skip buttons. */
@@ -53,7 +65,7 @@ interface UseSponsorSkipOptions {
  * in began at or before a range's start, playback walked into it; if it began
  * inside (a resume, a seek), it did not.
  */
-function playedRunStart(video: HTMLVideoElement, time: number): number | null {
+function playedRunStart(video: SkipMedia, time: number): number | null {
     const played = video.played;
     if (!played) return null;
     for (let index = 0; index < played.length; index += 1) {
@@ -66,12 +78,12 @@ function playedRunStart(video: HTMLVideoElement, time: number): number | null {
 
 /**
  * Skips SponsorBlock ranges during playback (issue #555). It watches the media
- * element itself and seeks through skipTo, so a skip is an ordinary seek to
+ * (see SkipMedia) and seeks through skipTo, so a skip is an ordinary seek to
  * everything else (progress, statistics, live translation). Does nothing when
  * there are no segments.
  */
 export function useSponsorSkip({
-    videoRef,
+    mediaRef,
     segments,
     categories,
     autoSkip,
@@ -85,6 +97,8 @@ export function useSponsorSkip({
     notice: SponsorSkipNotice;
     undo: () => void;
     skipNow: () => void;
+    /** What the S key does: the notice's skip button, else its Undo; unset with no notice. */
+    shortcut?: () => void;
 } {
     const plan = useMemo(
         () =>
@@ -148,7 +162,7 @@ export function useSponsorSkip({
     }, [setNotice]);
 
     useEffect(() => {
-        const video = videoRef.current;
+        const video = mediaRef.current;
         if (!video || !hasRanges) return;
 
         const isHandled = (range: SkipRange) => handledRef.current.has(range.key);
@@ -221,7 +235,7 @@ export function useSponsorSkip({
         return () => {
             for (const type of SAMPLED_EVENTS) video.removeEventListener(type, sample);
         };
-    }, [videoRef, hasRanges, performSkip, setNotice]);
+    }, [mediaRef, hasRanges, performSkip, setNotice]);
 
     const skipped = notice?.skipped;
     useEffect(() => {
@@ -249,5 +263,7 @@ export function useSponsorSkip({
         if (prompt) performSkip(prompt);
     }, [prompt, performSkip]);
 
-    return { plan, notice, undo, skipNow };
+    const shortcut = prompt ? skipNow : skipped ? undo : undefined;
+
+    return { plan, notice, undo, skipNow, shortcut };
 }

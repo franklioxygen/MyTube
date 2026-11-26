@@ -573,3 +573,136 @@ describe('D Mode picture overlays', () => {
         expect(Number(getComputedStyle(transport).zIndex)).toBeGreaterThan(danmakuCanvasZIndex);
     });
 });
+
+describe('D Mode SponsorBlock skipping', () => {
+    const sponsor = {
+        uuid: 's1', category: 'sponsor', actionType: 'skip', start: 20, end: 30, videoDuration: 0,
+    } as const;
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        harness.engines.length = 0;
+        harness.pendingSeeks.length = 0;
+        harness.pendingSeekBys.length = 0;
+        harness.pendingToggles.length = 0;
+        harness.pendingPlays.length = 0;
+        localStorage.removeItem('sponsorBlockAutoSkip');
+    });
+
+    const renderWithSegments = async (shortSeconds = SHORT_SECONDS) => {
+        render(
+            <CompatibilityPlayer
+                src="clip.webm"
+                sponsorSegments={[sponsor]}
+                sponsorBlockCategories={{ sponsor: 'auto' }}
+                seekIntervals={{ ...DEFAULT_PLAYER_SEEK_INTERVALS, shortSeconds }}
+            />
+        );
+        const engine = harness.engines[0];
+        await act(async () => {
+            engine.options.onChange(snapshotOf({ currentTime: 10 }));
+        });
+        return engine;
+    };
+    const playAt = (engine: FakeEngine, currentTime: number) =>
+        act(async () => {
+            engine.options.onChange(snapshotOf({ status: 'playing', currentTime }));
+        });
+
+    it('marks the segment on the bar and skips exactly to its end when playback walks in', async () => {
+        const engine = await renderWithSegments();
+        expect(screen.getByTestId('progress-segments').children).toHaveLength(1);
+
+        await playAt(engine, 19.8);
+        await playAt(engine, 20.05);
+
+        // Exact, so the engine does not resume at the keyframe before 30.
+        expect(engine.seek).toHaveBeenCalledExactlyOnceWith(30, { exact: true });
+        expect(screen.getByRole('status')).toHaveTextContent('sponsorBlockSkipped');
+    });
+
+    it('does not read its own skip as playback, and undoes it exactly', async () => {
+        const engine = await renderWithSegments();
+        await playAt(engine, 19.8);
+        await playAt(engine, 20.05);
+        // The engine reports the position it is leaving until the seek lands.
+        await playAt(engine, 20.25);
+        expect(engine.seek).toHaveBeenCalledTimes(1);
+
+        await act(async () => {
+            engine.options.onSeeked?.(30);
+            harness.pendingSeeks[0].resolve();
+        });
+        await playAt(engine, 30.2);
+        expect(engine.seek).toHaveBeenCalledTimes(1);
+
+        fireEvent.click(screen.getByRole('button', { name: /sponsorBlockUndo/ }));
+        expect(engine.seek).toHaveBeenLastCalledWith(20, { exact: true });
+    });
+
+    it('only offers a button when a skip button moves the viewer just inside', async () => {
+        const engine = await renderWithSegments(1);
+        await playAt(engine, 19.5);
+
+        // One second on is as far as playback itself goes in a step.
+        fireEvent.click(screen.getAllByLabelText('seekForwardBy')[0]);
+        // A reposition made while playing resumes before it returns, so the
+        // engine reports the new position while the seek is still open.
+        await act(async () => {
+            engine.options.onSeeked?.(20.5);
+        });
+        await playAt(engine, 20.5);
+        await act(async () => {
+            harness.pendingSeekBys[0].resolve();
+        });
+        await playAt(engine, 20.7);
+
+        expect(engine.seek).not.toHaveBeenCalled();
+        expect(screen.getByRole('button', { name: /sponsorBlockSkip/ })).toBeInTheDocument();
+    });
+
+    it('only offers a button when the viewer drags a little way into the segment', async () => {
+        const engine = await renderWithSegments();
+        await playAt(engine, 19.8);
+
+        // As far as one playback step, but a seek: it must not count as walking in.
+        drag(20.6);
+        release();
+        // A seek made while playing resumes playback before it returns, so a
+        // playing snapshot at the new position arrives while it is still open.
+        await act(async () => {
+            engine.options.onSeeked?.(20.6);
+        });
+        await playAt(engine, 20.6);
+        await act(async () => {
+            harness.pendingSeeks[0].resolve();
+        });
+        await playAt(engine, 20.8);
+
+        expect(engine.seek).toHaveBeenCalledExactlyOnceWith(20.6);
+        expect(screen.getByRole('button', { name: /sponsorBlockSkip/ })).toBeInTheDocument();
+    });
+
+    it('offers a button instead once automatic skipping is turned off on the strip', async () => {
+        const engine = await renderWithSegments();
+        fireEvent.click(screen.getByRole('button', { name: 'sponsorBlockAutoSkipOn' }));
+
+        await playAt(engine, 19.8);
+        await playAt(engine, 20.05);
+
+        expect(engine.seek).not.toHaveBeenCalled();
+        fireEvent.click(screen.getByRole('button', { name: /sponsorBlockSkip/ }));
+        expect(engine.seek).toHaveBeenCalledExactlyOnceWith(30, { exact: true });
+        expect(localStorage.getItem('sponsorBlockAutoSkip')).toBe('off');
+    });
+
+    it('shows nothing for a video without segments', async () => {
+        render(<CompatibilityPlayer src="clip.webm" />);
+        await act(async () => {
+            harness.engines[0].options.onChange(snapshotOf({ status: 'playing', currentTime: 20 }));
+        });
+
+        expect(screen.queryByTestId('progress-segments')).toBeNull();
+        expect(screen.queryByRole('button', { name: /sponsorBlock/ })).toBeNull();
+    });
+});

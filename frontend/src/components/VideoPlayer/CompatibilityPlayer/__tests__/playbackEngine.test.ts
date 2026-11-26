@@ -684,6 +684,40 @@ describe("CompatibilityPlaybackEngine", () => {
     await engine.destroy();
   });
 
+  it("resumes at the target itself on an exact seek, showing nothing before it", async () => {
+    buildDemuxer({ packets: withKeyframes(packetsUpTo(4)) });
+    const context = { drawImage: vi.fn(), save: vi.fn(), restore: vi.fn() };
+    const canvas = { width: 1280, height: 720, getContext: () => context } as unknown as HTMLCanvasElement;
+    const snapshots: PlaybackSnapshot[] = [];
+    const onSeeked = vi.fn();
+    const engine = new CompatibilityPlaybackEngine(canvas, {
+      onChange: (snapshot) => snapshots.push(snapshot),
+      onSeeked,
+    });
+    await engine.load("https://example.test/media");
+    await settle();
+    context.drawImage.mockClear();
+
+    await engine.seek(2.5, { exact: true });
+    await settle();
+
+    // Decoding still starts at the keyframe before the target…
+    expect(videoDecoders[0].decoded).toContain(2_400_000);
+    // …but the clock, the reported position and the picture start at it.
+    expect(onSeeked).toHaveBeenCalledWith(2.5);
+    expect(snapshots[snapshots.length - 1].currentTime).toBe(2.5);
+    const painted = context.drawImage.mock.calls.map(([frame]) => frame.timestamp);
+    expect(painted.length).toBeGreaterThan(0);
+    expect(Math.min(...painted)).toBeGreaterThanOrEqual(2_500_000);
+
+    // The next ordinary seek presents from its keyframe again.
+    context.drawImage.mockClear();
+    await engine.seek(1.1);
+    await settle();
+    expect(context.drawImage.mock.calls[0][0].timestamp).toBe(800_000);
+    await engine.destroy();
+  });
+
   it("reports the authoritative position after a seek", async () => {
     buildDemuxer({ packets: withKeyframes(packetsUpTo(4)) });
     const onSeeked = vi.fn();

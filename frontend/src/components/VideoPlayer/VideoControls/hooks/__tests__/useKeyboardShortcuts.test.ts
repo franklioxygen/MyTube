@@ -194,7 +194,8 @@ describe('useKeyboardShortcuts - YouTube-style bindings', () => {
     onSeekToFraction: vi.fn(),
     onFrameStep: vi.fn(),
     onNextVideo: vi.fn(),
-    onPreviousVideo: vi.fn()
+    onPreviousVideo: vi.fn(),
+    onSponsorSkip: vi.fn()
   };
 
   const press = (key: string, init: KeyboardEventInit = {}) => {
@@ -221,6 +222,8 @@ describe('useKeyboardShortcuts - YouTube-style bindings', () => {
     ['f', 'onToggleFullscreen'],
     ['t', 'onToggleCinemaMode'],
     ['c', 'onToggleSubtitles'],
+    ['s', 'onSponsorSkip'],
+    ['S', 'onSponsorSkip'],
     ['ArrowUp', 'onVolumeUp'],
     ['ArrowDown', 'onVolumeDown']
   ] as const)('binds %s', (key, handlerName) => {
@@ -337,6 +340,17 @@ describe('useKeyboardShortcuts - unbound keys', () => {
     window.dispatchEvent(event);
 
     expect(onToggleCinemaMode).not.toHaveBeenCalled();
+    expect(event.defaultPrevented).toBe(false);
+  });
+
+  it('leaves S to the page while there is no skip notice', () => {
+    renderHook(() =>
+      useKeyboardShortcuts({ onPlayPause: vi.fn(), onSeekLeft: vi.fn(), onSeekRight: vi.fn() })
+    );
+
+    const event = new KeyboardEvent('keydown', { key: 's', cancelable: true });
+    window.dispatchEvent(event);
+
     expect(event.defaultPrevented).toBe(false);
   });
 });

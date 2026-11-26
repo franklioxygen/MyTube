@@ -46,11 +46,11 @@ function setup(
     segments: SponsorSegment[] | undefined = [sponsor()],
     options: { categories?: SponsorBlockCategorySettings; autoSkip?: boolean; resetKey?: string } = {}
 ) {
-    const videoRef = { current: media as unknown as HTMLVideoElement };
+    const mediaRef = { current: media };
     return renderHook(
         (props: { segments?: SponsorSegment[]; resetKey: string }) =>
             useSponsorSkip({
-                videoRef,
+                mediaRef,
                 segments: props.segments,
                 categories: options.categories ?? { sponsor: 'auto' },
                 autoSkip: options.autoSkip ?? true,
@@ -91,6 +91,9 @@ describe('useSponsorSkip', () => {
         tick(10.0);
         expect(skipTo).toHaveBeenCalledExactlyOnceWith(20, { toEnd: false });
         expect(result.current.notice).toMatchObject({ skipped: { key: 'sponsor-1' } });
+        // The S key undoes it.
+        act(() => result.current.shortcut?.());
+        expect(skipTo).toHaveBeenLastCalledWith(10);
     });
 
     it('never reacts to its own seek', () => {
@@ -190,6 +193,8 @@ describe('useSponsorSkip', () => {
         tick(50.1);
         land();
         expect(result.current.notice).toMatchObject({ skipped: { key: 'sponsor-1' }, prompt: { key: 'outro-1' } });
+        // With both up, the S key takes the button rather than the Undo.
+        expect(result.current.shortcut).toBe(result.current.skipNow);
         // Undo is offered for its usual time; the button stays while inside.
         act(() => { vi.advanceTimersByTime(SKIPPED_NOTICE_MS); });
         expect(result.current.notice?.skipped).toBeUndefined();
@@ -252,5 +257,6 @@ describe('useSponsorSkip', () => {
         tick(10.1);
         expect(skipTo).not.toHaveBeenCalled();
         expect(result.current.plan.ranges).toEqual([]);
+        expect(result.current.shortcut).toBeUndefined();
     });
 });

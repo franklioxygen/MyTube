@@ -797,6 +797,8 @@ const VideoPlayer: React.FC = () => {
                         }
                         statisticsRelatedEventId={statisticsRelatedEventId}
                         statisticsAutoplayFromVideoId={autoplayFromVideoId}
+                        sponsorSegments={sponsorSegments}
+                        sponsorBlockCategories={sponsorBlockCategories}
                     /> : isAudio ? <AudioModePlayer
                         src={playerSrc}
                         mediaPath={video.videoPath}

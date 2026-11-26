@@ -17,10 +17,19 @@ import {
     DEFAULT_PLAYER_SEEK_INTERVALS,
     PlayerSeekIntervals,
 } from '../../../utils/playerSeekIntervals';
+import type { SponsorSegment } from '../../../types';
+import {
+    DEFAULT_SPONSORBLOCK_CATEGORIES,
+    type SponsorBlockCategorySettings,
+} from '../../../utils/sponsorBlock';
 import FullscreenControl from '../VideoControls/FullscreenControl';
 const DanmakuPlayer = lazy(() => import('../DanmakuPlayer'));
 import ProgressBar from '../VideoControls/ProgressBar';
 import SeekButton from '../VideoControls/SeekButton';
+import SponsorBlockControl from '../VideoControls/SponsorBlockControl';
+import SponsorSkipNotice from '../VideoControls/SponsorSkipNotice';
+import { useSponsorAutoSkip } from '../VideoControls/hooks/useSponsorAutoSkip';
+import { useSponsorSkip } from '../VideoControls/hooks/useSponsorSkip';
 import { viewportHeight, viewportWidth } from '../../../utils/viewportUnits';
 import {
     getMissingCompatibilityModeApis,
@@ -36,6 +45,7 @@ import {
     PlaybackSnapshot,
     PlaybackStatus,
 } from './playbackEngine';
+import { EngineSkipMedia } from './skipMedia';
 
 interface CompatibilityPlayerProps {
     danmakuVideoId?: string;
@@ -61,6 +71,9 @@ interface CompatibilityPlayerProps {
     statisticsPlatform?: string | null;
     statisticsRelatedEventId?: string | null;
     statisticsAutoplayFromVideoId?: string | null;
+    /** SponsorBlock segments of this video (issue #555); omitted when there are none to use. */
+    sponsorSegments?: SponsorSegment[];
+    sponsorBlockCategories?: SponsorBlockCategorySettings;
 }
 
 const DEFAULT_ASPECT_RATIO = 16 / 9;
@@ -104,6 +117,8 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
     statisticsPlatform = null,
     statisticsRelatedEventId = null,
     statisticsAutoplayFromVideoId = null,
+    sponsorSegments,
+    sponsorBlockCategories = DEFAULT_SPONSORBLOCK_CATEGORIES,
 }) => {
     const { t } = useLanguage();
     // Forced deployments render this player even where WebCodecs is missing,
@@ -141,6 +156,8 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
     // progress-bar release — is funnelled through this queue rather than
     // racing into it and being dropped. The newest target wins.
     const seekQueueRef = useRef<number | null>(null);
+    /** Whether the queued target must be reached exactly (a SponsorBlock skip). */
+    const seekQueueExactRef = useRef(false);
     const seekRunningRef = useRef(false);
     /** Where the reposition in flight is heading, when this player chose it. */
     const pendingTargetRef = useRef<number | null>(null);
@@ -160,6 +177,25 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
 
     const isEnginePlaying = () =>
         statusRef.current === 'playing' || statusRef.current === 'buffering';
+
+    // What SponsorBlock skipping watches in place of a media element. It must
+    // know when this player moved the playhead, so the position being left is
+    // never read as playback.
+    const [skipMedia] = useState(() => new EngineSkipMedia());
+    const skipMediaRef = useRef(skipMedia);
+    const reposition = useCallback(
+        async (engine: CompatibilityPlaybackEngine, run: () => Promise<void>) => {
+            skipMediaRef.current.beginSeek();
+            try {
+                await run();
+            } finally {
+                if (engineRef.current === engine) {
+                    skipMediaRef.current.endSeek();
+                }
+            }
+        },
+        []
+    );
 
     // Refs outlive a source change, because the parent keeps this player
     // mounted across navigation. Anything still settling then belongs to the
@@ -195,9 +231,13 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
                 }
                 const target = seekQueueRef.current;
                 if (target !== null) {
+                    const exact = seekQueueExactRef.current;
                     seekQueueRef.current = null;
+                    seekQueueExactRef.current = false;
                     pendingTargetRef.current = target;
-                    await engine.seek(target);
+                    await reposition(engine, () =>
+                        exact ? engine.seek(target, { exact }) : engine.seek(target)
+                    );
                     continue;
                 }
                 const intent = pendingPlaybackRef.current;
@@ -232,11 +272,12 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
                 current === committedSeekRef.current ? null : current
             );
         }
-    }, [finishSeek]);
+    }, [finishSeek, reposition]);
 
     const queueSeek = useCallback(
-        (target: number) => {
+        (target: number, exact = false) => {
             seekQueueRef.current = target;
+            seekQueueExactRef.current = exact;
             void drainSeekQueue();
         },
         [drainSeekQueue]
@@ -271,12 +312,14 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
         // Nothing aimed at the outgoing video may reach the incoming one, and
         // the bar must not open on the position of the video just left.
         seekQueueRef.current = null;
+        seekQueueExactRef.current = false;
         pendingTargetRef.current = null;
         seekRunningRef.current = false;
         committedSeekRef.current = null;
         pendingPlaybackRef.current = null;
         statusRef.current = INITIAL_SNAPSHOT.status;
         positionRef.current = INITIAL_SNAPSHOT.currentTime;
+        skipMediaRef.current.reset();
         setScrubTime(null);
 
         if (!src || !supported) {
@@ -295,10 +338,12 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
                 if (next.status === 'playing') {
                     onTimeUpdateRef.current?.(next.currentTime);
                 }
+                skipMediaRef.current.update(next);
             },
             // Unlike the initial `ready` snapshot, a completed seek is an
             // authoritative position even while paused or back at zero.
             onSeeked: (currentTime) => {
+                skipMediaRef.current.landed(currentTime);
                 if (!restoringInitialPosition) {
                     onTimeUpdateRef.current?.(currentTime, { seeked: true });
                 }
@@ -455,12 +500,12 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
             // intent is recorded so a further skip can count from it.
             seekRunningRef.current = true;
             pendingTargetRef.current = positionRef.current + deltaSeconds;
-            void engine.seekBy(deltaSeconds).finally(() => {
+            void reposition(engine, () => engine.seekBy(deltaSeconds)).finally(() => {
                 finishSeek(engine);
                 void drainSeekQueue();
             });
         },
-        [drainSeekQueue, finishSeek, queueSeek, revealControls]
+        [drainSeekQueue, finishSeek, queueSeek, reposition, revealControls]
     );
 
     const handleScrub = useCallback(
@@ -480,6 +525,24 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
         },
         [queueSeek, revealControls]
     );
+
+    // SponsorBlock (issue #555): the same engine as the standard player, fed by
+    // skipMedia. A skip lands exactly on the segment's end; the engine would
+    // otherwise resume at the keyframe before it and replay the tail.
+    const { autoSkip: sponsorAutoSkip, toggleAutoSkip } = useSponsorAutoSkip();
+    const skipToForSponsor = useCallback((time: number) => queueSeek(time, true), [queueSeek]);
+    const sponsorSkip = useSponsorSkip({
+        mediaRef: skipMediaRef,
+        segments: sponsorSegments,
+        categories: sponsorBlockCategories,
+        autoSkip: sponsorAutoSkip,
+        duration: snapshot.duration ?? 0,
+        isDragging: scrubTime !== null,
+        resetKey: src ?? '',
+        skipTo: skipToForSponsor,
+    });
+    const showSponsorBlockControl =
+        sponsorSkip.plan.bands.length > 0 || sponsorSkip.plan.durationMismatch;
 
     const isPlaying =
         snapshot.status === 'playing' || snapshot.status === 'buffering';
@@ -716,6 +779,14 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
                         </Stack>
                     </Fade>
                 )}
+
+                {!hasFailed && (
+                    <SponsorSkipNotice
+                        notice={sponsorSkip.notice}
+                        onUndo={sponsorSkip.undo}
+                        onSkip={sponsorSkip.skipNow}
+                    />
+                )}
             </Box>
 
             {/* A trimmed transport strip: the shared progress bar, play and the
@@ -754,7 +825,17 @@ const CompatibilityPlayer: React.FC<CompatibilityPlayerProps> = ({
                     onProgressChange={handleScrub}
                     onProgressChangeCommitted={handleScrubCommitted}
                     onProgressMouseDown={revealControls}
+                    segments={sponsorSkip.plan.bands}
                 />
+
+                {showSponsorBlockControl && !hasFailed && (
+                    <SponsorBlockControl
+                        autoSkip={sponsorAutoSkip}
+                        durationMismatch={sponsorSkip.plan.durationMismatch}
+                        onToggle={toggleAutoSkip}
+                        offColor="inherit"
+                    />
+                )}
 
                 {onExit && canFallBackToStandardPlayer && (
                     <Tooltip title={t('compatibilityModeExit')}>
