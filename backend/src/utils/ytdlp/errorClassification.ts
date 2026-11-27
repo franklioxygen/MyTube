@@ -5,6 +5,9 @@
  * can import it without pulling in the full yt-dlp runtime.
  */
 
+import { isAnyCancellationError } from "../../errors/DownloadErrors";
+import { redactSensitive } from "../logger";
+
 // yt-dlp emits one of these fragments when a video is gated behind a channel
 // membership. The exact wording varies by membership tier / video, so match on
 // the stable substrings rather than the whole message. Examples:
@@ -69,4 +72,47 @@ export const YOUTUBE_COOKIES_EXPIRED_MESSAGE =
 /** Detect an HTTP 403 Forbidden reported by yt-dlp. */
 export function isHttpForbiddenError(error: unknown): boolean {
   return collectErrorText(error).includes("HTTP Error 403");
+}
+
+/** Longest yt-dlp reason kept in a failure message. */
+const MAX_FAILURE_REASON_LENGTH = 300;
+
+// A local absolute path (POSIX or Windows), such as the cookies file or an
+// output path. The slashes of a URL never start a token, so URLs don't match.
+const LOCAL_PATH_PATTERN = /(?:^|[\s'"(=[])\/(?=[\w.~-])|\b[A-Za-z]:\\/;
+
+/**
+ * yt-dlp's own reason for a failure: the last `ERROR:` line on stderr without
+ * its `ERROR: [extractor] id:` prefix, capped in length. For a geo-blocked
+ * video that is "The uploader has not made this video available in your
+ * country".
+ *
+ * The reason is stored in download history and shown to the user, so a line
+ * that carries a credential (such as a proxy URL) or a local path is dropped
+ * rather than redacted. So is one that would read as a cancellation, since
+ * isAnyCancellationError matches on message text. Returns null when no usable
+ * line is left.
+ */
+export function getYtDlpFailureReason(stderr: string): string | null {
+  const errorLine = stderr
+    .split(/[\r\n]+/)
+    .filter((line) => line.startsWith("ERROR:"))
+    .pop();
+  if (!errorLine) return null;
+
+  const reason = errorLine
+    .replace(/^ERROR:\s*(?:\[[^\]]+\]\s*(?:[^\s:]+:\s+)?)?/, "")
+    .trim();
+  if (
+    !reason ||
+    redactSensitive(reason) !== reason ||
+    LOCAL_PATH_PATTERN.test(reason) ||
+    isAnyCancellationError(new Error(reason))
+  ) {
+    return null;
+  }
+
+  return reason.length <= MAX_FAILURE_REASON_LENGTH
+    ? reason
+    : `${reason.slice(0, MAX_FAILURE_REASON_LENGTH - 1).trimEnd()}…`;
 }
