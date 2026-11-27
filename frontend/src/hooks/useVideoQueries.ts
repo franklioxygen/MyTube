@@ -52,7 +52,7 @@ export function useVideoQueries({ videoId, videos, showComments }: UseVideoQueri
         openingRef.current = opening;
     }, [opening]);
 
-    const { data: rawVideo, isLoading: loading, error } = useQuery({
+    const { data: rawVideo, isLoading: loading, isPlaceholderData, isFetching, error } = useQuery({
         queryKey: ['video', videoId],
         queryFn: async () => {
             const response = await api.get(`/videos/${videoId}`);
@@ -85,6 +85,8 @@ export function useVideoQueries({ videoId, videos, showComments }: UseVideoQueri
         enabled: showComments && !!videoId
     });
 
+    const isDetailFresh = rawVideo?.[FETCHED_FOR_OPENING] === opening;
+
     return {
         video,
         loading,
@@ -93,7 +95,14 @@ export function useVideoQueries({ videoId, videos, showComments }: UseVideoQueri
          * for the list row, a detail cached from an earlier opening, or a
          * cache update such as a progress flush.
          */
-        isDetailFresh: rawVideo?.[FETCHED_FOR_OPENING] === opening,
+        isDetailFresh,
+        /**
+         * True once the full detail is in hand and no request is about to
+         * replace it: fresh, or cached from an earlier opening (or another
+         * page sharing the key) with nothing fetching. Not for the list row.
+         */
+        hasSettledDetail:
+            isDetailFresh || (rawVideo !== undefined && !isPlaceholderData && !isFetching),
         error,
         comments,
         loadingComments

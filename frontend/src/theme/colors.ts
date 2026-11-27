@@ -43,6 +43,19 @@ export const platform = {
   bilibili: "#23ade5",
 } as const;
 
+/** SponsorBlock's conventional category colors, for timeline segments (issue #555). */
+export const sponsorBlockCategory = {
+  sponsor: "#00d400",
+  selfpromo: "#ffff00",
+  interaction: "#cc00ff",
+  intro: "#00ffff",
+  outro: "#0202ed",
+  preview: "#008fd6",
+  hook: "#395699",
+  music_offtopic: "#ff9900",
+  filler: "#7300ff",
+} as const;
+
 /** Semantic status colors. */
 export const status = {
   success: "#4caf50",

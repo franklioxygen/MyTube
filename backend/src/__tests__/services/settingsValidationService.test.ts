@@ -49,6 +49,29 @@ describe("settingsValidationService", () => {
       ).toThrow(ValidationError);
     });
 
+    it("accepts a boolean sponsorBlockEnabled and rejects anything else", () => {
+      expect(() => settingsValidationService.validateSettings({ sponsorBlockEnabled: false })).not.toThrow();
+      expect(() =>
+        settingsValidationService.validateSettings({ sponsorBlockEnabled: "on" } as any)
+      ).toThrow(ValidationError);
+    });
+
+    it("keeps known SponsorBlock categories and drops ones it does not know", () => {
+      const settings: any = {
+        sponsorBlockCategories: { sponsor: "auto", intro: "manual", chapter: "auto", future_category: "off" },
+      };
+      settingsValidationService.validateSettings(settings);
+      expect(settings.sponsorBlockCategories).toEqual({ sponsor: "auto", intro: "manual" });
+    });
+
+    it("rejects an unknown SponsorBlock mode or a non-object category map", () => {
+      for (const sponsorBlockCategories of [{ sponsor: "always" }, ["sponsor"], "sponsor", null]) {
+        expect(() =>
+          settingsValidationService.validateSettings({ sponsorBlockCategories } as any)
+        ).toThrow(ValidationError);
+      }
+    });
+
     it("should allow tags that differ only by case when not both present", () => {
       expect(() => {
         settingsValidationService.validateSettings({ tags: ["aaa"] });

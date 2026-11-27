@@ -152,6 +152,39 @@ describe("useVideoPlayer seek behavior", () => {
   });
 });
 
+describe("useVideoPlayer SponsorBlock skips", () => {
+  let videoElement: HTMLVideoElement;
+
+  beforeEach(() => {
+    videoElement = document.createElement("video");
+    Object.defineProperty(videoElement, "duration", { configurable: true, writable: true, value: 100 });
+    Object.defineProperty(videoElement, "currentTime", { configurable: true, writable: true, value: 20 });
+  });
+
+  const mountWith = () => {
+    const { result } = renderHook(() => useVideoPlayer({ src: "test.mp4" }));
+    result.current.videoRef.current = videoElement;
+    return result;
+  };
+
+  it("keeps an ordinary skip off the end guard", () => {
+    const result = mountWith();
+    act(() => result.current.skipTo(99.95));
+    expect(videoElement.currentTime).toBe(99.75);
+  });
+
+  it("lets a skip of a range that reaches the end land on the end, so playback ends", () => {
+    const result = mountWith();
+    act(() => result.current.skipTo(99.95, { toEnd: true }));
+    expect(videoElement.currentTime).toBe(100);
+  });
+
+  it("reports nothing pending when no resume position is being applied", () => {
+    const result = mountWith();
+    expect(result.current.isStartTimeRestorePending()).toBe(false);
+  });
+});
+
 describe("useVideoPlayer startTime behavior", () => {
   let videoElement: HTMLVideoElement;
 

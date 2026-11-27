@@ -87,6 +87,11 @@ vi.mock('../../hooks/useVideoQueries', () => ({
     useVideoQueries: () => mockVideoQueryReturn,
 }));
 
+const mockUseSponsorBlockSegments = vi.fn<(videoId?: string) => { data?: unknown }>(() => ({ data: undefined }));
+vi.mock('../../hooks/useSponsorBlockSegments', () => ({
+    useSponsorBlockSegments: (videoId: string | undefined) => mockUseSponsorBlockSegments(videoId),
+}));
+
 vi.mock('../../hooks/useCloudStorageUrl', () => ({ useCloudStorageUrl: () => 'url' }));
 
 vi.mock('../../hooks/useVideoCollections', () => ({
@@ -415,6 +420,67 @@ describe('VideoPlayer', () => {
     });
 
     // ------ Danmaku availability ------
+
+    describe('SponsorBlock availability', () => {
+        const segments = [
+            { uuid: 'u1', category: 'sponsor', actionType: 'skip', start: 5, end: 20, videoDuration: 0 },
+        ];
+        const enabledSettings = { websiteName: 'TestSite', sponsorBlockEnabled: true };
+
+        beforeEach(() => {
+            mockUseSponsorBlockSegments.mockImplementation((videoId: string | undefined) => ({
+                data: videoId ? { status: 'ready', segments } : undefined,
+            }));
+            mockSettingsData.data = enabledSettings;
+            mockVideoQueryReturn = {
+                ...mockVideoQueryReturn,
+                video: { ...mockVideo, source: 'youtube' },
+                hasSettledDetail: true,
+            };
+        });
+        afterEach(() => {
+            mockSettingsData.data = { websiteName: 'TestSite' };
+        });
+
+        it('looks up a fresh native YouTube video and hands its segments to the player', () => {
+            render(<VideoPlayer />);
+            expect(mockUseSponsorBlockSegments).toHaveBeenLastCalledWith('v1');
+            expect(capturedVideoControlsProps.sponsorSegments).toEqual(segments);
+            expect(capturedVideoControlsProps.sponsorBlockCategories).toEqual({ sponsor: 'auto' });
+        });
+
+        it('hands the same segments to the compatibility player', () => {
+            vi.stubEnv('VITE_FORCE_COMPATIBILITY_MODE', 'true');
+            try {
+                render(<VideoPlayer />);
+                expect(screen.getByTestId('compatibility-player')).toBeTruthy();
+                expect(capturedCompatibilityPlayerProps.sponsorSegments).toEqual(segments);
+                expect(capturedCompatibilityPlayerProps.sponsorBlockCategories).toEqual({ sponsor: 'auto' });
+            } finally {
+                vi.unstubAllEnvs();
+            }
+        });
+
+        it.each([
+            ['the feature is off', () => { mockSettingsData.data = { websiteName: 'TestSite' }; }],
+            ['the video is not from YouTube', () => {
+                mockVideoQueryReturn.video = { ...mockVideo, source: 'bilibili' };
+            }],
+            ['only the list row has loaded', () => { mockVideoQueryReturn.hasSettledDetail = false; }],
+            ['the video comes from another instance', () => {
+                mockVideoQueryReturn.video = {
+                    ...mockVideo,
+                    source: 'youtube',
+                    origin: { kind: 'remote', instanceId: 'peer', instanceName: 'Peer' },
+                };
+            }],
+        ])('looks nothing up when %s', (_case, arrange) => {
+            arrange();
+            render(<VideoPlayer />);
+            expect(mockUseSponsorBlockSegments).toHaveBeenLastCalledWith(undefined);
+            expect(capturedVideoControlsProps.sponsorSegments).toBeUndefined();
+        });
+    });
 
     describe('Danmaku availability', () => {
         afterEach(() => {

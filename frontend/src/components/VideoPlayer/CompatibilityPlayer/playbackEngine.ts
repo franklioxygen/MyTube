@@ -28,6 +28,11 @@ export type PlaybackStatus =
     | 'ended'
     | 'error';
 
+export interface SeekOptions {
+    exact?: boolean;
+    toEnd?: boolean;
+}
+
 export interface PlaybackSnapshot {
     status: PlaybackStatus;
     /** Seconds. */
@@ -185,6 +190,12 @@ export class CompatibilityPlaybackEngine {
     private flushed = false;
     private awaitingKeyframe = true;
     private destroyed = false;
+    /**
+     * Decoded output ending at or before this point (µs, origin-relative) is
+     * dropped: an exact seek decodes from the keyframe before its target but
+     * shows nothing until the target itself. Null after an ordinary seek.
+     */
+    private presentFromUs: number | null = null;
 
     constructor(canvas: HTMLCanvasElement, options: PlaybackEngineOptions) {
         this.canvas = canvas;
@@ -337,8 +348,14 @@ export class CompatibilityPlaybackEngine {
      * already committed to the Web Audio timeline, and a decoder cannot be
      * handed a mid-GOP frame after a jump. The clock is then rebased so the
      * playhead reads the new position rather than resuming its old count.
+     *
+     * Playback normally resumes at the keyframe at or before the target, which
+     * can be several seconds early. `exact` resumes at the target itself by
+     * decoding through to it without presenting, for a SponsorBlock skip that
+     * must not replay the end of what it skipped. `toEnd` goes to the very end
+     * instead of stopping short of it, for a skip that runs through the end.
      */
-    async seek(seconds: number): Promise<void> {
+    async seek(seconds: number, { exact = false, toEnd = false }: SeekOptions = {}): Promise<void> {
         const demuxer = this.demuxer;
         if (
             !demuxer?.canSeek ||
@@ -350,7 +367,10 @@ export class CompatibilityPlaybackEngine {
         }
 
         const limit = this.durationSeconds ?? Number.POSITIVE_INFINITY;
-        const target = Math.min(Math.max(0, seconds), Math.max(0, limit - 0.25));
+        const target =
+            toEnd && Number.isFinite(limit)
+                ? limit
+                : Math.min(Math.max(0, seconds), Math.max(0, limit - 0.25));
         const wasPlaying =
             this.status === 'playing' || this.status === 'buffering';
 
@@ -377,6 +397,7 @@ export class CompatibilityPlaybackEngine {
             this.demuxEnded = false;
             this.flushed = false;
             this.awaitingKeyframe = true;
+            this.presentFromUs = null;
             this.resetDecoders();
 
             landedUs = await demuxer.seek(this.originUs + target * 1e6);
@@ -391,9 +412,13 @@ export class CompatibilityPlaybackEngine {
             return;
         }
 
-        this.rebaseClock(Math.max(0, (landedUs - this.originUs) / 1e6));
-        this.lastPacketTime = this.pausedMediaTime;
-        this.lastPacketEndTime = this.pausedMediaTime;
+        const landed = Math.max(0, (landedUs - this.originUs) / 1e6);
+        const resumeAt = exact ? Math.max(landed, target) : landed;
+        this.presentFromUs = resumeAt > landed ? resumeAt * 1e6 : null;
+        this.rebaseClock(resumeAt);
+        // Packets are read from the keyframe on, so lookahead counts from there.
+        this.lastPacketTime = landed;
+        this.lastPacketEndTime = landed;
         this.options.onSeeked?.(this.pausedMediaTime);
         await this.pump();
 
@@ -737,8 +762,14 @@ export class CompatibilityPlaybackEngine {
 
     // ----------------------------------------------------------- decoder output
 
+    /** Output an exact seek decoded only to get to its target; a frame starting there is kept. */
+    private endsBeforePresentation(timestampUs: number, durationUs?: number | null): boolean {
+        const floor = this.presentFromUs;
+        return floor !== null && timestampUs < floor && timestampUs + (durationUs ?? 0) <= floor;
+    }
+
     private onVideoFrame(frame: VideoFrame): void {
-        if (this.destroyed) {
+        if (this.destroyed || this.endsBeforePresentation(frame.timestamp, frame.duration)) {
             frame.close();
             return;
         }
@@ -760,7 +791,7 @@ export class CompatibilityPlaybackEngine {
         // Samples that finish before the presentation origin are the codec's
         // priming: decoded for the decoder's benefit, never played.
         const endUs = data.timestamp + (data.duration ?? 0);
-        if (endUs <= 0) {
+        if (endUs <= 0 || this.endsBeforePresentation(data.timestamp, data.duration)) {
             data.close();
             return;
         }

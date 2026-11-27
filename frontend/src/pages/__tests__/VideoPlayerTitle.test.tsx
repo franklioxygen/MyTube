@@ -38,6 +38,10 @@ vi.mock('../../hooks/useSettings', () => ({
     useSettings: () => mockSettingsData,
 }));
 
+vi.mock('../../hooks/useSponsorBlockSegments', () => ({
+    useSponsorBlockSegments: () => ({ data: undefined }),
+}));
+
 vi.mock('../../hooks/useVideoQueries', () => ({
     useVideoQueries: () => ({
         video: mockVideo,

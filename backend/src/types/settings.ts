@@ -50,6 +50,54 @@ export const MIN_AUTO_DELETE_INTERVAL_DAYS = 1;
 export const MAX_AUTO_DELETE_INTERVAL_DAYS = 3650;
 export const DEFAULT_AUTO_DELETE_INTERVAL_DAYS = 30;
 
+// SponsorBlock categories a viewer can choose to skip during playback
+// (issue #555). poi_highlight and exclusive_access are not skips, so they are
+// fetched but not configurable yet. Keep in sync with
+// frontend/src/utils/sponsorBlock.ts.
+export const SPONSORBLOCK_CATEGORIES = [
+  "sponsor",
+  "selfpromo",
+  "interaction",
+  "intro",
+  "outro",
+  "preview",
+  "hook",
+  "music_offtopic",
+  "filler",
+] as const;
+export type SponsorBlockCategory = (typeof SPONSORBLOCK_CATEGORIES)[number];
+export const SPONSORBLOCK_MODES = ["auto", "manual", "off"] as const;
+export type SponsorBlockMode = (typeof SPONSORBLOCK_MODES)[number];
+export type SponsorBlockCategorySettings = Partial<
+  Record<SponsorBlockCategory, SponsorBlockMode>
+>;
+
+/**
+ * Validates a sponsorBlockCategories value. Categories this version does not
+ * know are dropped so a newer client cannot make an older server reject the
+ * whole save; a known category with an unknown mode is invalid (null).
+ */
+export function normalizeSponsorBlockCategories(
+  value: unknown
+): SponsorBlockCategorySettings | null {
+  if (
+    typeof value !== "object" ||
+    value === null ||
+    Array.isArray(value) ||
+    Object.getPrototypeOf(value) !== Object.prototype
+  ) {
+    return null;
+  }
+  const result: SponsorBlockCategorySettings = {};
+  for (const category of SPONSORBLOCK_CATEGORIES) {
+    if (!Object.prototype.hasOwnProperty.call(value, category)) continue;
+    const mode = (value as Record<string, unknown>)[category];
+    if (!SPONSORBLOCK_MODES.includes(mode as SponsorBlockMode)) return null;
+    result[category] = mode as SponsorBlockMode;
+  }
+  return result;
+}
+
 export function normalizeAudioFormat(value: unknown): AudioFormat {
   return typeof value === "string" && AUDIO_FORMATS.includes(value as AudioFormat)
     ? (value as AudioFormat)
@@ -138,6 +186,11 @@ export interface Settings {
   // Lowercase alias → canonical tag, applied to source tags before they are
   // stored as suggestions (issue #546 phase two).
   tagAliases?: Record<string, string>;
+  // Skip SponsorBlock segments of YouTube videos during playback (issue #555).
+  // Off by default; while off the server never contacts sponsor.ajay.app.
+  sponsorBlockEnabled?: boolean;
+  // Per-category mode; a category that is missing is "off".
+  sponsorBlockCategories?: SponsorBlockCategorySettings;
   playFromBeginning?: boolean;
   theme?: 'light' | 'dark' | 'system';
   showThemeButton?: boolean;
@@ -223,6 +276,8 @@ export const defaultSettings: Settings = {
   showTagsOnThumbnail: true,
   autoTagsFromSource: false,
   searchAutoTags: false,
+  sponsorBlockEnabled: false,
+  sponsorBlockCategories: { sponsor: "auto" },
   playFromBeginning: false,
   showThemeButton: true,
   showAudioDownloadButton: true,

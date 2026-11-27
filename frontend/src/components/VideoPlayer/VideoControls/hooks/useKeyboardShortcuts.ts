@@ -25,6 +25,8 @@ export interface KeyboardShortcutHandlers {
   onFrameStep?: (direction: -1 | 1) => void;
   onNextVideo?: () => void;
   onPreviousVideo?: () => void;
+  /** SponsorBlock: whatever the skip notice offers. Unset leaves S to the page. */
+  onSponsorSkip?: () => void;
 }
 
 interface ShortcutAction {
@@ -95,6 +97,8 @@ const resolveAction = (
       return { run: handlers.onToggleCinemaMode };
     case "c":
       return { run: handlers.onToggleSubtitles };
+    case "s":
+      return { run: handlers.onSponsorSkip, isSeek: true };
     case ">":
       return { run: handlers.onSpeedUp };
     case "<":

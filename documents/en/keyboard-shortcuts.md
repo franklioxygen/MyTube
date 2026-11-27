@@ -13,10 +13,13 @@ The video player answers the same keys YouTube does, so muscle memory carries ov
 | `Home` / `End` | Jump to the start / end |
 | `,` / `.` | Step one frame back / forward (pauses first) |
 | `<` / `>` | Slower / faster playback |
+| `S` | SponsorBlock: skip the segment you are in, or undo the last skip |
 
 The seek steps are your own settings, not fixed values: **Settings → Video Player Defaults** sets the *Short interval* and *Medium interval* (10s and 60s by default). Frame stepping assumes 30fps — HTML video exposes no frame rate, so the step is approximate.
 
 Speed moves through the same ladder the speed menu offers (0.5, 0.75, 1, 1.25, 1.5, 2, 3) rather than a free multiplier, so the keyboard and the menu never disagree.
+
+`S` answers the SponsorBlock notice, so it only does something while one is showing: it presses **Skip** when the notice offers it, and **Undo** when that is all it offers. With no notice up, the key is left alone.
 
 ## Audio
 

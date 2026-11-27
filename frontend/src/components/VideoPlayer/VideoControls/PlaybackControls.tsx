@@ -8,6 +8,7 @@ import SpeedControl from './SpeedControl';
 
 interface PlaybackControlsProps {
     danmakuControl?: React.ReactNode;
+    sponsorBlockControl?: React.ReactNode;
     isPlaying: boolean;
     onPlayPause: () => void;
     onSeek: (seconds: number) => void;
@@ -21,6 +22,7 @@ interface PlaybackControlsProps {
 
 const PlaybackControls: React.FC<PlaybackControlsProps> = ({
     danmakuControl,
+    sponsorBlockControl,
     onSeek,
     playbackRate,
     onPlaybackRateChange,
@@ -52,6 +54,7 @@ const PlaybackControls: React.FC<PlaybackControlsProps> = ({
         >
             {/* Live Translate trigger (desktop only; mobile shows it in the bottom row) */}
             {danmakuControl}
+            {sponsorBlockControl}
             <LiveTranslationControlButton
                 sx={{ display: { xs: 'none', sm: 'inline-flex' }, padding: '8px' }}
             />

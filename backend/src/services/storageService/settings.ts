@@ -186,6 +186,8 @@ export const WHITELISTED_SETTINGS = [
   "autoTagsFromSource",
   "searchAutoTags",
   "tagAliases",
+  "sponsorBlockEnabled",
+  "sponsorBlockCategories",
   "playFromBeginning",
   "theme",
   "showThemeButton",

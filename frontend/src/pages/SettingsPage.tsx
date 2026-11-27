@@ -38,6 +38,7 @@ import TagsSettings from '../components/Settings/TagsSettings';
 import TmdbApiKeySettings from '../components/Settings/TmdbApiKeySettings';
 import TwitchSettings from '../components/Settings/TwitchSettings';
 import VideoDefaultSettings from '../components/Settings/VideoDefaultSettings';
+import SponsorBlockSettings from '../components/Settings/SponsorBlockSettings';
 import LiveTranslationSettings from '../components/Settings/LiveTranslationSettings';
 import YtDlpSettings from '../components/Settings/YtDlpSettings';
 import YtDlpVersionSettings from '../components/Settings/YtDlpVersionSettings';
@@ -215,6 +216,7 @@ const SettingsPage: React.FC = () => {
         twitchClientSecret: '',
         telegramDownloadEnabled: false,
         mediaServerExportMode: 'off',
+        sponsorBlockEnabled: false,
     }));
     const { setPreference } = useThemeContext();
     const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' | 'warning' | 'info' } | null>(null);
@@ -526,6 +528,7 @@ const SettingsPage: React.FC = () => {
                 onChange={handleChange}
                 onSeekIntervalsValidityChange={setSeekIntervalsValid}
             />
+            <SponsorBlockSettings settings={settings} onChange={handleChange} />
             <LiveTranslationSettings
                 settings={settings}
                 apiKeyConfigured={settings.liveTranslationApiKeyConfigured === true}

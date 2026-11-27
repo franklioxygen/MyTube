@@ -89,6 +89,9 @@
   - 支持的上传格式: `.vtt`, `.srt`, `.ass`, `.ssa`
 - `DELETE /api/videos/:id` - 删除视频记录及相关文件
 - `GET /api/videos/:id/comments` - 获取视频评论 (如可用)
+- `GET /api/videos/:id/sponsorblock` - 获取 YouTube 视频的 SponsorBlock 片段，供播放时跳过
+  - 响应：`{ status, segments }`。`status` 为 `disabled`（设置未开启）、`unsupported`（不是 YouTube 视频）、`ready`、`none` 或 `unavailable`（查询失败且没有缓存）。每个片段为 `{ uuid, category, actionType, start, end, videoDuration }`，时长未知时 `videoDuration` 为 `0`。
+  - 服务器用 YouTube ID 的 SHA-256 前 4 位向 sponsor.ajay.app 查询，走 yt-dlp 设置里 YouTube 使用的代理，结果缓存在内存中（24 小时；没有片段时 1 小时）。访客只能读取可见视频。每个客户端每分钟最多 60 次请求。片段数据来自 SponsorBlock，许可为 CC BY-NC-SA 4.0，商业使用前请确认该许可。
 - `POST /api/videos/:id/rate` - 评价视频
   - 请求体: `{ rating: number }` 其中 `1 <= rating <= 5`
 - `POST /api/videos/:id/refresh-thumbnail` - 刷新缩略图
