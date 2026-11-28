@@ -116,12 +116,17 @@ describe("getYtDlpFailureReason", () => {
     expect(getYtDlpFailureReason(stderr)).toBeNull();
   });
 
-  it("drops a line that echoes a URL with a query string, such as a signed URL", () => {
+  it("cuts the query string and fragment off every URL", () => {
     expect(
       getYtDlpFailureReason(
         "ERROR: Unsupported URL: https://cdn.example/video.mp4?Signature=abc123&Policy=xyz\n"
       )
-    ).toBeNull();
+    ).toBe("Unsupported URL: https://cdn.example/video.mp4");
+    expect(
+      getYtDlpFailureReason(
+        "ERROR: Unsupported URL: https://share.example/video#access-key-123 (try again)\n"
+      )
+    ).toBe("Unsupported URL: https://share.example/video (try again)");
   });
 
   it("drops a line that carries a local path, such as the cookies file", () => {
@@ -168,7 +173,7 @@ describe("getYtDlpFailureReason", () => {
 
   it("keeps a line whose only slashes belong to URLs", () => {
     const stderr =
-      "ERROR: [youtube] abc: Sign in to confirm you're not a bot. See https://github.com/yt-dlp/yt-dlp/wiki/FAQ for help\n";
+      "ERROR: [youtube] abc: Sign in to confirm you're not a bot. See https://github.com/yt-dlp/yt-dlp/wiki/FAQ#how-do-i-pass-cookies-to-yt-dlp for help\n";
 
     expect(getYtDlpFailureReason(stderr)).toBe(
       "Sign in to confirm you're not a bot. See https://github.com/yt-dlp/yt-dlp/wiki/FAQ for help"

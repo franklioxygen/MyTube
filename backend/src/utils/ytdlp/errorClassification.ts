@@ -83,9 +83,10 @@ const MAX_FAILURE_REASON_LENGTH = 300;
 const LOCAL_PATH_PATTERN =
   /(?:^|[\s'"(=[])(?:\\\\|\/)(?=[^\s/\\'"])|\b[A-Za-z]:[\\/]/;
 
-// A URL with a query string, which can carry a signature or token under a name
-// redactSensitive doesn't know, such as a signed CDN URL.
-const URL_WITH_QUERY_PATTERN = /:\/\/[^\s?#]*\?/;
+// A URL's query string or fragment, through to the next space. Either can carry
+// a signature or token under a name redactSensitive doesn't know, such as in a
+// signed CDN URL or a share link's `#key`.
+const URL_QUERY_OR_FRAGMENT_PATTERN = /(:\/\/[^\s?#]*)[?#]\S*/g;
 
 /**
  * Whether the proxy's credentials hold a character that ends a URL's userinfo
@@ -106,12 +107,13 @@ function hasAmbiguousProxyCredentials(proxy: unknown): boolean {
  * video that is "The uploader has not made this video available in your
  * country".
  *
- * The reason is stored in download history and shown to the user, so a line
- * that carries a credential (such as a proxy URL), a URL with a query string or
- * a local path is dropped rather than redacted. So is one that would read as a
- * cancellation, since isAnyCancellationError matches on message text. No line
- * is used at all when the run's `proxy` has ambiguous credentials. Returns null
- * when no usable line is left.
+ * The reason is stored in download history and shown to the user, so every
+ * URL's query string and fragment are cut off, and a line that carries a
+ * credential (such as a proxy URL) or a local path is dropped rather than
+ * redacted. So is one that would read as a cancellation, since
+ * isAnyCancellationError matches on message text. No line is used at all when
+ * the run's `proxy` has ambiguous credentials. Returns null when no usable line
+ * is left.
  */
 export function getYtDlpFailureReason(
   stderr: string,
@@ -125,11 +127,11 @@ export function getYtDlpFailureReason(
 
   const reason = errorLine
     .replace(/^ERROR:\s*(?:\[[^\]]+\]\s*(?:[^\s:]+:\s+)?)?/, "")
+    .replace(URL_QUERY_OR_FRAGMENT_PATTERN, "$1")
     .trim();
   if (
     !reason ||
     redactSensitive(reason) !== reason ||
-    URL_WITH_QUERY_PATTERN.test(reason) ||
     LOCAL_PATH_PATTERN.test(reason) ||
     isAnyCancellationError(new Error(reason))
   ) {
