@@ -155,6 +155,17 @@ describe("getYtDlpFailureReason", () => {
         "ERROR: unable to open for writing: Permission denied: '/媒体/alice/video.mp4'\n"
       )
     ).toBeNull();
+    expect(
+      getYtDlpFailureReason(
+        "ERROR: unable to open for writing: Permission denied: '/ media/alice/video.mp4'\n"
+      )
+    ).toBeNull();
+  });
+
+  it("keeps a line with a slash between words", () => {
+    expect(
+      getYtDlpFailureReason("ERROR: [generic] video: No audio / video formats found\n")
+    ).toBe("No audio / video formats found");
   });
 
   it("uses no line when the proxy's credentials would be split by a parser", () => {

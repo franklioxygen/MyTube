@@ -78,10 +78,11 @@ export function isHttpForbiddenError(error: unknown): boolean {
 const MAX_FAILURE_REASON_LENGTH = 300;
 
 // A local absolute path (POSIX, Windows drive or UNC), such as the cookies file
-// or an output path, in any script. The slashes of a URL never start a token,
-// so URLs don't match.
+// or an output path, in any script. A quoted one may start with anything; an
+// unquoted one must not start with a space, so prose like "audio / video"
+// doesn't count. The slashes of a URL never start a token, so URLs don't match.
 const LOCAL_PATH_PATTERN =
-  /(?:^|[\s'"(=[])(?:\\\\|\/)(?=[^\s/\\'"])|\b[A-Za-z]:[\\/]/;
+  /['"](?:\\\\|\/)|(?:^|[\s(=[])(?:\\\\|\/)(?=[^\s/\\'"])|\b[A-Za-z]:[\\/]/;
 
 // A URL's query string or fragment, through to the next space. Either can carry
 // a signature or token under a name redactSensitive doesn't know, such as in a
