@@ -90,10 +90,8 @@ describe("getYtDlpFailureReason", () => {
 
   it("keeps text that only looks like an id when there is no extractor tag", () => {
     expect(
-      getYtDlpFailureReason(
-        "ERROR: Unsupported URL: https://example.com/watch?v=1\n"
-      )
-    ).toBe("Unsupported URL: https://example.com/watch?v=1");
+      getYtDlpFailureReason("ERROR: Unsupported URL: https://example.com/video\n")
+    ).toBe("Unsupported URL: https://example.com/video");
   });
 
   it("returns null when stderr has no ERROR line", () => {
@@ -118,6 +116,14 @@ describe("getYtDlpFailureReason", () => {
     expect(getYtDlpFailureReason(stderr)).toBeNull();
   });
 
+  it("drops a line that echoes a URL with a query string, such as a signed URL", () => {
+    expect(
+      getYtDlpFailureReason(
+        "ERROR: Unsupported URL: https://cdn.example/video.mp4?Signature=abc123&Policy=xyz\n"
+      )
+    ).toBeNull();
+  });
+
   it("drops a line that carries a local path, such as the cookies file", () => {
     expect(
       getYtDlpFailureReason(
@@ -127,6 +133,16 @@ describe("getYtDlpFailureReason", () => {
     expect(
       getYtDlpFailureReason(
         "ERROR: unable to open for writing: [Errno 13] Permission denied: C:\\mytube\\video.mp4\n"
+      )
+    ).toBeNull();
+    expect(
+      getYtDlpFailureReason(
+        "ERROR: unable to open for writing: Permission denied: C:/Users/alice/video.mp4\n"
+      )
+    ).toBeNull();
+    expect(
+      getYtDlpFailureReason(
+        "ERROR: unable to open for writing: Permission denied: \\\\nas\\share\\video.mp4\n"
       )
     ).toBeNull();
   });

@@ -1399,6 +1399,35 @@ describe("ytDlpUtils", () => {
       expect(secondArgs).toContain("https://example.com/video");
     });
 
+    it("should reject with the retry's own error when the format retry fails", async () => {
+      const first = createMockProcess();
+      const second = createMockProcess();
+      mockSpawnWithVersionCheck(first, second);
+
+      const promise = executeYtDlpJson("https://example.com/video", {
+        format: "best",
+      });
+      await flushAsyncSpawns();
+
+      first.stderr?.emit(
+        "data",
+        Buffer.from("ERROR: [generic] video: Requested format is not available\n")
+      );
+      first.emit("close", 1);
+      await flushAsyncSpawns();
+      const retryStderr =
+        "ERROR: [generic] video: The uploader has not made this video available in your country\n";
+      second.stderr?.emit("data", Buffer.from(retryStderr));
+      second.emit("close", 2);
+
+      await expect(promise).rejects.toMatchObject({
+        message:
+          "The uploader has not made this video available in your country",
+        code: 2,
+        stderr: retryStderr,
+      });
+    });
+
     it("should preserve config and reset only format selection on a config format error", async () => {
       const first = createMockProcess();
       const second = createMockProcess();

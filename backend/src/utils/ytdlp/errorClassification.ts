@@ -77,9 +77,15 @@ export function isHttpForbiddenError(error: unknown): boolean {
 /** Longest yt-dlp reason kept in a failure message. */
 const MAX_FAILURE_REASON_LENGTH = 300;
 
-// A local absolute path (POSIX or Windows), such as the cookies file or an
-// output path. The slashes of a URL never start a token, so URLs don't match.
-const LOCAL_PATH_PATTERN = /(?:^|[\s'"(=[])\/(?=[\w.~-])|\b[A-Za-z]:\\/;
+// A local absolute path (POSIX, Windows drive or UNC), such as the cookies file
+// or an output path. The slashes of a URL never start a token, so URLs don't
+// match.
+const LOCAL_PATH_PATTERN =
+  /(?:^|[\s'"(=[])(?:\\\\|\/)(?=[\w.~-])|\b[A-Za-z]:[\\/]/;
+
+// A URL with a query string, which can carry a signature or token under a name
+// redactSensitive doesn't know, such as a signed CDN URL.
+const URL_WITH_QUERY_PATTERN = /:\/\/[^\s?#]*\?/;
 
 /**
  * yt-dlp's own reason for a failure: the last `ERROR:` line on stderr without
@@ -88,8 +94,8 @@ const LOCAL_PATH_PATTERN = /(?:^|[\s'"(=[])\/(?=[\w.~-])|\b[A-Za-z]:\\/;
  * country".
  *
  * The reason is stored in download history and shown to the user, so a line
- * that carries a credential (such as a proxy URL) or a local path is dropped
- * rather than redacted. So is one that would read as a cancellation, since
+ * that carries a credential (such as a proxy URL), a URL with a query string or
+ * a local path is dropped rather than redacted. So is one that would read as a cancellation, since
  * isAnyCancellationError matches on message text. Returns null when no usable
  * line is left.
  */
@@ -106,6 +112,7 @@ export function getYtDlpFailureReason(stderr: string): string | null {
   if (
     !reason ||
     redactSensitive(reason) !== reason ||
+    URL_WITH_QUERY_PATTERN.test(reason) ||
     LOCAL_PATH_PATTERN.test(reason) ||
     isAnyCancellationError(new Error(reason))
   ) {

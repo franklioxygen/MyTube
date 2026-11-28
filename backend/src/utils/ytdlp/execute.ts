@@ -172,13 +172,10 @@ async function executeYtDlpJsonWithRelease(
               );
               resolve(result);
               return;
-            } catch {
-              reject(
-                new YtDlpExecutionError(exitCodeMessage(stderr, code), {
-                  stderr,
-                  code,
-                })
-              );
+            } catch (retryError) {
+              // The retry's failure is the current one; the first attempt's
+              // stderr only holds the format error that triggered it.
+              reject(retryError);
               return;
             }
           } else if (!effectiveFlags.ignoreConfig) {
@@ -198,13 +195,10 @@ async function executeYtDlpJsonWithRelease(
               );
               resolve(result);
               return;
-            } catch {
-              reject(
-                new YtDlpExecutionError(exitCodeMessage(stderr, code), {
-                  stderr,
-                  code,
-                })
-              );
+            } catch (retryError) {
+              // The retry's failure is the current one; the first attempt's
+              // stderr only holds the format error that triggered it.
+              reject(retryError);
               return;
             }
           }
