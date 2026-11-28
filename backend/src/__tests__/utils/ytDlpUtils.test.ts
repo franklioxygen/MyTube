@@ -2154,6 +2154,26 @@ describe("ytDlpUtils", () => {
       expect((error as Error).message).not.toContain("s3cret");
     });
 
+    it("should keep the exit code when the proxy's credentials would be split", async () => {
+      const proc = createMockProcess();
+      mockSpawnWithVersionCheck(proc);
+
+      const subprocess = executeYtDlpSpawn("https://example.com/video", {
+        proxy: "http://alice:pa#ss@proxy.example:8080",
+      });
+      const promise = Promise.resolve(subprocess);
+      await flushAsyncSpawns();
+      proc.stderr?.emit(
+        "data",
+        Buffer.from("ERROR: Failed to parse: 'alice:pa' is not a valid host or port\n")
+      );
+      proc.emit("close", 1);
+
+      await expect(promise).rejects.toMatchObject({
+        message: "yt-dlp process exited with code 1",
+      });
+    });
+
     it("logs members-only stderr as info, not error, on non-zero exit (issue #393)", async () => {
       const proc = createMockProcess();
       mockSpawnWithVersionCheck(proc);

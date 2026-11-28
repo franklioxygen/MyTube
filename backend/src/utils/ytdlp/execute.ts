@@ -45,9 +45,14 @@ export class YtDlpExecutionError extends Error {
 }
 
 /** yt-dlp's own reason for a non-zero exit when it gave one, else the exit code. */
-function exitCodeMessage(stderr: string, code: number | null): string {
+function exitCodeMessage(
+  stderr: string,
+  code: number | null,
+  proxy: unknown
+): string {
   return (
-    getYtDlpFailureReason(stderr) ?? `yt-dlp process exited with code ${code}`
+    getYtDlpFailureReason(stderr, proxy) ??
+    `yt-dlp process exited with code ${code}`
   );
 }
 
@@ -205,10 +210,10 @@ async function executeYtDlpJsonWithRelease(
         }
 
         reject(
-          new YtDlpExecutionError(exitCodeMessage(stderr, code), {
-            stderr,
-            code,
-          })
+          new YtDlpExecutionError(
+            exitCodeMessage(stderr, code, effectiveFlags.proxy),
+            { stderr, code }
+          )
         );
         return;
       }
@@ -556,7 +561,7 @@ export function executeYtDlpSpawn(
                       ? `yt-dlp process exited due to signal ${signal}`
                       : youtubeCookiesExpired
                         ? YOUTUBE_COOKIES_EXPIRED_MESSAGE
-                        : exitCodeMessage(stderr, code),
+                        : exitCodeMessage(stderr, code, effectiveFlags.proxy),
                     { stderr, code: signal || code }
                   )
                 );

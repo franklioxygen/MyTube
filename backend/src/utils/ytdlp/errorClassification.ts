@@ -78,14 +78,27 @@ export function isHttpForbiddenError(error: unknown): boolean {
 const MAX_FAILURE_REASON_LENGTH = 300;
 
 // A local absolute path (POSIX, Windows drive or UNC), such as the cookies file
-// or an output path. The slashes of a URL never start a token, so URLs don't
-// match.
+// or an output path, in any script. The slashes of a URL never start a token,
+// so URLs don't match.
 const LOCAL_PATH_PATTERN =
-  /(?:^|[\s'"(=[])(?:\\\\|\/)(?=[\w.~-])|\b[A-Za-z]:[\\/]/;
+  /(?:^|[\s'"(=[])(?:\\\\|\/)(?=[^\s/\\'"])|\b[A-Za-z]:[\\/]/;
 
 // A URL with a query string, which can carry a signature or token under a name
 // redactSensitive doesn't know, such as a signed CDN URL.
 const URL_WITH_QUERY_PATTERN = /:\/\/[^\s?#]*\?/;
+
+/**
+ * Whether the proxy's credentials hold a character that ends a URL's userinfo
+ * early (`/`, `?`, `#`, `@` or a space). A parser then splits them in the wrong
+ * place, and yt-dlp can echo a piece such as `'alice:pa'` that no pattern can
+ * tell from ordinary text.
+ */
+function hasAmbiguousProxyCredentials(proxy: unknown): boolean {
+  if (typeof proxy !== "string") return false;
+  const authority = proxy.replace(/^[a-z][a-z0-9+.-]*:\/\//i, "");
+  const lastAt = authority.lastIndexOf("@");
+  return lastAt > 0 && /[\s/?#@]/.test(authority.slice(0, lastAt));
+}
 
 /**
  * yt-dlp's own reason for a failure: the last `ERROR:` line on stderr without
@@ -95,16 +108,20 @@ const URL_WITH_QUERY_PATTERN = /:\/\/[^\s?#]*\?/;
  *
  * The reason is stored in download history and shown to the user, so a line
  * that carries a credential (such as a proxy URL), a URL with a query string or
- * a local path is dropped rather than redacted. So is one that would read as a cancellation, since
- * isAnyCancellationError matches on message text. Returns null when no usable
- * line is left.
+ * a local path is dropped rather than redacted. So is one that would read as a
+ * cancellation, since isAnyCancellationError matches on message text. No line
+ * is used at all when the run's `proxy` has ambiguous credentials. Returns null
+ * when no usable line is left.
  */
-export function getYtDlpFailureReason(stderr: string): string | null {
+export function getYtDlpFailureReason(
+  stderr: string,
+  proxy?: unknown
+): string | null {
   const errorLine = stderr
     .split(/[\r\n]+/)
     .filter((line) => line.startsWith("ERROR:"))
     .pop();
-  if (!errorLine) return null;
+  if (!errorLine || hasAmbiguousProxyCredentials(proxy)) return null;
 
   const reason = errorLine
     .replace(/^ERROR:\s*(?:\[[^\]]+\]\s*(?:[^\s:]+:\s+)?)?/, "")

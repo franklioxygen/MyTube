@@ -145,6 +145,25 @@ describe("getYtDlpFailureReason", () => {
         "ERROR: unable to open for writing: Permission denied: \\\\nas\\share\\video.mp4\n"
       )
     ).toBeNull();
+    expect(
+      getYtDlpFailureReason(
+        "ERROR: unable to open for writing: Permission denied: '/媒体/alice/video.mp4'\n"
+      )
+    ).toBeNull();
+  });
+
+  it("uses no line when the proxy's credentials would be split by a parser", () => {
+    const stderr = "ERROR: Failed to parse: 'alice:pa' is not a valid host or port\n";
+
+    expect(getYtDlpFailureReason(stderr, "http://alice:pa#ss@proxy.example:8080")).toBeNull();
+    expect(getYtDlpFailureReason(stderr, "alice:pa/ss@proxy.example:8080")).toBeNull();
+    // Well-formed credentials can't be split, so the line is used.
+    expect(
+      getYtDlpFailureReason(geoBlockedStderr, "http://alice:s3cret@proxy.example:8080")
+    ).toBe("The uploader has not made this video available in your country");
+    expect(getYtDlpFailureReason(geoBlockedStderr, "")).toBe(
+      "The uploader has not made this video available in your country"
+    );
   });
 
   it("keeps a line whose only slashes belong to URLs", () => {
