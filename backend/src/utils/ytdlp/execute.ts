@@ -11,6 +11,7 @@ import { logger } from "../logger";
 import { ensureCookiesFileIsNormalized } from "./cookies";
 import {
   YOUTUBE_COOKIES_EXPIRED_MESSAGE,
+  getYtDlpFailureReason,
   isHttpForbiddenError,
   isMembersOnlyError,
 } from "./errorClassification";
@@ -41,6 +42,18 @@ export class YtDlpExecutionError extends Error {
     this.stderr = options.stderr;
     this.code = options.code;
   }
+}
+
+/** yt-dlp's own reason for a non-zero exit when it gave one, else the exit code. */
+function exitCodeMessage(
+  stderr: string,
+  code: number | null,
+  proxy: unknown
+): string {
+  return (
+    getYtDlpFailureReason(stderr, proxy) ??
+    `yt-dlp process exited with code ${code}`
+  );
 }
 
 /**
@@ -164,13 +177,10 @@ async function executeYtDlpJsonWithRelease(
               );
               resolve(result);
               return;
-            } catch {
-              reject(
-                new YtDlpExecutionError(
-                  `yt-dlp process exited with code ${code}`,
-                  { stderr, code }
-                )
-              );
+            } catch (retryError) {
+              // The retry's failure is the current one; the first attempt's
+              // stderr only holds the format error that triggered it.
+              reject(retryError);
               return;
             }
           } else if (!effectiveFlags.ignoreConfig) {
@@ -190,23 +200,20 @@ async function executeYtDlpJsonWithRelease(
               );
               resolve(result);
               return;
-            } catch {
-              reject(
-                new YtDlpExecutionError(
-                  `yt-dlp process exited with code ${code}`,
-                  { stderr, code }
-                )
-              );
+            } catch (retryError) {
+              // The retry's failure is the current one; the first attempt's
+              // stderr only holds the format error that triggered it.
+              reject(retryError);
               return;
             }
           }
         }
 
         reject(
-          new YtDlpExecutionError(`yt-dlp process exited with code ${code}`, {
-            stderr,
-            code,
-          })
+          new YtDlpExecutionError(
+            exitCodeMessage(stderr, code, effectiveFlags.proxy),
+            { stderr, code }
+          )
         );
         return;
       }
@@ -541,8 +548,8 @@ export function executeYtDlpSpawn(
                   logger.error("yt-dlp error output:", stderr);
                 }
                 // A 403 on a YouTube download that sent cookies usually means
-                // the cookie session was invalidated; say so instead of the
-                // bare exit code so the user knows to re-upload cookies.
+                // the cookie session was invalidated; say so instead of
+                // yt-dlp's own 403 line so the user knows to re-upload cookies.
                 const youtubeCookiesExpired =
                   !signal &&
                   cookiesPath !== null &&
@@ -554,7 +561,7 @@ export function executeYtDlpSpawn(
                       ? `yt-dlp process exited due to signal ${signal}`
                       : youtubeCookiesExpired
                         ? YOUTUBE_COOKIES_EXPIRED_MESSAGE
-                        : `yt-dlp process exited with code ${code}`,
+                        : exitCodeMessage(stderr, code, effectiveFlags.proxy),
                     { stderr, code: signal || code }
                   )
                 );

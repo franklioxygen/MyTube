@@ -1399,6 +1399,35 @@ describe("ytDlpUtils", () => {
       expect(secondArgs).toContain("https://example.com/video");
     });
 
+    it("should reject with the retry's own error when the format retry fails", async () => {
+      const first = createMockProcess();
+      const second = createMockProcess();
+      mockSpawnWithVersionCheck(first, second);
+
+      const promise = executeYtDlpJson("https://example.com/video", {
+        format: "best",
+      });
+      await flushAsyncSpawns();
+
+      first.stderr?.emit(
+        "data",
+        Buffer.from("ERROR: [generic] video: Requested format is not available\n")
+      );
+      first.emit("close", 1);
+      await flushAsyncSpawns();
+      const retryStderr =
+        "ERROR: [generic] video: The uploader has not made this video available in your country\n";
+      second.stderr?.emit("data", Buffer.from(retryStderr));
+      second.emit("close", 2);
+
+      await expect(promise).rejects.toMatchObject({
+        message:
+          "The uploader has not made this video available in your country",
+        code: 2,
+        stderr: retryStderr,
+      });
+    });
+
     it("should preserve config and reset only format selection on a config format error", async () => {
       const first = createMockProcess();
       const second = createMockProcess();
@@ -1581,6 +1610,24 @@ describe("ytDlpUtils", () => {
       await expect(promise).rejects.toMatchObject({
         message: "yt-dlp process exited with code 2",
         stderr: "fatal error",
+      });
+    });
+
+    it("should reject with yt-dlp's ERROR line when stderr has one", async () => {
+      const proc = createMockProcess();
+      mockSpawnWithVersionCheck(proc);
+
+      const promise = executeYtDlpJson("https://example.com/video");
+      await flushAsyncSpawns();
+      proc.stderr?.emit(
+        "data",
+        Buffer.from("ERROR: [generic] video: Video unavailable\n")
+      );
+      proc.emit("close", 1);
+
+      await expect(promise).rejects.toMatchObject({
+        message: "Video unavailable",
+        code: 1,
       });
     });
 
@@ -2063,6 +2110,70 @@ describe("ytDlpUtils", () => {
       });
     });
 
+    it("should reject with yt-dlp's own reason for a geo-blocked video", async () => {
+      const proc = createMockProcess();
+      mockSpawnWithVersionCheck(proc);
+
+      const geoBlockedStderr =
+        "ERROR: [youtube] WTbGSD_UHZk: The uploader has not made this video available in your country\n" +
+        "This video is available in Poland.\n" +
+        "You might want to use a VPN or a proxy server (with --proxy) to workaround.\n";
+      const subprocess = executeYtDlpSpawn("https://example.com/video");
+      const promise = Promise.resolve(subprocess);
+      await flushAsyncSpawns();
+      proc.stderr?.emit("data", Buffer.from(geoBlockedStderr));
+      proc.emit("close", 1);
+
+      await expect(promise).rejects.toMatchObject({
+        message:
+          "The uploader has not made this video available in your country",
+        code: 1,
+        stderr: geoBlockedStderr,
+      });
+    });
+
+    it("should keep proxy credentials out of the failure message", async () => {
+      const proc = createMockProcess();
+      mockSpawnWithVersionCheck(proc);
+
+      const subprocess = executeYtDlpSpawn("https://example.com/video");
+      const promise = Promise.resolve(subprocess);
+      await flushAsyncSpawns();
+      proc.stderr?.emit(
+        "data",
+        Buffer.from(
+          "ERROR: [generic] video: Unable to connect to proxy http://alice:s3cret@proxy.example:8080\n"
+        )
+      );
+      proc.emit("close", 1);
+
+      const error = await promise.catch((err: Error) => err);
+      expect(error).toMatchObject({
+        message: "yt-dlp process exited with code 1",
+      });
+      expect((error as Error).message).not.toContain("s3cret");
+    });
+
+    it("should keep the exit code when the proxy's credentials would be split", async () => {
+      const proc = createMockProcess();
+      mockSpawnWithVersionCheck(proc);
+
+      const subprocess = executeYtDlpSpawn("https://example.com/video", {
+        proxy: "http://alice:pa#ss@proxy.example:8080",
+      });
+      const promise = Promise.resolve(subprocess);
+      await flushAsyncSpawns();
+      proc.stderr?.emit(
+        "data",
+        Buffer.from("ERROR: Failed to parse: 'alice:pa' is not a valid host or port\n")
+      );
+      proc.emit("close", 1);
+
+      await expect(promise).rejects.toMatchObject({
+        message: "yt-dlp process exited with code 1",
+      });
+    });
+
     it("logs members-only stderr as info, not error, on non-zero exit (issue #393)", async () => {
       const proc = createMockProcess();
       mockSpawnWithVersionCheck(proc);
@@ -2078,7 +2189,8 @@ describe("ytDlpUtils", () => {
       proc.emit("close", 1);
 
       await expect(promise).rejects.toMatchObject({
-        message: "yt-dlp process exited with code 1",
+        message:
+          "Join this channel to get access to members-only content like this video, and other exclusive perks.",
         code: 1,
         stderr: membersOnlyStderr,
       });
@@ -2132,16 +2244,16 @@ describe("ytDlpUtils", () => {
         expect(getSpawnArgsForUrl(youtubeUrl)).toContain("--cookies");
       });
 
-      it("keeps the exit-code message when no cookies were sent", async () => {
+      it("keeps yt-dlp's own message when no cookies were sent", async () => {
         const proc = createMockProcess();
         mockSpawnWithVersionHelpAndDenoCheck("plural", proc);
 
         await expect(failWith403(youtubeUrl, proc)).rejects.toMatchObject({
-          message: "yt-dlp process exited with code 1",
+          message: "unable to download video data: HTTP Error 403: Forbidden",
         });
       });
 
-      it("keeps the exit-code message for other sites", async () => {
+      it("keeps yt-dlp's own message for other sites", async () => {
         useCookiesFile();
         const proc = createMockProcess();
         mockSpawnWithVersionCheck(proc);
@@ -2149,7 +2261,7 @@ describe("ytDlpUtils", () => {
         await expect(
           failWith403("https://example.com/video", proc)
         ).rejects.toMatchObject({
-          message: "yt-dlp process exited with code 1",
+          message: "unable to download video data: HTTP Error 403: Forbidden",
         });
       });
     });
